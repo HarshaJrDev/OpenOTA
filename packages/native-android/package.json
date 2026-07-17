@@ -1,0 +1,23 @@
+{
+  "name": "@openota/native-android",
+  "version": "0.1.0",
+  "description": "OpenOTA Runtime Engine — Android native module (BundleManager, verification, staging, activation, rollback)",
+  "license": "MIT",
+  "main": "index.js",
+  "files": [
+    "android",
+    "src"
+  ],
+  "codegenConfig": {
+    "name": "OpenOTASpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.openota.runtime"
+    }
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}

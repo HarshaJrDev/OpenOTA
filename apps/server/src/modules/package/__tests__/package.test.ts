@@ -1,0 +1,173 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
+import request from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import type { Express } from "express";
+
+let app: Express;
+let storageRoot: string;
+
+beforeAll(async () => {
+  storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openota-test-"));
+  process.env.NODE_ENV = "test";
+  process.env.STORAGE_ROOT = storageRoot;
+
+  ({ app } = await import("../../../app.js"));
+});
+
+afterAll(async () => {
+  await fs.rm(storageRoot, { recursive: true, force: true });
+});
+
+describe("package module", () => {
+  it("returns healthy status", async () => {
+    const res = await request(app).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, data: { status: "ok" } });
+  });
+
+  it("uploads a package and lists it", async () => {
+    const uploadRes = await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "1.0.0")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "a".repeat(64))
+      .field("size", "18")
+      .attach("file", Buffer.from("fake zip contents"), {
+        filename: "bundle.zip",
+        contentType: "application/zip",
+      });
+
+    expect(uploadRes.status).toBe(201);
+    expect(uploadRes.body.success).toBe(true);
+    expect(uploadRes.body.data.bundleVersion).toBe("1.0.0");
+    expect(uploadRes.body.data.sha256).toBe("a".repeat(64));
+
+    const listRes = await request(app).get("/api/v1/packages");
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.data).toHaveLength(1);
+  });
+
+  it("rejects duplicate uploads", async () => {
+    const res = await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "1.0.0")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "a".repeat(64))
+      .field("size", "18")
+      .attach("file", Buffer.from("fake zip contents"), {
+        filename: "bundle.zip",
+        contentType: "application/zip",
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("PACKAGE_ALREADY_EXISTS");
+  });
+
+  it("checks for update against an older version", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "0.9.0" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.available).toBe(true);
+    expect(res.body.data.latestVersion).toBe("1.0.0");
+  });
+
+  it("reports no update available for current version", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "1.0.0" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.available).toBe(false);
+  });
+
+  it("downloads a package", async () => {
+    const res = await request(app).get("/api/v1/packages/android/1.0.0/download");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/zip");
+  });
+
+  it("returns 404 for missing package", async () => {
+    const res = await request(app).get("/api/v1/packages/android/9.9.9");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("PACKAGE_NOT_FOUND");
+  });
+
+  it("rejects invalid version format", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "not-a-version" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rolls back the active version to an already-uploaded release", async () => {
+    const uploadRes = await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "2.0.0")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "b".repeat(64))
+      .field("size", "21")
+      .attach("file", Buffer.from("fake zip contents v2"), {
+        filename: "bundle.zip",
+        contentType: "application/zip",
+      });
+    expect(uploadRes.status).toBe(201);
+
+    // 2.0.0 is now active — a device on 1.0.0 should see it as available.
+    const beforeRollback = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "1.0.0" });
+    expect(beforeRollback.body.data.available).toBe(true);
+    expect(beforeRollback.body.data.latestVersion).toBe("2.0.0");
+
+    const rollbackRes = await request(app)
+      .post("/api/v1/packages/rollback")
+      .send({ platform: "android", version: "1.0.0" });
+    expect(rollbackRes.status).toBe(200);
+    expect(rollbackRes.body.data.bundleVersion).toBe("1.0.0");
+
+    // Rolling back to 1.0.0 means a device already on 1.0.0 no longer sees an update...
+    const afterRollback = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "1.0.0" });
+    expect(afterRollback.body.data.available).toBe(false);
+    expect(afterRollback.body.data.latestVersion).toBe("1.0.0");
+
+    // ...but 2.0.0 still exists on the server, untouched — rollback moves a pointer, deletes nothing.
+    const stillExists = await request(app).get("/api/v1/packages/android/2.0.0");
+    expect(stillExists.status).toBe(200);
+
+    // Clean up 2.0.0 so later tests in this file see a single-version world again.
+    await request(app).delete("/api/v1/packages/android/2.0.0");
+  });
+
+  it("rejects rolling back to a version that was never uploaded", async () => {
+    const res = await request(app)
+      .post("/api/v1/packages/rollback")
+      .send({ platform: "android", version: "9.9.9" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("PACKAGE_NOT_FOUND");
+  });
+
+  it("deletes a package", async () => {
+    const res = await request(app).delete("/api/v1/packages/android/1.0.0");
+    expect(res.status).toBe(200);
+
+    const getRes = await request(app).get("/api/v1/packages/android/1.0.0");
+    expect(getRes.status).toBe(404);
+  });
+});

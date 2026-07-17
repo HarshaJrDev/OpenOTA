@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "version": "3.0.0",
+  "platform": "android",
+  "runtimeVersion": "1.0.0",
+  "sha256": "a14e33a714daab26d304395f9728cb68b8d8a1c05e40f3e2944411a8e5b59749",
+  "size": 45,
+  "createdAt": "2026-07-16T20:02:43.074Z",
+  "bundleName": "index.android.bundle",
+  "assets": [
+    "logo.png"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Bash(node -e \"const m = require\\('archiver'\\); console.log\\(typeof m, typeof m.default\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const a = require\\('/Users/harsharavuri/Desktop/OpenOTA/node_modules/.pnpm/archiver@8.0.0/node_modules/archiver/index.js'\\); console.log\\(typeof a, Object.keys\\(a\\)\\)\")",
+      "Bash(pkill -f \"tsx src/server.ts\")",
+      "Bash(rm -rf /tmp/openota-fake-rn /tmp/openota-server-storage /tmp/server.log)",
+      "Bash(pnpm -r --filter=!./examples/** exec tsc --noEmit)",
+      "Bash(mkdir -p android/src/main/java/com/openota/runtime)",
+      "Bash(mv src/main/java/com/openota/runtime/.gitkeep android/src/main/java/com/openota/runtime/)",
+      "Bash(rm -rf src)",
+      "Bash(npx react-native *)"
+    ]
+  }
+}

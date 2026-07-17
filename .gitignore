@@ -36,3 +36,15 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+node_modules
+dist
+build
+coverage
+.env
+.sqlite
+*.log
+.turbo
+storage
+# apps/e2e scratch workspace used by fixture generation
+.e2e-work/

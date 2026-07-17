@@ -1,0 +1,9 @@
+{
+  "serverUrl": "http://localhost:3900/api/v1",
+  "deployment": "production",
+  "platforms": [
+    "android",
+    "ios"
+  ],
+  "bundleOutput": "./openota"
+}

@@ -1,0 +1,66 @@
+// This module has no package.json / codegenConfig of its own — it is not an npm package, just an
+// Android instrumented-test suite that exercises `@openota/native-android`'s public Kotlin API
+// directly, driven by real CLI/server-built fixtures (see `apps/e2e/scripts/generate-fixtures.ts`
+// and `src/androidTest/assets/fixtures/`). It is wired into the host app's Gradle build
+// (`apps/example/android/settings.gradle`) rather than standing up its own RN project.
+buildscript {
+    ext.kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.kotlinVersion : "1.9.24"
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+def getExtOrDefault(name, defaultValue) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : defaultValue
+}
+
+android {
+    namespace "com.openota.e2e"
+    compileSdkVersion getExtOrDefault("compileSdkVersion", 35)
+
+    defaultConfig {
+        minSdkVersion getExtOrDefault("minSdkVersion", 24)
+        targetSdkVersion getExtOrDefault("targetSdkVersion", 35)
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        androidTest.assets.srcDirs += ["src/androidTest/assets"]
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(":openota_native-android")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.test:core:1.6.1"
+}

@@ -1,0 +1,71 @@
+buildscript {
+    ext.kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.kotlinVersion : "1.9.24"
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+// The New Architecture always expects each autolinked native module to contribute a
+// `react_codegen_<Name>` CMake target built from its own generated JNI glue, even for a
+// hand-authored (non-codegen) TurboModule like this one — the codegen plugin just needs to run
+// once to produce that directory; `codegenConfig.jsSrcsDir` in package.json points at an empty
+// `src/` so it generates zero JS-derived modules but still emits a valid CMakeLists.txt.
+apply plugin: "com.facebook.react"
+
+def getExtOrDefault(name, defaultValue) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : defaultValue
+}
+
+android {
+    namespace "com.openota.runtime"
+    compileSdkVersion getExtOrDefault("compileSdkVersion", 35)
+
+    defaultConfig {
+        minSdkVersion getExtOrDefault("minSdkVersion", 24)
+        targetSdkVersion getExtOrDefault("targetSdkVersion", 35)
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation "com.facebook.react:react-android"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation "androidx.annotation:annotation:1.9.1"
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
+    // Real org.json implementation for local (non-instrumented) unit tests: Android's own
+    // org.json classes are stubs on the plain JVM and throw at runtime unless mocked/Robolectric
+    // is used. This jar shadows those stubs on the unit test classpath so Manifest.kt's parsing
+    // logic can be exercised without spinning up an emulator.
+    testImplementation "org.json:json:20231013"
+
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+}

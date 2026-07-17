@@ -1,0 +1,8 @@
+{
+  "serverUrl": "http://localhost:3001/api/v1",
+  "platforms": [
+    "android",
+    "ios"
+  ],
+  "bundleOutput": "./openota"
+}

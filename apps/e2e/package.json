@@ -1,0 +1,28 @@
+{
+  "name": "@openota/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end certification suite for the OpenOTA Android pipeline — CLI -> Server -> SDK -> Native Runtime",
+  "type": "module",
+  "scripts": {
+    "fixtures:generate": "tsx scripts/generate-fixtures.ts",
+    "test:server": "vitest run src/__tests__/server-pipeline.test.ts",
+    "test:all": "pnpm fixtures:generate && pnpm test:server"
+  },
+  "devDependencies": {
+    "@openota/shared": "workspace:*",
+    "@types/adm-zip": "^0.5.6",
+    "@types/express": "^5.0.6",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.15.3",
+    "@types/supertest": "^7.2.1",
+    "adm-zip": "^0.5.16",
+    "axios": "^1.18.1",
+    "form-data": "^4.0.1",
+    "fs-extra": "^11.3.6",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.1",
+    "typescript": "5.9.2",
+    "vitest": "^4.1.10"
+  }
+}

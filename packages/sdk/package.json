@@ -1,0 +1,46 @@
+{
+  "name": "@openota/sdk",
+  "version": "0.1.0",
+  "description": "Official React Native SDK for OpenOTA — check, download, verify and install OTA updates",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "ota",
+    "react-native",
+    "codepush",
+    "openota"
+  ],
+  "author": "",
+  "dependencies": {
+    "@babel/runtime": "^7.25.0",
+    "@openota/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-fs": "*",
+    "react-native-mmkv": "*",
+    "react-native-quick-crypto": "*",
+    "react-native-zip-archive": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "react": "19.2.0",
+    "react-native": "^0.86.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-mmkv": "^3.3.3",
+    "react-native-quick-crypto": "^0.7.16",
+    "react-native-zip-archive": "^7.0.2",
+    "typescript": "5.9.2",
+    "vitest": "^4.1.10"
+  }
+}

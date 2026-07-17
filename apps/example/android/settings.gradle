@@ -1,0 +1,12 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'OpenOTAPlayground'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')
+
+// The e2e certification suite (apps/e2e) instruments @openota/native-android directly using
+// real CLI/server-built fixtures. It has no package.json of its own, so it isn't autolinked —
+// wire it in explicitly alongside the autolinked native modules.
+include ':e2e'
+project(':e2e').projectDir = new File(rootDir, '../../e2e/android')

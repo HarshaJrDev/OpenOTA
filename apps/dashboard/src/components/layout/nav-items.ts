@@ -1,0 +1,30 @@
+import {
+  Activity,
+  Boxes,
+  Gauge,
+  GitBranch,
+  KeyRound,
+  ScrollText,
+  Settings,
+  Smartphone,
+  Tags,
+} from "lucide-react";
+
+export interface NavItem {
+  title: string;
+  href: string;
+  icon: typeof Gauge;
+  shortcut: string;
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  { title: "Overview", href: "/", icon: Gauge, shortcut: "g o" },
+  { title: "Packages", href: "/packages", icon: Boxes, shortcut: "g p" },
+  { title: "Releases", href: "/releases", icon: Tags, shortcut: "g r" },
+  { title: "Devices", href: "/devices", icon: Smartphone, shortcut: "g d" },
+  { title: "Channels", href: "/channels", icon: GitBranch, shortcut: "g c" },
+  { title: "Analytics", href: "/analytics", icon: Activity, shortcut: "g a" },
+  { title: "Logs", href: "/logs", icon: ScrollText, shortcut: "g l" },
+  { title: "API Keys", href: "/api-keys", icon: KeyRound, shortcut: "g k" },
+  { title: "Settings", href: "/settings", icon: Settings, shortcut: "g s" },
+];

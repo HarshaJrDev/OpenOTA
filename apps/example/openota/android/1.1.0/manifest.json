@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "version": "1.1.0",
+  "platform": "android",
+  "runtimeVersion": "0.1.0",
+  "sha256": "b4cf180fe6522387215b96301fddf99da4bf16cea728c2e18f0555ab534750c0",
+  "size": 895857,
+  "createdAt": "2026-07-16T21:29:13.847Z",
+  "bundleName": "index.android.bundle",
+  "assets": []
+}

@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "version": "2.0.0",
+  "platform": "ios",
+  "runtimeVersion": "1.0.0",
+  "sha256": "c811794303e59d9b272a8bc9a3361067b7bc690ec0fe7e344f4f4d430602e1b2",
+  "size": 45,
+  "createdAt": "2026-07-16T20:02:42.436Z",
+  "bundleName": "index.android.bundle",
+  "assets": [
+    "logo.png"
+  ]
+}
