@@ -1,0 +1,10 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @openota/server prisma:generate && pnpm --filter @openota/server build"
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @openota/server start:prod"
+  }
+}
