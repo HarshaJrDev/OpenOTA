@@ -45,6 +45,7 @@ coverage
 .sqlite
 *.log
 .turbo
-storage
+apps/server/storage
 # apps/e2e scratch workspace used by fixture generation
 .e2e-work/
+examples/OpenOTAExample
