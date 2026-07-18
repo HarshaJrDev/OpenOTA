@@ -14,11 +14,14 @@ buildscript {
 apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
 
-// The New Architecture always expects each autolinked native module to contribute a
-// `react_codegen_<Name>` CMake target built from its own generated JNI glue, even for a
-// hand-authored (non-codegen) TurboModule like this one — the codegen plugin just needs to run
-// once to produce that directory; `codegenConfig.jsSrcsDir` in package.json points at an empty
-// `src/` so it generates zero JS-derived modules but still emits a valid CMakeLists.txt.
+// The New Architecture's bridgeless dispatch (global.__turboModuleProxy) requires a real
+// generated NativeOpenOTASpecJSI matching this module's name — `codegenConfig.jsSrcsDir` in
+// package.json points at `src/`, which holds the actual codegen-parseable Spec
+// (NativeOpenOTA.ts). An earlier version of this comment claimed jsSrcsDir could stay empty for
+// a hand-authored TurboModule and codegen would still emit a valid CMakeLists.txt; that was
+// wrong — an empty jsSrcsDir produces a stub ModuleProvider that unconditionally returns
+// nullptr, so every JS call fails with "Native module 'OpenOTA' is not linked", 100%
+// reproducibly, regardless of how correctly OpenOTAModule.kt/OpenOTAPackage.kt are implemented.
 apply plugin: "com.facebook.react"
 
 def getExtOrDefault(name, defaultValue) {
