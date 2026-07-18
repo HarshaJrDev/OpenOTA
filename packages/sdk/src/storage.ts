@@ -1,7 +1,54 @@
 import { MMKV_INSTANCE_ID, MMKV_KEYS, type Manifest } from "@openota/shared";
-import { MMKV } from "react-native-mmkv";
+import * as MMKVModule from "react-native-mmkv";
 
-const mmkv = new MMKV({ id: MMKV_INSTANCE_ID });
+interface MmkvLike {
+  getString(key: string): string | undefined;
+  set(key: string, value: string): void;
+  delete?(key: string): void;
+  remove?(key: string): void;
+}
+
+/**
+ * react-native-mmkv's public API changed across major versions in ways that aren't
+ * feature-flaggable via a single import: v2/v3 export a constructible `MMKV` class with
+ * `.delete()`; v4 (Nitro-based) replaces it with a `createMMKV()` factory and renames
+ * `.delete()` to `.remove()`. Both shapes are duck-typed here at runtime — rather than pinning
+ * to one — so the SDK keeps working across the peer range declared in package.json.
+ */
+function createMmkvInstance(): MmkvLike {
+  const mod = MMKVModule as typeof MMKVModule & {
+    createMMKV?: (config: { id: string }) => MmkvLike;
+    MMKV?: new (config: { id: string }) => MmkvLike;
+  };
+
+  if (typeof mod.createMMKV === "function") {
+    return mod.createMMKV({ id: MMKV_INSTANCE_ID });
+  }
+
+  if (typeof mod.MMKV === "function") {
+    return new mod.MMKV({ id: MMKV_INSTANCE_ID });
+  }
+
+  throw new Error(
+    "@openota/sdk: react-native-mmkv has neither a `createMMKV` factory nor an `MMKV` class export — is a compatible version installed?",
+  );
+}
+
+function deleteKey(instance: MmkvLike, key: string): void {
+  if (instance.remove) {
+    instance.remove(key);
+    return;
+  }
+
+  if (instance.delete) {
+    instance.delete(key);
+    return;
+  }
+
+  throw new Error("@openota/sdk: the installed react-native-mmkv instance exposes neither `remove` nor `delete`.");
+}
+
+const mmkv = createMmkvInstance();
 
 function getJson<T>(key: string): T | null {
   const raw = mmkv.getString(key);
@@ -52,7 +99,7 @@ export const otaStorage = {
 
   setCurrentManifest(manifest: Manifest | null): void {
     if (manifest === null) {
-      mmkv.delete(MMKV_KEYS.currentManifest);
+      deleteKey(mmkv, MMKV_KEYS.currentManifest);
       return;
     }
 
@@ -60,8 +107,8 @@ export const otaStorage = {
   },
 
   clear(): void {
-    mmkv.delete(MMKV_KEYS.currentVersion);
-    mmkv.delete(MMKV_KEYS.currentBundlePath);
-    mmkv.delete(MMKV_KEYS.currentManifest);
+    deleteKey(mmkv, MMKV_KEYS.currentVersion);
+    deleteKey(mmkv, MMKV_KEYS.currentBundlePath);
+    deleteKey(mmkv, MMKV_KEYS.currentManifest);
   },
 };

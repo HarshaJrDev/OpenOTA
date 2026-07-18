@@ -49,3 +49,9 @@ apps/server/storage
 # apps/e2e scratch workspace used by fixture generation
 .e2e-work/
 examples/OpenOTAExample
+
+# pnpm/npm pack output — regenerate with `pnpm pack`, never commit
+packages/*/*.tgz
+
+# Sibling project used for real-device consumer testing; not part of this workspace
+/PebloBuddy/
