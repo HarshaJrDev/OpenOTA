@@ -7,7 +7,7 @@ import {
   VerificationError,
   type OtaErrorCode,
 } from "../errors.js";
-import NativeOpenOTA, { type RuntimeInfo } from "./NativeOpenOTA.js";
+import { getNativeOpenOTA, type RuntimeInfo } from "./NativeOpenOTA.js";
 
 export type { RuntimeInfo };
 
@@ -43,14 +43,16 @@ async function callNative<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-function requireNativeModule(): NonNullable<typeof NativeOpenOTA> {
-  if (!NativeOpenOTA) {
+function requireNativeModule(): NonNullable<ReturnType<typeof getNativeOpenOTA>> {
+  const nativeModule = getNativeOpenOTA();
+
+  if (!nativeModule) {
     throw new InstallError(
       "Native module 'OpenOTA' is not linked. Make sure @openota/sdk's native code is installed and the app was rebuilt.",
     );
   }
 
-  return NativeOpenOTA;
+  return nativeModule;
 }
 
 export async function nativeSetBundlePath(path: string): Promise<void> {
