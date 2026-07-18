@@ -24,7 +24,9 @@ app.get("/health", (_req, res) => {
   sendSuccess(res, { status: "ok" });
 });
 
+app.use("/api/packages", packageRouter);
 app.use("/api/v1/packages", packageRouter);
+app.use("/packages", packageRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

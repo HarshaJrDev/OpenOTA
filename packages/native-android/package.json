@@ -3,11 +3,38 @@
   "version": "0.1.0",
   "description": "OpenOTA Runtime Engine — Android native module (BundleManager, verification, staging, activation, rollback)",
   "license": "MIT",
-  "main": "index.js",
-  "files": [
+  "homepage": "https://github.com/HarshaJrDev/OpenOTA/tree/main/packages/native-android#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshaJrDev/OpenOTA.git",
+    "directory": "packages/native-android"
+  },
+  "bugs": {
+    "url": "https://github.com/HarshaJrDev/OpenOTA/issues"
+  },
+  "keywords": [
+    "ota",
+    "react-native",
+    "codepush",
+    "openota",
     "android",
-    "src"
+    "turbomodule",
+    "native-module"
   ],
+  "author": "",
+  "files": [
+    "android/build.gradle",
+    "android/src/main",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "codegenConfig": {
     "name": "OpenOTASpec",
     "type": "modules",

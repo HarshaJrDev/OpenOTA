@@ -1,0 +1,62 @@
+name: Package Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+      - "packages/cli/**"
+      - "packages/sdk/**"
+      - "packages/shared/**"
+      - "packages/native-android/**"
+  workflow_dispatch: {}
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  version-or-publish:
+    name: Version packages or publish to npm
+    runs-on: ubuntu-latest
+    # `environment: npm-publish` requires manual approval in the repo's Settings > Environments
+    # before this job's steps run, on top of Changesets' own "Version Packages" PR gate below.
+    environment: npm-publish
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write # enables npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build public packages
+        run: pnpm turbo run build --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      - name: Test public packages
+        run: pnpm turbo run test --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      # If there are pending changesets, this opens/updates a "Version Packages" PR and stops —
+      # nothing is published yet. Merging that PR (with version bumps + CHANGELOGs) is what
+      # triggers the actual `changeset publish` on the next run of this workflow.
+      - name: Create or update Version Packages PR, or publish if versions are already bumped
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          version: pnpm version-packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

@@ -1,9 +1,8 @@
 {
-  "serverUrl": "http://localhost:3900/api/v1",
+  "serverUrl": "https://openota-production.up.railway.app/api/v1",
   "deployment": "production",
   "platforms": [
-    "android",
-    "ios"
+    "android"
   ],
   "bundleOutput": "./openota"
 }

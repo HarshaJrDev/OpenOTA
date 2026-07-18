@@ -1,0 +1,74 @@
+name: Package Release Validation
+
+on:
+  pull_request:
+    paths:
+      - "packages/cli/**"
+      - "packages/sdk/**"
+      - "packages/shared/**"
+      - "packages/native-android/**"
+      - ".changeset/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/package-ci.yml"
+
+jobs:
+  validate:
+    name: Install, typecheck, lint, test, build, pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck public packages
+        run: pnpm turbo run check-types --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      - name: Lint public packages
+        run: pnpm turbo run lint --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      - name: Test public packages
+        run: pnpm turbo run test --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      - name: Build public packages
+        run: pnpm turbo run build --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli
+
+      - name: Verify CLI shebang
+        run: |
+          head -1 packages/cli/dist/cli.js | grep -qx '#!/usr/bin/env node' \
+            || (echo "::error::packages/cli/dist/cli.js is missing the #!/usr/bin/env node shebang" && exit 1)
+
+      - name: Pack every public package and inspect contents
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pack-check
+          for pkg in shared sdk cli native-android; do
+            echo "::group::pnpm pack packages/$pkg"
+            (cd "packages/$pkg" && pnpm pack --pack-destination /tmp/pack-check)
+            echo "::endgroup::"
+          done
+          echo "::group::tarball contents"
+          for f in /tmp/pack-check/*.tgz; do
+            echo "--- $f ---"
+            tar -tzf "$f"
+          done
+          echo "::endgroup::"
+
+      - name: Fail if a changeset is required but missing
+        run: pnpm exec changeset status --since=origin/${{ github.base_ref }}
+
+      - name: Upload tarballs for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-tarballs
+          path: /tmp/pack-check/*.tgz
+          retention-days: 7

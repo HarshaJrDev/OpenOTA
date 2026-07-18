@@ -4,19 +4,58 @@
   "description": "Shared OTA contracts — Manifest, RuntimeManifest, API envelopes, error codes and runtime states used by every OpenOTA package",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://github.com/HarshaJrDev/OpenOTA/tree/main/packages/shared#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshaJrDev/OpenOTA.git",
+    "directory": "packages/shared"
+  },
+  "bugs": {
+    "url": "https://github.com/HarshaJrDev/OpenOTA/issues"
+  },
+  "keywords": [
+    "ota",
+    "react-native",
+    "openota",
+    "codepush",
+    "types",
+    "schemas"
+  ],
+  "author": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "prepublishOnly": "pnpm run build",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "eslint": "^9.39.1",
     "typescript": "5.9.2",
     "vitest": "^4.1.10"
   }
