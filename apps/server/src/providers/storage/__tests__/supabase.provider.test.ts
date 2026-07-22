@@ -3,14 +3,12 @@ import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const uploadMock = vi.fn();
-const downloadMock = vi.fn();
 const removeMock = vi.fn();
 const listMock = vi.fn();
 const createSignedUrlMock = vi.fn();
 
 const fromMock = vi.fn(() => ({
   upload: uploadMock,
-  download: downloadMock,
   remove: removeMock,
   list: listMock,
   createSignedUrl: createSignedUrlMock,
@@ -26,12 +24,23 @@ const { createSupabaseStorageProvider } = await import("../supabase.provider.js"
 
 const config = { url: "https://example.supabase.co", serviceRoleKey: "service-role-secret", bucket: "openota-releases" };
 
+const fetchMock = vi.fn();
+vi.stubGlobal("fetch", fetchMock);
+
+function fetchOk(body: string) {
+  return {
+    ok: true,
+    status: 200,
+    arrayBuffer: async () => new TextEncoder().encode(body).buffer,
+  };
+}
+
 beforeEach(() => {
   uploadMock.mockReset();
-  downloadMock.mockReset();
   removeMock.mockReset();
   listMock.mockReset();
   createSignedUrlMock.mockReset();
+  fetchMock.mockReset();
 });
 
 describe("SupabaseStorageProvider", () => {
@@ -88,6 +97,44 @@ describe("SupabaseStorageProvider", () => {
     const storage = createSupabaseStorageProvider(config);
 
     await expect(storage.writeJson("ios/active.json", { version: "1.0.0" })).resolves.not.toThrow();
+  });
+
+  it("reads JSON via a freshly-signed URL, not bucket.download()", async () => {
+    // Reproduced live, repeatedly — including on a key written only twice ever: bucket.download()
+    // served stale bytes for an object that had just been successfully overwritten. Neither a
+    // cacheControl header nor remove-before-upload fixed it. A signed URL's query string is
+    // unique per call (iat/exp), so fetching through one can never hit a cached response keyed to
+    // a previous call's URL — this is what actually fixed it against the real bucket.
+    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: "https://signed.example/active.json?t=1" }, error: null });
+    fetchMock.mockResolvedValue(fetchOk(JSON.stringify({ version: "3.1.0" })));
+    const storage = createSupabaseStorageProvider(config);
+
+    const result = await storage.readJson<{ version: string }>("android/active.json");
+
+    expect(result).toEqual({ version: "3.1.0" });
+    expect(createSignedUrlMock).toHaveBeenCalledWith("android/active.json", expect.any(Number));
+    expect(fetchMock).toHaveBeenCalledWith("https://signed.example/active.json?t=1", { cache: "no-store" });
+  });
+
+  it("downloads via a freshly-signed URL, not bucket.download()", async () => {
+    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: "https://signed.example/pkg.zip?t=2" }, error: null });
+    fetchMock.mockResolvedValue(fetchOk("zip-bytes"));
+    const storage = createSupabaseStorageProvider(config);
+
+    const stream = await storage.download("android/1.0.0/ota-package.zip");
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+
+    expect(Buffer.concat(chunks).toString()).toBe("zip-bytes");
+    expect(fetchMock).toHaveBeenCalledWith("https://signed.example/pkg.zip?t=2", { cache: "no-store" });
+  });
+
+  it("translates a failed signed-URL fetch into a StorageError", async () => {
+    createSignedUrlMock.mockResolvedValue({ data: { signedUrl: "https://signed.example/missing.json" }, error: null });
+    fetchMock.mockResolvedValue({ ok: false, status: 404 });
+    const storage = createSupabaseStorageProvider(config);
+
+    await expect(storage.readJson("android/missing.json")).rejects.toThrow(/not found/);
   });
 
   it("translates an upload error into a StorageError without leaking Supabase internals", async () => {

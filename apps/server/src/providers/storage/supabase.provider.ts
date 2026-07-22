@@ -38,6 +38,27 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
     throw new StorageError(message, detail);
   }
 
+  // Reproduced live, repeatedly, including on a key written only twice ever: `bucket.download()`
+  // (the SDK's authenticated read) served stale bytes for an object that had just been
+  // successfully overwritten — neither cacheControl on the write nor remove-before-upload fixed
+  // it, which rules out both CDN caching and upsert semantics as the cause; something in front of
+  // Supabase's storage GET path is caching by object path regardless. A signed URL's query string
+  // (iat/exp) is unique on every call, so fetching through one can never hit a cached response
+  // keyed to a previous call's URL — this is the one read path that is provably immune to it.
+  async function downloadFresh(key: string): Promise<Buffer> {
+    const { data: signed, error: signError } = await bucket.createSignedUrl(key, 60);
+    if (signError || !signed) {
+      wrap(`File not found at "${key}"`, signError);
+    }
+
+    const response = await fetch(signed.signedUrl, { cache: "no-store" });
+    if (!response.ok) {
+      wrap(`File not found at "${key}"`, new Error(`signed URL fetch returned ${response.status}`));
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   // `key` may be an exact object (e.g. a platform's active.json) or a "directory" prefix (e.g.
   // deletePackage's `{platform}/{version}`, which must remove manifest.json/metadata.json/
   // ota-package.zip together) — Supabase Storage has no real directories, so a prefix delete has
@@ -81,14 +102,9 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
     },
 
     async download(key) {
-      const { data, error } = await bucket.download(key);
-      if (error || !data) {
-        wrap(`File not found at "${key}"`, error);
-      }
-
-      const arrayBuffer = await data.arrayBuffer();
+      const buffer = await downloadFresh(key);
       const { Readable } = await import("node:stream");
-      return Readable.from(Buffer.from(arrayBuffer));
+      return Readable.from(buffer);
     },
 
     delete: deleteRecursive,
@@ -119,14 +135,10 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
     },
 
     async readJson<T>(key: string): Promise<T> {
-      const { data, error } = await bucket.download(key);
-      if (error || !data) {
-        wrap(`JSON file not found at "${key}"`, error);
-      }
+      const buffer = await downloadFresh(key);
 
       try {
-        const text = await data.text();
-        return JSON.parse(text) as T;
+        return JSON.parse(buffer.toString("utf-8")) as T;
       } catch (error) {
         wrap(`Failed to read JSON from "${key}"`, error);
       }
