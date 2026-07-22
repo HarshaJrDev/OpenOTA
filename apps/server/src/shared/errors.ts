@@ -77,3 +77,9 @@ export class InvalidManifestError extends AppError {
     super("INVALID_MANIFEST", message, 400, details);
   }
 }
+
+export class UnauthorizedError extends AppError {
+  constructor(message = "Missing or invalid API key") {
+    super("UNAUTHORIZED", message, 401);
+  }
+}

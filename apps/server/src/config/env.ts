@@ -22,6 +22,11 @@ const envSchema = z
     // Deployment configuration, not an OpenOTA protocol limit — e.g. the Supabase Free plan caps
     // individual objects at 50MB, but a self-hosted local-storage deployment may allow more.
     OPENOTA_MAX_PACKAGE_SIZE_MB: z.coerce.number().positive().default(200),
+    // Optional on purpose — self-hosted OpenOTA has no account/org system (see docs/SELF_HOSTING.md
+    // "Authentication"). Unset means the API is open, matching a solo-developer/trusted-network
+    // deployment; set it to require `Authorization: Bearer <key>` on every mutating request
+    // (upload/rollback/delete). This is a single shared secret, not a per-user credential system.
+    OPENOTA_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER !== "supabase") {
@@ -63,4 +68,6 @@ export const env = {
   supabaseServiceRoleKey: parsed.data.SUPABASE_SERVICE_ROLE_KEY,
   supabaseStorageBucket: parsed.data.SUPABASE_STORAGE_BUCKET,
   maxPackageSizeBytes: Math.floor(parsed.data.OPENOTA_MAX_PACKAGE_SIZE_MB * 1024 * 1024),
+  // Never log this value — see the schema comment on OPENOTA_API_KEY above.
+  apiKey: parsed.data.OPENOTA_API_KEY,
 };

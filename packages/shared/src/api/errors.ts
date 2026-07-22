@@ -11,6 +11,7 @@ export const ERROR_CODES = [
   "INTERNAL_ERROR",
   "NOT_CONFIGURED",
   "PATH_SECURITY_ERROR",
+  "UNAUTHORIZED",
 
   // Package / manifest
   "PACKAGE_NOT_FOUND",
