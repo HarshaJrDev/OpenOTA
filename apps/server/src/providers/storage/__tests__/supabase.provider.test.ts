@@ -75,9 +75,11 @@ describe("SupabaseStorageProvider", () => {
     await storage.writeJson("android/active.json", { version: "3.1.0" });
 
     expect(removeMock).toHaveBeenCalledWith(["android/active.json"]);
-    const removeOrder = removeMock.mock.invocationCallOrder[0];
-    const uploadOrder = uploadMock.mock.invocationCallOrder[0];
-    expect(removeOrder).toBeLessThan(uploadOrder);
+    expect(removeMock.mock.invocationCallOrder.length).toBeGreaterThan(0);
+    expect(uploadMock.mock.invocationCallOrder.length).toBeGreaterThan(0);
+    const [removeOrder] = removeMock.mock.invocationCallOrder;
+    const [uploadOrder] = uploadMock.mock.invocationCallOrder;
+    expect(removeOrder as number).toBeLessThan(uploadOrder as number);
   });
 
   it("still writes successfully when the key has never existed before (remove reports not-found)", async () => {
