@@ -134,15 +134,20 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
 
     async writeJson<T>(key: string, data: T): Promise<void> {
       const body = Buffer.from(JSON.stringify(data, null, 2), "utf-8");
+
+      // Reproduced live, repeatedly: `upload(key, ..., { upsert: true })` on a key that already
+      // exists returns success but unreliably replaces the served content — rolling back
+      // overwrites `active.json` in place, and checkForUpdate kept reporting a stale (sometimes
+      // arbitrarily old) "active" version after a rollback that had already returned 200. A
+      // cacheControl header on the write did NOT fix it, which rules out CDN caching — this is
+      // upsert's overwrite semantics, not a caching layer. Removing the object first forces a
+      // real create rather than an update; "not found" on a first-ever write is expected and
+      // ignored.
+      await bucket.remove([key]);
+
       const { error } = await bucket.upload(key, body, {
         upsert: true,
         contentType: "application/json",
-        // Reproduced live: rolling back overwrites the same `active.json` key repeatedly, and
-        // Supabase's storage CDN was still serving the pre-rollback bytes on the very next read —
-        // `checkForUpdate` therefore reported the old "active" version immediately after a
-        // rollback that had already succeeded. manifest.json/metadata.json are effectively
-        // immutable (new version = new key) so this only matters for active.json, but applying it
-        // to all JSON control files here is simpler than splitting the write path by key shape.
         cacheControl: "0",
       });
       if (error) {

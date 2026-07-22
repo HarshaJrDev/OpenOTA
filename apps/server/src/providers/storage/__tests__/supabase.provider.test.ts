@@ -63,6 +63,31 @@ describe("SupabaseStorageProvider", () => {
     );
   });
 
+  it("removes the existing object before writing JSON, so overwrites are a real create, not an upsert", async () => {
+    // Reproduced live, repeatedly: upload(..., {upsert:true}) on an existing key returned success
+    // but did not reliably replace the served content — rollback would report 200 while
+    // checkForUpdate kept reading a stale (sometimes arbitrarily old) active version. remove()
+    // before upload() forces a genuine create.
+    removeMock.mockResolvedValue({ error: null });
+    uploadMock.mockResolvedValue({ error: null });
+    const storage = createSupabaseStorageProvider(config);
+
+    await storage.writeJson("android/active.json", { version: "3.1.0" });
+
+    expect(removeMock).toHaveBeenCalledWith(["android/active.json"]);
+    const removeOrder = removeMock.mock.invocationCallOrder[0];
+    const uploadOrder = uploadMock.mock.invocationCallOrder[0];
+    expect(removeOrder).toBeLessThan(uploadOrder);
+  });
+
+  it("still writes successfully when the key has never existed before (remove reports not-found)", async () => {
+    removeMock.mockResolvedValue({ error: { message: "The resource was not found" } });
+    uploadMock.mockResolvedValue({ error: null });
+    const storage = createSupabaseStorageProvider(config);
+
+    await expect(storage.writeJson("ios/active.json", { version: "1.0.0" })).resolves.not.toThrow();
+  });
+
   it("translates an upload error into a StorageError without leaking Supabase internals", async () => {
     uploadMock.mockResolvedValue({ error: { message: "some internal supabase detail" } });
     const storage = createSupabaseStorageProvider(config);
