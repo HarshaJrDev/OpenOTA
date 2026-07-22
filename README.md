@@ -1,159 +1,66 @@
-# Turborepo starter
+# OpenOTA
 
-This Turborepo starter is maintained by the Turborepo core team.
+Self-hosted over-the-air update infrastructure for React Native: build a signed JS bundle, push
+it to your own server, and let devices sync, verify, and roll back on their own — no App Store
+review, no vendor lock-in.
 
-## Using this example
+**Live deployment**: `https://openota.onrender.com` (`/health`, API base `/api/v1`)
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
-```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## Quick start
 
 ```sh
-cd my-turborepo
-turbo build
+npm install @openota/sdk @openota/native-android @openota/cli --save-dev
+npx openota init --server-url https://openota.onrender.com/api/v1 --runtime-version 1.0.0
+npx openota release --version 1.0.1 --platform android
 ```
 
-Without global `turbo`, use your package manager:
+Full walkthrough (native wiring, SDK integration, verifying a release, rollback, negative
+paths): **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**
+Flat command/API reference: **[docs/COMMANDS.md](./docs/COMMANDS.md)**
+
+## Architecture
+
+```
+React Native App
+      | OTA.sync()
+      v
+OpenOTA API (apps/server)
+      |
+      +-- release metadata (manifest.json / active-version pointer)
+      |
+      +-- StorageProvider (pluggable)
+              |
+              +-- LocalStorageProvider   — disk, for local dev / self-hosting
+              +-- SupabaseStorageProvider — private Supabase bucket, for production
+```
+
+The server is the sole authority — the CLI and the RN app never talk to Supabase (or any
+storage backend) directly, only to the OpenOTA API.
+
+## What's in this repo
+
+| Path | What it is |
+|---|---|
+| `apps/server` | The OpenOTA API — upload, list, check, download, rollback, delete. See its own [README](./apps/server/README.md) for storage configuration. |
+| `packages/cli` | `openota` CLI — `init`, `doctor`, `build`, `upload`, `release`, `rollback`. |
+| `packages/sdk` | `@openota/sdk` — the on-device `OTA.*` API (check/download/verify/install/sync/rollback). |
+| `packages/native-android` | Android TurboModule — bundle staging, SHA-256 verification, activation, crash-loop-safe rollback. See its own [README](./packages/native-android/README.md). |
+| `packages/shared` | Shared TypeScript contracts (Manifest, error codes, API envelopes) used by every package above. |
+| `apps/dashboard` | Web dashboard for browsing releases (packages, rollback, analytics). |
+| `apps/example` | A real React Native app used as the OTA integration playground/demo. |
+| `apps/e2e` | End-to-end certification suite (real CLI → real server → real Android instrumented tests). |
+
+## Local development
+
+This is a pnpm workspace (see `pnpm-workspace.yaml`) built with [Turborepo](https://turborepo.dev).
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+pnpm install
+pnpm --filter @openota/shared build   # build shared contracts first — apps/server imports its compiled output
+pnpm --filter @openota/server dev     # run the API locally (defaults to LocalStorageProvider)
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Run tests for a specific package: `pnpm --filter @openota/server test` (same pattern for `@openota/cli`, etc).
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+To build/dev everything: `pnpm build` / `pnpm dev` (Turborepo runs each package's script, cached
+and parallelized — see `turbo.json`).
