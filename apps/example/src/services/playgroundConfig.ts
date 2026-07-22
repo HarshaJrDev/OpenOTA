@@ -1,14 +1,11 @@
-import { Platform } from 'react-native';
-
 /**
- * Android emulators reach the host machine's `localhost` at `10.0.2.2`; iOS simulators can use
- * `localhost` directly. Override with a real host when testing against a physical device or a
- * deployed server — see Settings for the in-app override.
+ * Points at the real deployed OpenOTA backend (Render + Supabase Storage) by default, matching
+ * this app's own openota.config.json, so the playground demonstrates the actual production
+ * pipeline rather than a local-only loop. Override in Settings for local dev — Android emulators
+ * reach the host machine's `localhost` at `10.0.2.2`; iOS simulators can use `localhost` directly.
  */
-const DEFAULT_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-
 export const PLAYGROUND_CONFIG = {
-  serverUrl: `http://${DEFAULT_HOST}:3900/api/v1`,
+  serverUrl: 'https://openota.onrender.com/api/v1',
   channel: 'production',
   autoRestart: false,
   requestTimeout: 15_000,
