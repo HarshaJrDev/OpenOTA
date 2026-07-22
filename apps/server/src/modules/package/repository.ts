@@ -27,6 +27,10 @@ export function createPackageRepository(packageStorage: PackageStorageService) {
       return packageStorage.readManifest(platform, version);
     },
 
+    async getZipDownloadUrl(platform: Platform, version: string): Promise<string> {
+      return packageStorage.getZipDownloadUrl(platform, version);
+    },
+
     async remove(platform: Platform, version: string): Promise<void> {
       await packageStorage.deletePackage(platform, version);
     },

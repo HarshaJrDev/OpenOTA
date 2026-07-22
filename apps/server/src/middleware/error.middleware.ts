@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
+import { MulterError } from "multer";
 import { ZodError } from "zod";
 
+import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { AppError } from "../shared/errors.js";
 import { sendError } from "../shared/responses.js";
@@ -15,6 +17,16 @@ export function errorMiddleware(
   if (error instanceof ZodError) {
     logger.warn({ error: error.flatten() }, "validation error");
     sendError(res, "VALIDATION_ERROR", "Validation failed", 400, error.flatten());
+    return;
+  }
+
+  // Multer aborts the upload stream as soon as the configured byte limit is exceeded, before our
+  // own PackageTooLargeError check (in package/service.ts) ever runs — translate it the same way.
+  if (error instanceof MulterError && error.code === "LIMIT_FILE_SIZE") {
+    logger.warn({ maxBytes: env.maxPackageSizeBytes }, "package exceeded upload size limit");
+    sendError(res, "PACKAGE_TOO_LARGE", "OTA package exceeds the configured upload size limit.", 413, {
+      maxBytes: env.maxPackageSizeBytes,
+    });
     return;
   }
 

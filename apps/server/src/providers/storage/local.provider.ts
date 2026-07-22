@@ -4,6 +4,8 @@ import { pipeline } from "node:stream/promises";
 
 import fse from "fs-extra";
 
+import { buildDownloadUrl, isPlatform, PACKAGE_ZIP_FILENAME } from "@openota/shared";
+
 import { StorageError } from "../../shared/errors.js";
 import { assertWithinRoot } from "../../shared/utils.js";
 import type { StorageEntry, StorageProvider } from "./provider.js";
@@ -102,6 +104,20 @@ export function createLocalStorageProvider(root: string): StorageProvider {
       } catch (error) {
         throw new StorageError(`Failed to stat "${key}"`, error);
       }
+    },
+
+    // Local storage has no signed-URL concept — the zip is served by the API process itself, so
+    // the "download URL" is just that route. Only zip keys (`{platform}/{version}/package.zip`)
+    // are ever passed here; manifest/metadata/active-pointer keys never go through this path.
+    async getDownloadUrl(key) {
+      const segments = key.split("/");
+      const [platform, version, filename] = segments;
+
+      if (segments.length !== 3 || filename !== PACKAGE_ZIP_FILENAME || !isPlatform(platform) || !version) {
+        throw new StorageError(`Cannot build a download URL for "${key}"`);
+      }
+
+      return buildDownloadUrl(platform, version);
     },
   };
 }

@@ -8,6 +8,14 @@ export interface OpenOtaConfig {
   platforms: Platform[];
   bundleOutput: string;
   apiKey?: string;
+  /**
+   * Native binary compatibility identifier — independent of both the OTA release `version` and
+   * `package.json`'s `version`. An OTA bundle is only served to a device whose native runtime
+   * reports this exact same value (see `BundleVerifier.kt`'s `INVALID_RUNTIME` check). Bump this
+   * only when a native dependency or native API changes in a way that makes older JS bundles
+   * unsafe to run against the new binary; ordinary JS-only releases keep it unchanged.
+   */
+  runtimeVersion: string;
 }
 
 /** Build-environment metadata (not a package contract) — appVersion/toolchain versions used to produce a build. */

@@ -38,7 +38,7 @@ export async function runBuild(options: BuildCommandOptions): Promise<BuildResul
     succeed(assetsSpinner, `Assets copied (${assetCount} files)`);
 
     const manifestSpinner = startSpinner("Generating manifest and SHA256...");
-    const manifest = await buildManifest(outputDir, bundleResult, options.version, root);
+    const manifest = await buildManifest(outputDir, bundleResult, options.version, config.runtimeVersion);
     const metadata = await buildMetadata(outputDir, root);
     succeed(manifestSpinner, "Manifest generated");
 

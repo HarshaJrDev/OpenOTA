@@ -41,6 +41,17 @@ export class UploadError extends AppError {
   }
 }
 
+export class PackageTooLargeError extends AppError {
+  constructor(maxBytes: number, actualBytes?: number) {
+    super(
+      "PACKAGE_TOO_LARGE",
+      `OTA package exceeds the configured ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`,
+      413,
+      { maxBytes, actualBytes },
+    );
+  }
+}
+
 export class PackageAlreadyExistsError extends AppError {
   constructor(platform: string, version: string) {
     super(

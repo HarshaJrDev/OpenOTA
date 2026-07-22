@@ -22,6 +22,7 @@ export const ERROR_CODES = [
   // Server-side upload / storage
   "UPLOAD_FAILED",
   "STORAGE_ERROR",
+  "PACKAGE_TOO_LARGE",
 
   // SDK / native runtime lifecycle
   "DOWNLOAD_FAILED",

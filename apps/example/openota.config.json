@@ -1,8 +1,9 @@
 {
-  "serverUrl": "https://openota-production.up.railway.app/api/v1",
+  "serverUrl": "https://openota.onrender.com/api/v1",
   "deployment": "production",
   "platforms": [
     "android"
   ],
-  "bundleOutput": "./openota"
+  "bundleOutput": "./openota",
+  "runtimeVersion": "1.0.0"
 }

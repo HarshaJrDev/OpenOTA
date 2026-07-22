@@ -57,6 +57,13 @@ export function createPackageStorageService(storage: StorageProvider) {
       return storage.size(`${packageDir(platform, version)}/${PACKAGE_ZIP_FILENAME}`);
     },
 
+    // Generated fresh on every call, never persisted — see the doc comment on
+    // `StorageProvider.getDownloadUrl`. For local storage this is a stable API route; for
+    // Supabase it is a short-lived signed URL.
+    async getZipDownloadUrl(platform: Platform, version: string): Promise<string> {
+      return storage.getDownloadUrl(`${packageDir(platform, version)}/${PACKAGE_ZIP_FILENAME}`);
+    },
+
     async deletePackage(platform: Platform, version: string): Promise<void> {
       await storage.delete(packageDir(platform, version));
     },

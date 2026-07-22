@@ -3,11 +3,13 @@ import fse from "fs-extra";
 
 import type { Logger } from "pino";
 
-import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@openota/shared";
+import { ALLOWED_UPLOAD_MIME_TYPES } from "@openota/shared";
 
+import { env } from "../../config/env.js";
 import {
   PackageAlreadyExistsError,
   PackageNotFoundError,
+  PackageTooLargeError,
   UploadError,
 } from "../../shared/errors.js";
 import { compareSemver } from "../../shared/utils.js";
@@ -27,11 +29,9 @@ export function createPackageService(repository: PackageRepository, logger: Logg
 
     const stat = await fse.stat(tempFilePath);
 
-    if (stat.size > MAX_UPLOAD_SIZE_BYTES) {
+    if (stat.size > env.maxPackageSizeBytes) {
       await fse.remove(tempFilePath).catch(() => undefined);
-      throw new UploadError(
-        `File size ${stat.size} exceeds maximum allowed size of ${MAX_UPLOAD_SIZE_BYTES} bytes`,
-      );
+      throw new PackageTooLargeError(env.maxPackageSizeBytes, stat.size);
     }
 
     if (await repository.exists(platform, version)) {
@@ -56,7 +56,8 @@ export function createPackageService(repository: PackageRepository, logger: Logg
         "package upload completed",
       );
 
-      return manifest;
+      const downloadUrl = await repository.getZipDownloadUrl(platform, version);
+      return { ...manifest, downloadUrl };
     } finally {
       await fse.remove(tempFilePath).catch(() => undefined);
     }
@@ -127,12 +128,15 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     }
 
     const manifest = await repository.findManifest(platform, activeVersion);
+    // Never serve a stored downloadUrl — Supabase signed URLs expire, so it must be minted fresh
+    // on every check, not persisted alongside the manifest.
+    const downloadUrl = await repository.getZipDownloadUrl(platform, activeVersion);
 
     return {
       available: true,
       latestVersion: activeVersion,
-      downloadUrl: manifest.downloadUrl ?? null,
-      manifest,
+      downloadUrl,
+      manifest: { ...manifest, downloadUrl },
     };
   }
 
@@ -145,7 +149,9 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     await repository.setActiveVersion(platform, version);
     logger.info({ platform, version }, "release rolled back");
 
-    return repository.findManifest(platform, version);
+    const manifest = await repository.findManifest(platform, version);
+    const downloadUrl = await repository.getZipDownloadUrl(platform, version);
+    return { ...manifest, downloadUrl };
   }
 
   return {

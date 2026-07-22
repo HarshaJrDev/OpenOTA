@@ -13,7 +13,7 @@ export async function buildManifest(
   outputDir: string,
   bundleResult: BundleResult,
   version: string,
-  root: string,
+  runtimeVersion: string,
 ): Promise<Manifest> {
   const sha256 = await computeSha256(bundleResult.bundlePath);
   const stat = await fse.stat(bundleResult.bundlePath);
@@ -23,10 +23,10 @@ export async function buildManifest(
     manifestVersion: CURRENT_MANIFEST_SCHEMA_VERSION,
     bundleVersion: version,
     platform: bundleResult.platform,
-    // The app's own version doubles as the compatibility generation of the JS bundle format —
-    // the native runtime refuses to activate a package whose runtimeVersion doesn't match the
-    // app binary's, so this must be a real, meaningful version the app owner controls.
-    runtimeVersion: getAppVersion(root),
+    // Native binary compatibility identifier, independent of both the OTA `version` above and
+    // package.json's own version — sourced from openota.config.json, never derived. See
+    // OpenOtaConfig.runtimeVersion for the full contract.
+    runtimeVersion,
     sha256,
     size: stat.size,
     createdAt: new Date().toISOString(),
