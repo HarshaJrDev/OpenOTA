@@ -67,6 +67,22 @@ Example: an APK whose native runtime is `runtimeVersion = "1.0.0"` accepts every
 
 If a native dependency or native API changes in a way that makes older JS bundles unsafe to run, release a new APK with `runtimeVersion = "2.0.0"` — bundles built for `1.0.0` are then rejected by that app (`INVALID_RUNTIME`), and vice versa.
 
+## Authentication (`login` / `logout`)
+
+Self-hosted OpenOTA has no account/org system — `login`/`logout` manage a single shared secret,
+not a per-user credential. It only does anything if the server you're pointing at was started
+with `OPENOTA_API_KEY` set (see `docs/SELF_HOSTING.md` "Authentication"); if the server has no key
+configured, it accepts requests with or without one.
+
+```sh
+openota login --api-key <the value your server admin gave you>   # writes it into openota.config.json
+openota logout                                                     # removes it
+```
+
+Once logged in, `upload`/`release`/`rollback` automatically send it as `Authorization: Bearer <key>`.
+`check`/download requests from devices never need this — only the release/rollback/delete
+operations a server admin performs are gated.
+
 ## License
 
 MIT

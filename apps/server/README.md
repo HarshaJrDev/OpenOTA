@@ -113,3 +113,21 @@ Rollback only moves the platform's "active version" pointer — it never copies,
 deletes a zip. Every previously-uploaded version's package remains in storage (local or Supabase)
 so rolling back to it requires no data movement. See `src/modules/package/service.ts`'s
 `rollbackToVersion`.
+
+## Authentication
+
+```
+OPENOTA_API_KEY=<a secret you generate>
+```
+
+Optional. Unset (default) runs the server open — fine for local dev or a deployment already
+behind your own private network. Set it to require `Authorization: Bearer <key>` on
+`upload`/`rollback`/`delete` (never `check`/`list`/`download`, which devices need without a
+server-admin secret). See the root repo's `docs/SELF_HOSTING.md` "Authentication" for the full
+model — this is a single shared secret, not a per-user account system.
+
+## Docker
+
+See the root repo's `docker-compose.yml` and `Dockerfile` (this directory) —
+`docker compose up -d` from the repo root builds and runs this server with a persistent storage
+volume. Full guide: `docs/SELF_HOSTING.md`.

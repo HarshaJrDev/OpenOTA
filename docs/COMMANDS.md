@@ -107,9 +107,21 @@ curl -X DELETE https://openota.onrender.com/api/v1/packages/android/1.0.4
 | `SUPABASE_SERVICE_ROLE_KEY` | — | Required when `STORAGE_PROVIDER=supabase` — **server-only secret, never exposed to clients** |
 | `SUPABASE_STORAGE_BUCKET` | `openota-releases` | Must be a **private** bucket |
 | `OPENOTA_MAX_PACKAGE_SIZE_MB` | `200` | Deployment-configured upload limit (hosted backend uses `50`, matching Supabase's Free plan) |
+| `OPENOTA_API_KEY` | unset (open) | Optional shared secret gating `upload`/`rollback`/`delete` — see `docs/SELF_HOSTING.md` "Authentication" |
 
 Startup fails immediately with a clear error if `STORAGE_PROVIDER=supabase` is set without the
 required Supabase variables — it will never silently fall back to local storage.
+
+## Docker self-hosting
+
+```sh
+cp .env.example .env
+docker compose up -d
+curl http://localhost:3900/health
+```
+
+See `docs/SELF_HOSTING.md` for storage persistence, the Supabase variant, and deploying without
+Docker.
 
 ## SDK (`@openota/sdk`, on-device)
 

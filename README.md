@@ -4,18 +4,40 @@ Self-hosted over-the-air update infrastructure for React Native: build a signed 
 it to your own server, and let devices sync, verify, and roll back on their own — no App Store
 review, no vendor lock-in.
 
-**Live deployment**: `https://openota.onrender.com` (`/health`, API base `/api/v1`)
+OpenOTA supports two independent paths — pick one, they don't mix:
 
-## Quick start
+### Path A — Self-hosted (primary, recommended)
 
+You run the server and own the data, storage, and credentials. The official hosted service is
+never required.
+
+```sh
+git clone https://github.com/HarshaJrDev/OpenOTA.git && cd OpenOTA
+cp .env.example .env && docker compose up -d      # server on http://localhost:3900
+curl http://localhost:3900/health
+
+npm install @openota/sdk @openota/native-android @openota/cli --save-dev
+npx openota init --server-url http://localhost:3900/api/v1 --runtime-version 1.0.0
+npx openota release --version 1.0.1 --platform android
+```
+Full guide: **[docs/SELF_HOSTING.md](./docs/SELF_HOSTING.md)** · Storage options (local disk vs.
+your own Supabase project): **[docs/STORAGE.md](./docs/STORAGE.md)**
+
+### Path B — Official hosted service (optional)
+
+Skip running a server entirely and point at the maintained deployment:
 ```sh
 npm install @openota/sdk @openota/native-android @openota/cli --save-dev
 npx openota init --server-url https://openota.onrender.com/api/v1 --runtime-version 1.0.0
 npx openota release --version 1.0.1 --platform android
 ```
+`https://openota.onrender.com` (`/health`, API base `/api/v1`) — this is just another `serverUrl`
+value; nothing about the CLI/SDK/native runtime depends on it specifically.
 
-Full walkthrough (native wiring, SDK integration, verifying a release, rollback, negative
-paths): **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**
+---
+
+Full end-to-end walkthrough (native wiring, SDK integration, verifying a release, sync, rollback,
+negative paths): **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**
 Flat command/API reference: **[docs/COMMANDS.md](./docs/COMMANDS.md)**
 
 ## Architecture
