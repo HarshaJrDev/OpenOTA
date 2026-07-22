@@ -48,6 +48,21 @@ describe("SupabaseStorageProvider", () => {
     );
   });
 
+  it("writes JSON with cacheControl disabled, so overwriting active.json is never served stale", async () => {
+    // Reproduced live against the real bucket: rollback overwrites active.json in place, and
+    // without this, the storage CDN kept serving the pre-rollback bytes to the very next read.
+    uploadMock.mockResolvedValue({ error: null });
+    const storage = createSupabaseStorageProvider(config);
+
+    await storage.writeJson("android/active.json", { version: "3.0.0" });
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      "android/active.json",
+      expect.any(Buffer),
+      expect.objectContaining({ upsert: true, cacheControl: "0" }),
+    );
+  });
+
   it("translates an upload error into a StorageError without leaking Supabase internals", async () => {
     uploadMock.mockResolvedValue({ error: { message: "some internal supabase detail" } });
     const storage = createSupabaseStorageProvider(config);

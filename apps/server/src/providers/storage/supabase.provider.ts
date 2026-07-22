@@ -137,6 +137,13 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
       const { error } = await bucket.upload(key, body, {
         upsert: true,
         contentType: "application/json",
+        // Reproduced live: rolling back overwrites the same `active.json` key repeatedly, and
+        // Supabase's storage CDN was still serving the pre-rollback bytes on the very next read —
+        // `checkForUpdate` therefore reported the old "active" version immediately after a
+        // rollback that had already succeeded. manifest.json/metadata.json are effectively
+        // immutable (new version = new key) so this only matters for active.json, but applying it
+        // to all JSON control files here is simpler than splitting the write path by key shape.
+        cacheControl: "0",
       });
       if (error) {
         wrap(`Failed to write JSON to "${key}"`, error);
