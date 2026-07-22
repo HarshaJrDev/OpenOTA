@@ -1,0 +1,68 @@
+name: Server Validation
+
+on:
+  pull_request:
+    paths:
+      - "apps/server/**"
+      - "packages/shared/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/server-ci.yml"
+
+jobs:
+  validate:
+    name: Install, typecheck, lint, test, build, docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared contracts
+        run: pnpm --filter @openota/shared build
+
+      - name: Typecheck
+        run: pnpm --filter @openota/server check-types
+
+      - name: Test
+        # No real Supabase credentials needed or used — supabase.provider.test.ts mocks
+        # @supabase/supabase-js entirely; STORAGE_PROVIDER defaults to local for every other test.
+        run: pnpm --filter @openota/server test
+
+      - name: Build
+        run: pnpm --filter @openota/server build
+
+      - name: Verify the built server actually boots
+        run: |
+          set -euo pipefail
+          cd apps/server
+          PORT=3999 STORAGE_ROOT=/tmp/ci-storage NODE_ENV=production node dist/server.js &
+          server_pid=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3999/health > /dev/null; then
+              echo "Server healthy"
+              kill $server_pid
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "::error::Server did not become healthy in time"
+          kill $server_pid 2>/dev/null || true
+          exit 1
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          push: false
+          tags: openota-server:ci

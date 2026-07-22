@@ -1,18 +1,27 @@
-version: "3.9"
-
 services:
-  postgres:
-    image: postgres:17
-    container_name: openota-postgres
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: openota-server
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${PORT:-3900}:${PORT:-3900}"
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: openota
-      POSTGRES_PASSWORD: openota
-      POSTGRES_DB: openota
+      # Overridable via .env — these are just safe defaults so `docker compose up` works with no
+      # .env file at all (self-hosting on local storage, zero external accounts required).
+      PORT: ${PORT:-3900}
+      NODE_ENV: ${NODE_ENV:-production}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      STORAGE_ROOT: /data/storage
+      OPENOTA_MAX_PACKAGE_SIZE_MB: ${OPENOTA_MAX_PACKAGE_SIZE_MB:-200}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Named volume, not a bind mount, so releases survive `docker compose down` / container
+      # recreation. Only relevant when STORAGE_PROVIDER=local — irrelevant (but harmless) in
+      # Supabase mode, where nothing is ever written here.
+      - openota_storage:/data/storage
 
 volumes:
-  postgres_data:
+  openota_storage:
