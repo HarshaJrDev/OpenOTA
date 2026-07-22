@@ -35,6 +35,12 @@ android {
     defaultConfig {
         minSdkVersion getExtOrDefault("minSdkVersion", 24)
         targetSdkVersion getExtOrDefault("targetSdkVersion", 35)
+        // Without this, `androidTest` sources using `@RunWith(AndroidJUnit4::class)` (all of
+        // them) are silently invisible to `connectedAndroidTest` — it falls back to the legacy
+        // JUnit3-style runner, which finds zero tests. apps/e2e's own build.gradle already sets
+        // this; native-android's never did, so its androidTest suite could only ever be exercised
+        // indirectly through apps/e2e's harness.
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {

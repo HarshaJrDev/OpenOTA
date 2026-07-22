@@ -7,8 +7,20 @@ import java.io.File
  * The single call site a host app's `ReactNativeHost`/`ReactHost` override needs:
  *
  * ```kotlin
- * override fun getJSBundleFile(): String? = BundleLoader.getJSBundleFile(applicationContext)
+ * private const val OPENOTA_RUNTIME_VERSION = "1.0"
+ *
+ * override fun getJSBundleFile(): String? =
+ *     BundleLoader.getJSBundleFile(applicationContext, OPENOTA_RUNTIME_VERSION)
  * ```
+ *
+ * `runtimeVersion` is deliberately a required parameter, not defaulted from the APK's own
+ * `versionName` — those are different concepts that happen to look similar (see the
+ * `BundleManager` class doc). A silent default here is exactly what caused OTA bundles built
+ * with an explicit `openota.config.json` `runtimeVersion` to be rejected by apps that never
+ * passed one through and fell back to `versionName` instead: `BundleVerifier` correctly refuses
+ * to activate a bundle whose `runtimeVersion` doesn't match, but the mismatch only exists because
+ * the host app's value was never explicit in the first place. Pick one constant, put it in both
+ * `MainApplication.kt` and `openota.config.json`, and this whole class of bug can't happen again.
  *
  * This must be extremely fast and must never re-run cryptographic verification — that already
  * happened once at `activateBundle()` time. Its only two jobs are (1) decide embedded vs. OTA
@@ -21,7 +33,7 @@ import java.io.File
  */
 object BundleLoader {
 
-    fun getJSBundleFile(context: Context, runtimeVersion: String? = null): String? {
+    fun getJSBundleFile(context: Context, runtimeVersion: String): String? {
         val manager = BundleManager.getInstance(context, runtimeVersion)
         val manifest = manager.recordBootAttempt()
 

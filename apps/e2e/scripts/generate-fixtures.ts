@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   const server = await startRealServer(storageRoot, SERVER_PORT);
 
   console.log('[e2e] openota init');
-  await runOpenOtaCli(projectDir, ['init', '--server-url', server.baseUrl]);
+  await runOpenOtaCli(projectDir, ['init', '--server-url', server.baseUrl, '--runtime-version', RUNTIME_VERSION]);
 
   console.log('[e2e] openota release (v' + UPDATE_VERSION + ')');
   await runOpenOtaCli(projectDir, ['release', '--version', UPDATE_VERSION, '--platform', 'android']);

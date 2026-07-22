@@ -8,6 +8,12 @@ import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.openota.runtime.BundleLoader
 
+// Must exactly match "runtimeVersion" in this app's openota.config.json. Bump both together only
+// when a native dependency or native API changes in a way that makes older OTA bundles unsafe to
+// run against this binary — see BundleLoader's class doc for why this can't be inferred from
+// versionName automatically.
+private const val OPENOTA_RUNTIME_VERSION = "1.0.0"
+
 class MainApplication : Application(), ReactApplication {
 
   override val reactHost: ReactHost by lazy {
@@ -21,7 +27,7 @@ class MainApplication : Application(), ReactApplication {
       // Serves the active OpenOTA bundle when one has been activated; falls back to the bundle
       // embedded in assets (jsBundleFilePath = null) otherwise. See BundleLoader's doc for the
       // crash-safety heuristic this also runs on every cold start.
-      jsBundleFilePath = BundleLoader.getJSBundleFile(applicationContext),
+      jsBundleFilePath = BundleLoader.getJSBundleFile(applicationContext, OPENOTA_RUNTIME_VERSION),
     )
   }
 

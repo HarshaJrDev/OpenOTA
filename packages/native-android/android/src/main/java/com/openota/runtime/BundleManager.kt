@@ -200,11 +200,30 @@ class BundleManager private constructor(context: Context, private val runtimeVer
         @Volatile
         private var instance: BundleManager? = null
 
+        /**
+         * `runtimeVersion` is nullable only because this is also called internally (e.g. from
+         * [OpenOTAModule]) to fetch the *already-constructed* singleton, where repeating the
+         * version is unnecessary. It is never null on the call that actually constructs the
+         * instance in a correctly-wired app: [BundleLoader.getJSBundleFile] — the one entry point
+         * host apps are meant to call, and always the first — requires it explicitly. If this
+         * ever falls back to [resolveAppVersionName], it means some caller bypassed BundleLoader
+         * and constructed this singleton first with no explicit runtimeVersion; that is a real
+         * integration bug, not a supported configuration, so it is logged loudly rather than
+         * silently accepted.
+         */
         fun getInstance(context: Context, runtimeVersion: String? = null): BundleManager {
             return instance ?: synchronized(this) {
                 instance ?: BundleManager(
                     context,
-                    runtimeVersion ?: resolveAppVersionName(context),
+                    runtimeVersion ?: resolveAppVersionName(context).also {
+                        OpenOTALogger.w(
+                            "BundleManager initialized without an explicit runtimeVersion; falling back to " +
+                                "the APK's versionName (\"$it\"). This is almost certainly a bug: call " +
+                                "BundleLoader.getJSBundleFile(context, runtimeVersion) with an explicit " +
+                                "runtimeVersion before anything else touches BundleManager, so it matches " +
+                                "the runtimeVersion in openota.config.json.",
+                        )
+                    },
                 ).also { instance = it }
             }
         }

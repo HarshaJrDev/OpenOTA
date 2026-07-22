@@ -37,7 +37,11 @@ class BundleManagerActivationTest {
         storage.deleteRecursively(storage.rootDir)
     }
 
-    private fun stagePackage(version: String, content: String = "console.log('$version')"): File {
+    private fun stagePackage(
+        version: String,
+        content: String = "console.log('$version')",
+        runtimeVersion: String = RUNTIME_VERSION,
+    ): File {
         val dir = File(storage.downloadsDir, "candidate-$version").apply { mkdirs() }
         val bundleFile = File(File(dir, "bundle").apply { mkdirs() }, "index.android.bundle").apply { writeText(content) }
         File(dir, "assets").mkdirs()
@@ -46,7 +50,7 @@ class BundleManagerActivationTest {
 
         File(dir, "manifest.json").writeText(
             """
-            {"manifestVersion":1,"version":"$version","platform":"android","runtimeVersion":"$RUNTIME_VERSION",
+            {"manifestVersion":1,"version":"$version","platform":"android","runtimeVersion":"$runtimeVersion",
              "sha256":"$sha256","size":${bundleFile.length()},"createdAt":"now","bundleName":"index.android.bundle"}
             """.trimIndent(),
         )
@@ -119,6 +123,30 @@ class BundleManagerActivationTest {
 
         assertEquals(null, manager.getActiveVersion())
         assertFalse(BundleRollback(storage).hasRollback())
+    }
+
+    @Test
+    fun activationSucceedsWhenBundleRuntimeVersionMatchesAppRuntimeVersion() {
+        manager.setBundlePath(stagePackage("1.0.4", runtimeVersion = RUNTIME_VERSION).path)
+
+        val info = manager.activateBundle()
+
+        assertEquals("1.0.4", info.currentVersion)
+        assertEquals(RUNTIME_VERSION, info.runtimeVersion)
+    }
+
+    @Test
+    fun activationRejectedWithInvalidRuntimeWhenBundleRuntimeVersionMismatches() {
+        // Reproduces the exact real-world bug report: a bundle built with the app's own
+        // package.json version ("0.0.1") instead of its configured runtimeVersion ("1.0").
+        manager.setBundlePath(stagePackage("1.0.4", runtimeVersion = "0.0.1").path)
+
+        val error = assertThrows(UnsupportedRuntimeVersionException::class.java) {
+            manager.activateBundle()
+        }
+
+        assertEquals("INVALID_RUNTIME", error.code)
+        assertEquals(null, manager.getActiveVersion())
     }
 
     @Test

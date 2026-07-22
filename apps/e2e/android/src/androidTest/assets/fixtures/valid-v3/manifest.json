@@ -3,9 +3,9 @@
   "version": "3.0.0",
   "platform": "android",
   "runtimeVersion": "1.0.0",
-  "sha256": "a14e33a714daab26d304395f9728cb68b8d8a1c05e40f3e2944411a8e5b59749",
+  "sha256": "1c13a5d1b181c99d757f3246c9ee72376699c52c2d83a3f388ae5e2f57a9125c",
   "size": 45,
-  "createdAt": "2026-07-16T20:02:43.074Z",
+  "createdAt": "2026-07-18T15:29:12.330Z",
   "bundleName": "index.android.bundle",
   "assets": [
     "logo.png"
