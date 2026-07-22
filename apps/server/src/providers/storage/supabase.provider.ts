@@ -38,6 +38,39 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
     throw new StorageError(message, detail);
   }
 
+  // `key` may be an exact object (e.g. a platform's active.json) or a "directory" prefix (e.g.
+  // deletePackage's `{platform}/{version}`, which must remove manifest.json/metadata.json/
+  // ota-package.zip together) — Supabase Storage has no real directories, so a prefix delete has
+  // to be done by listing and removing every object underneath it, recursively.
+  async function deleteRecursive(key: string): Promise<void> {
+    const { data: children, error: listError } = await bucket.list(key);
+    if (listError) {
+      wrap(`Failed to delete "${key}"`, listError);
+    }
+
+    if (!children || children.length === 0) {
+      const { error } = await bucket.remove([key]);
+      if (error) {
+        wrap(`Failed to delete "${key}"`, error);
+      }
+      return;
+    }
+
+    for (const child of children) {
+      const childKey = `${key}/${child.name}`;
+      const isDirectory = child.metadata === null || child.metadata === undefined;
+
+      if (isDirectory) {
+        await deleteRecursive(childKey);
+      } else {
+        const { error } = await bucket.remove([childKey]);
+        if (error) {
+          wrap(`Failed to delete "${childKey}"`, error);
+        }
+      }
+    }
+  }
+
   return {
     async upload(key, stream) {
       const buffer = await streamToBuffer(stream);
@@ -58,12 +91,7 @@ export function createSupabaseStorageProvider(config: SupabaseStorageConfig): St
       return Readable.from(Buffer.from(arrayBuffer));
     },
 
-    async delete(key) {
-      const { error } = await bucket.remove([key]);
-      if (error) {
-        wrap(`Failed to delete "${key}"`, error);
-      }
-    },
+    delete: deleteRecursive,
 
     async exists(key) {
       const dir = key.split("/").slice(0, -1).join("/");

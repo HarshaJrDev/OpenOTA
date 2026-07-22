@@ -89,11 +89,35 @@ describe("SupabaseStorageProvider", () => {
     expect(await storage.exists("android/9.9.9/ota-package.zip")).toBe(false);
   });
 
-  it("deletes an object", async () => {
+  it("deletes a single object directly (no children under it)", async () => {
+    listMock.mockResolvedValue({ data: [], error: null });
     removeMock.mockResolvedValue({ error: null });
     const storage = createSupabaseStorageProvider(config);
 
-    await storage.delete("android/1.0.0/ota-package.zip");
+    await storage.delete("android/ota-package-active-pointer.json");
+    expect(removeMock).toHaveBeenCalledWith(["android/ota-package-active-pointer.json"]);
+  });
+
+  it("recursively deletes every object under a package's directory prefix", async () => {
+    // Reproduces the real bug: deletePackage calls delete("android/1.0.0"), a directory prefix,
+    // expecting manifest.json/metadata.json/ota-package.zip to all be removed together — the same
+    // way fse.remove() deletes a whole directory locally. Supabase Storage has no real
+    // directories, so this only works if delete() lists and removes each child explicitly.
+    listMock.mockResolvedValue({
+      data: [
+        { name: "manifest.json", metadata: { size: 300 } },
+        { name: "metadata.json", metadata: { size: 115 } },
+        { name: "ota-package.zip", metadata: { size: 895873 } },
+      ],
+      error: null,
+    });
+    removeMock.mockResolvedValue({ error: null });
+    const storage = createSupabaseStorageProvider(config);
+
+    await storage.delete("android/1.0.0");
+
+    expect(removeMock).toHaveBeenCalledWith(["android/1.0.0/manifest.json"]);
+    expect(removeMock).toHaveBeenCalledWith(["android/1.0.0/metadata.json"]);
     expect(removeMock).toHaveBeenCalledWith(["android/1.0.0/ota-package.zip"]);
   });
 
