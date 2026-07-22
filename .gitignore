@@ -55,3 +55,10 @@ packages/*/*.tgz
 
 # Sibling project used for real-device consumer testing; not part of this workspace
 /PebloBuddy/
+
+# Gradle's local build cache — machine-specific, regenerated on every build
+.gradle/
+
+# `openota build`/`openota release` output (bundleOutput in openota.config.json) — generated
+# artifacts (JS bundle, zip, manifest), never source
+apps/example/openota/
