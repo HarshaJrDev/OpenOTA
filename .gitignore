@@ -43,6 +43,9 @@ build
 coverage
 .env
 .sqlite
+*.sqlite
+*.sqlite3
+*.db
 *.log
 .turbo
 apps/server/storage
