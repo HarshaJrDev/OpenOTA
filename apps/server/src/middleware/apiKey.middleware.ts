@@ -1,7 +1,19 @@
+import { timingSafeEqual } from "node:crypto";
+
 import type { NextFunction, Request, Response } from "express";
 
 import { env } from "../config/env.js";
 import { UnauthorizedError } from "../shared/errors.js";
+
+/** Constant-time comparison — a plain `!==` short-circuits on the first mismatched byte, which
+ * leaks how many leading characters of a guess were correct via response timing. Lengths differing
+ * is not itself sensitive (the key isn't secret-length-hidden anywhere else either), so comparing
+ * that first with `!==` before the constant-time check is fine. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Self-hosted OpenOTA has no account/org system — this is a single shared secret, not a
@@ -20,7 +32,7 @@ export function requireApiKey(req: Request, _res: Response, next: NextFunction):
   const header = req.header("authorization");
   const presented = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
 
-  if (presented !== env.apiKey) {
+  if (!presented || !safeEqual(presented, env.apiKey)) {
     next(new UnauthorizedError());
     return;
   }

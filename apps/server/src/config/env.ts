@@ -27,6 +27,12 @@ const envSchema = z
     // deployment; set it to require `Authorization: Bearer <key>` on every mutating request
     // (upload/rollback/delete). This is a single shared secret, not a per-user credential system.
     OPENOTA_API_KEY: z.string().min(1).optional(),
+    // Comma-separated allowlist. Unset (default) reflects any origin — acceptable here since
+    // there's no cookie/session auth for CORS to leak (the CLI's API key travels as an explicit
+    // Authorization header, never ambient browser-sent credentials), and check/list/download are
+    // meant to be publicly readable anyway. Set this to restrict the dashboard/browser surface to
+    // known origins in a production deployment that wants to be stricter.
+    CORS_ALLOWED_ORIGINS: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER !== "supabase") {
@@ -70,4 +76,7 @@ export const env = {
   maxPackageSizeBytes: Math.floor(parsed.data.OPENOTA_MAX_PACKAGE_SIZE_MB * 1024 * 1024),
   // Never log this value — see the schema comment on OPENOTA_API_KEY above.
   apiKey: parsed.data.OPENOTA_API_KEY,
+  corsAllowedOrigins: parsed.data.CORS_ALLOWED_ORIGINS
+    ? parsed.data.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+    : undefined,
 };

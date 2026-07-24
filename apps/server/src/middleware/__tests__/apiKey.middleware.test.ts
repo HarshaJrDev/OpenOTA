@@ -93,4 +93,23 @@ describe("API key protection on mutating routes", () => {
     const download = await request(app).get("/api/v1/packages/android/1.0.0/download");
     expect(download.status).toBe(200);
   });
+
+  it("rejects a key of different length from the configured one without throwing", async () => {
+    // Regression guard: node:crypto's timingSafeEqual throws on mismatched buffer lengths — the
+    // middleware must check length itself rather than let that throw turn into a 500.
+    const res = await request(app)
+      .delete("/api/v1/packages/android/1.0.0")
+      .set("Authorization", "Bearer short");
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("rejects a bare 'Bearer ' with no token", async () => {
+    const res = await request(app)
+      .delete("/api/v1/packages/android/1.0.0")
+      .set("Authorization", "Bearer ");
+
+    expect(res.status).toBe(401);
+  });
 });
