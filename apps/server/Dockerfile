@@ -23,12 +23,18 @@ WORKDIR /repo
 ENV NODE_ENV=production
 RUN corepack enable
 
+# pnpm's workspace node_modules layout is NOT just the root: each workspace member gets its own
+# node_modules with symlinks for *its own* direct dependencies (e.g. apps/server/node_modules/
+# compression), pointing into the root's central .pnpm store. Copying only the root node_modules
+# 404s on every direct dependency of @openota/server at runtime — copy both.
 COPY --from=build /repo/node_modules node_modules
 COPY --from=build /repo/package.json /repo/pnpm-workspace.yaml ./
 COPY --from=build /repo/packages/shared/package.json packages/shared/package.json
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
+COPY --from=build /repo/packages/shared/node_modules packages/shared/node_modules
 COPY --from=build /repo/apps/server/package.json apps/server/package.json
 COPY --from=build /repo/apps/server/dist apps/server/dist
+COPY --from=build /repo/apps/server/node_modules apps/server/node_modules
 
 WORKDIR /repo/apps/server
 EXPOSE 3900
