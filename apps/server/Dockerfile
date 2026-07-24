@@ -6,7 +6,7 @@
 #
 # (docker-compose.yml at the repo root already sets this up correctly — just `docker compose up`.)
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /repo
 RUN corepack enable
 
@@ -18,7 +18,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @openota/shared build && pnpm --filter @openota/server build
 
 # --- runtime stage: only what's needed to run the already-built server ------
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /repo
 ENV NODE_ENV=production
 RUN corepack enable
