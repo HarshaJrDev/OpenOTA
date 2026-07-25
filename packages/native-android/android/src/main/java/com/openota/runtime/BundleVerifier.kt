@@ -46,9 +46,13 @@ class BundleVerifier(private val storage: BundleStorage, private val appRuntimeV
             throw BundleVerificationException("Bundle file not found at \"${bundleFile.path}\"")
         }
 
+        // Packages with no static assets may not have an assets/ directory at all: the CLI omits
+        // it, and even when present as an empty zip entry, some Android unzip implementations
+        // don't materialize empty directories on extraction. Only a *non-directory* in its place
+        // is an error; a missing directory simply means "no assets".
         val assetsDir = storage.assetsDir(packageDir)
-        if (!assetsDir.exists() || !assetsDir.isDirectory) {
-            throw BundleVerificationException("Assets directory not found at \"${assetsDir.path}\"")
+        if (assetsDir.exists() && !assetsDir.isDirectory) {
+            throw BundleVerificationException("Assets path is not a directory at \"${assetsDir.path}\"")
         }
 
         val actualSha256 = OpenOTALogger.timed("verify.sha256") { computeSha256(bundleFile) }

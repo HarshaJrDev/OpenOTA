@@ -55,6 +55,15 @@ android {
     lintOptions {
         abortOnError false
     }
+
+    testOptions {
+        unitTests {
+            // BundleVerifierTest exercises OpenOTALogger, which calls android.util.Log; the
+            // Android Gradle plugin's unit-test stub jar throws on any Log.* call unless this is
+            // set. Nothing under test relies on real Log output.
+            returnDefaultValues = true
+        }
+    }
 }
 
 repositories {
@@ -74,6 +83,9 @@ dependencies {
     // is used. This jar shadows those stubs on the unit test classpath so Manifest.kt's parsing
     // logic can be exercised without spinning up an emulator.
     testImplementation "org.json:json:20231013"
+    // Used only to stub android.content.Context (filesDir) so BundleStorage can be exercised
+    // against real temp-directory files in plain JVM unit tests, without Robolectric.
+    testImplementation "org.mockito:mockito-core:5.11.0"
 
     androidTestImplementation "androidx.test.ext:junit:1.2.1"
     androidTestImplementation "androidx.test:runner:1.6.2"

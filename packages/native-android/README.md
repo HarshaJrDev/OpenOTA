@@ -12,22 +12,25 @@ npm install @openota/sdk @openota/native-android
 
 No further setup is required beyond a standard React Native New Architecture (TurboModules) build — the module is autolinked via its `codegenConfig` in `package.json`.
 
-## Required integration: `runtimeVersion`
+## Required integration: `OpenOTAReactHost` + `runtimeVersion`
 
-Your `MainApplication.kt` (or `MainApplication.java`) **must** pass an explicit `runtimeVersion` to `BundleLoader.getJSBundleFile()`. This is not optional — without it, OTA updates will fail native verification with `INVALID_RUNTIME` (see below).
+Your `MainApplication.kt` (or `MainApplication.java`) **must** build its `reactHost` with `OpenOTAReactHost.create()`, not React Native's own `getDefaultReactHost()`, and pass an explicit `runtimeVersion`. Both are non-optional:
+
+- Skipping the explicit `runtimeVersion` makes OTA updates fail native verification with `INVALID_RUNTIME` (see below).
+- Using `getDefaultReactHost()` directly — even with `jsBundleFilePath = BundleLoader.getJSBundleFile(...)` — resolves the active bundle exactly once, when the `ReactHost` is first constructed at process start. After that, `ReactHost.reload()` (what `RestartManager` calls post-activation) replays that same stale resolution instead of picking up the bundle that was just activated or rolled back. `OpenOTAReactHost.create()` wraps the same bridgeless `ReactHost` machinery but re-resolves `BundleLoader.getJSBundleFile()` on every reload, so activation and rollback actually take effect.
 
 ```kotlin
-import com.openota.runtime.BundleLoader
+import com.openota.runtime.OpenOTAReactHost
 
 // Must exactly match "runtimeVersion" in this app's openota.config.json.
 private const val OPENOTA_RUNTIME_VERSION = "1.0.0"
 
 class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost by lazy {
-    getDefaultReactHost(
+    OpenOTAReactHost.create(
       context = applicationContext,
       packageList = PackageList(this).packages,
-      jsBundleFilePath = BundleLoader.getJSBundleFile(applicationContext, OPENOTA_RUNTIME_VERSION),
+      runtimeVersion = OPENOTA_RUNTIME_VERSION,
     )
   }
   // ...

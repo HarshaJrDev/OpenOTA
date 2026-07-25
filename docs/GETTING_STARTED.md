@@ -25,22 +25,26 @@ npm install @openota/sdk @openota/native-android @openota/cli --save-dev
 ### 1a. Wire the native Android runtime
 
 `@openota/native-android` autolinks, but **one manual step is mandatory**: your
-`MainApplication.kt` must pass an explicit `runtimeVersion` to `BundleLoader.getJSBundleFile()`.
-This is the value that gates whether an OTA bundle is even allowed to run against this native
+`MainApplication.kt` must build its `reactHost` with `OpenOTAReactHost.create()` (not RN's own
+`getDefaultReactHost()`), passing an explicit `runtimeVersion`. `getDefaultReactHost()`'s
+`jsBundleFilePath` is only ever resolved once, at process start — so `ReactHost.reload()` after an
+OTA activation would keep replaying whatever bundle was active at cold start instead of the newly
+activated one. `OpenOTAReactHost.create()` re-resolves the active bundle on every reload instead.
+`runtimeVersion` itself gates whether an OTA bundle is even allowed to run against this native
 binary — it is never inferred automatically, on purpose (see
 `packages/native-android/README.md` for the full reasoning).
 
 ```kotlin
-import com.openota.runtime.BundleLoader
+import com.openota.runtime.OpenOTAReactHost
 
 private const val OPENOTA_RUNTIME_VERSION = "1.0.0"
 
 class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost by lazy {
-    getDefaultReactHost(
+    OpenOTAReactHost.create(
       context = applicationContext,
       packageList = PackageList(this).packages,
-      jsBundleFilePath = BundleLoader.getJSBundleFile(applicationContext, OPENOTA_RUNTIME_VERSION),
+      runtimeVersion = OPENOTA_RUNTIME_VERSION,
     )
   }
   override fun onCreate() {
