@@ -65,3 +65,4 @@ packages/*/*.tgz
 # `openota build`/`openota release` output (bundleOutput in openota.config.json) — generated
 # artifacts (JS bundle, zip, manifest), never source
 apps/example/openota/
+examples/OpenOTAExample
