@@ -66,3 +66,4 @@ packages/*/*.tgz
 # artifacts (JS bundle, zip, manifest), never source
 apps/example/openota/
 examples/OpenOTAExample
+examples/OpenOTAExample
