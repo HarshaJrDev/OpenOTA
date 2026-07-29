@@ -1,0 +1,40 @@
+# The Vercel CLI uploads from the invoked directory (repo root, since our Vercel project's Root
+# Directory setting is apps/dashboard and the CLI must be run from root — see .vercel/README and
+# apps/dashboard/vercel.json). It does not reliably honor nested/deep .gitignore rules the way git
+# itself does, so a huge, otherwise-git-ignored directory like PebloBuddy/ (a full React Native
+# test app with Android build artifacts) still gets bundled unless explicitly listed here — that's
+# exactly what caused "File size limit exceeded (100 MB)" / multi-GB upload aborts.
+#
+# Safe to exclude wholesale: PebloBuddy/ is NOT a pnpm workspace member (pnpm-workspace.yaml only
+# globs apps/*, packages/*, examples/*), so pnpm install --frozen-lockfile never needs it present.
+
+# Not a pnpm workspace member — huge Android RN test app, never needed to build the dashboard.
+/PebloBuddy/
+
+# Reinstalled fresh via vercel.json's installCommand — never upload existing node_modules.
+node_modules
+**/node_modules
+
+# Android/Gradle build output: pure binary artifacts (APKs, native .so libs, CMake/.cxx caches),
+# never part of any package.json pnpm needs to resolve the workspace lockfile.
+**/android/**/build/
+**/android/**/.cxx/
+**/android/**/.gradle/
+**/*.apk
+**/*.aab
+**/*.so
+
+# SQLite runtime files (the multi-tenant server DB) — never relevant to a static/Next.js deploy.
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Build caches — regenerated fresh by vercel.json's buildCommand.
+**/.next/
+**/dist/
+.turbo
+**/.turbo/
+
+.git
+.vscode
+.idea
