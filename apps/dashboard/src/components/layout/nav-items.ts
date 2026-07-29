@@ -1,6 +1,7 @@
 import {
   Activity,
   Boxes,
+  FolderKanban,
   Gauge,
   GitBranch,
   KeyRound,
@@ -19,6 +20,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { title: "Overview", href: "/", icon: Gauge, shortcut: "g o" },
+  { title: "Projects", href: "/projects", icon: FolderKanban, shortcut: "g j" },
   { title: "Packages", href: "/packages", icon: Boxes, shortcut: "g p" },
   { title: "Releases", href: "/releases", icon: Tags, shortcut: "g r" },
   { title: "Devices", href: "/devices", icon: Smartphone, shortcut: "g d" },

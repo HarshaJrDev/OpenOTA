@@ -8,6 +8,7 @@ import type { DoctorCheckResult } from "../types/index.js";
 import { getConfigPath, getProjectRoot, isReactNativeProject } from "../utils/paths.js";
 import { getNodeVersion } from "../utils/version.js";
 import { loadConfig } from "./config.service.js";
+import { credentialsFileMode, getApiKey } from "./credentials.service.js";
 
 async function checkNode(): Promise<DoctorCheckResult> {
   const version = getNodeVersion();
@@ -66,6 +67,40 @@ async function checkConfig(root: string): Promise<DoctorCheckResult> {
   };
 }
 
+/** Never logs/prints the key itself — only whether one is present and the credentials file's permission mode. */
+async function checkAuthentication(root: string): Promise<DoctorCheckResult> {
+  try {
+    const config = await loadConfig(root);
+
+    if (config.apiKey) {
+      return {
+        name: "Authentication",
+        ok: false,
+        message:
+          "openota.config.json still has a legacy \"apiKey\" field — remove it and run `openota login --api-key <key>` instead (it now lives outside the project repo)",
+      };
+    }
+
+    const apiKey = await getApiKey(config.serverUrl);
+    if (!apiKey) {
+      return { name: "Authentication", ok: false, message: "not logged in (run `openota login --api-key <key>`)" };
+    }
+
+    const mode = await credentialsFileMode();
+    if (mode !== undefined && mode !== 0o600) {
+      return {
+        name: "Authentication",
+        ok: false,
+        message: `credentials file has overly permissive mode ${mode.toString(8)} (expected 600)`,
+      };
+    }
+
+    return { name: "Authentication", ok: true, message: "logged in" };
+  } catch {
+    return { name: "Authentication", ok: false, message: "openota.config.json missing (run `openota init`)" };
+  }
+}
+
 async function checkServerReachability(root: string): Promise<DoctorCheckResult> {
   try {
     const config = await loadConfig(root);
@@ -91,6 +126,7 @@ export async function runDoctorChecks(root: string = getProjectRoot()): Promise<
     await checkIos(root),
     await checkMetro(root),
     await checkConfig(root),
+    await checkAuthentication(root),
     await checkServerReachability(root),
   ];
 }

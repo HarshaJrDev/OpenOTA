@@ -10,9 +10,11 @@ import { Skeleton } from "@openota/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
 import { usePackages } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function OverviewPage() {
-  const { data: packages, isLoading } = usePackages();
+  const { currentProjectId } = useCurrentProject();
+  const { data: packages, isLoading } = usePackages(currentProjectId);
 
   const sorted = [...(packages ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latest = sorted[0];
@@ -71,7 +73,7 @@ export default function OverviewPage() {
                       {pkg.platform}
                     </Badge>
                     <Link
-                      href={`/packages/${pkg.platform}/${pkg.bundleVersion}`}
+                      href={`/packages/${pkg.platform}/${pkg.bundleVersion}?project=${currentProjectId}`}
                       className="text-sm font-medium hover:underline"
                     >
                       v{pkg.bundleVersion}

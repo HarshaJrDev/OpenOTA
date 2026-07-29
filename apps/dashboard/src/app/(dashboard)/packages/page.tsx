@@ -1,9 +1,11 @@
 "use client";
 
 import type { PackageMetadata, Platform } from "@openota/shared";
-import { Boxes, Search } from "lucide-react";
+import { Boxes, FolderKanban, Search } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 
+import { Button } from "@openota/ui/button";
 import { Input } from "@openota/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@openota/ui/select";
 import { Skeleton } from "@openota/ui/skeleton";
@@ -13,11 +15,33 @@ import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { buildPackageColumns } from "@/features/packages/columns";
 import { useDeletePackage, usePackages, useRollbackPackage } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function PackagesPage() {
-  const { data: packages, isLoading } = usePackages();
-  const deleteMutation = useDeletePackage();
-  const rollbackMutation = useRollbackPackage();
+  const { currentProjectId } = useCurrentProject();
+
+  if (!currentProjectId) {
+    return (
+      <EmptyState
+        icon={FolderKanban}
+        title="No project selected"
+        description="Choose or create a project first — packages are scoped to a single project."
+        action={
+          <Button asChild>
+            <Link href="/projects">Go to Projects</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return <ProjectPackages projectId={currentProjectId} />;
+}
+
+function ProjectPackages({ projectId }: { projectId: string }) {
+  const { data: packages, isLoading } = usePackages(projectId);
+  const deleteMutation = useDeletePackage(projectId);
+  const rollbackMutation = useRollbackPackage(projectId);
 
   const [search, setSearch] = React.useState("");
   const [platformFilter, setPlatformFilter] = React.useState<Platform | "all">("all");
@@ -30,8 +54,8 @@ export default function PackagesPage() {
   );
 
   const columns = React.useMemo(
-    () => buildPackageColumns({ onDelete: setPendingDelete, onRollback: setPendingRollback }),
-    [],
+    () => buildPackageColumns({ projectId, onDelete: setPendingDelete, onRollback: setPendingRollback }),
+    [projectId],
   );
 
   return (

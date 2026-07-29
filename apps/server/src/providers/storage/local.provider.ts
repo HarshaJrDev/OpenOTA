@@ -4,7 +4,7 @@ import { pipeline } from "node:stream/promises";
 
 import fse from "fs-extra";
 
-import { buildDownloadUrl, isPlatform, PACKAGE_ZIP_FILENAME } from "@openota/shared";
+import { buildDownloadUrl, buildProjectDownloadUrl, isPlatform, PACKAGE_ZIP_FILENAME } from "@openota/shared";
 
 import { StorageError } from "../../shared/errors.js";
 import { assertWithinRoot } from "../../shared/utils.js";
@@ -107,17 +107,34 @@ export function createLocalStorageProvider(root: string): StorageProvider {
     },
 
     // Local storage has no signed-URL concept — the zip is served by the API process itself, so
-    // the "download URL" is just that route. Only zip keys (`{platform}/{version}/package.zip`)
-    // are ever passed here; manifest/metadata/active-pointer keys never go through this path.
+    // the "download URL" is just that route. Only zip keys are ever passed here: either the
+    // legacy flat `{platform}/{version}/package.zip` (3 segments) or a project-scoped
+    // `projects/{projectId}/{platform}/{version}/package.zip` (5 segments) — manifest/metadata/
+    // active-pointer keys never go through this path.
     async getDownloadUrl(key) {
       const segments = key.split("/");
-      const [platform, version, filename] = segments;
 
-      if (segments.length !== 3 || filename !== PACKAGE_ZIP_FILENAME || !isPlatform(platform) || !version) {
-        throw new StorageError(`Cannot build a download URL for "${key}"`);
+      if (segments.length === 3) {
+        const [platform, version, filename] = segments;
+        if (filename === PACKAGE_ZIP_FILENAME && isPlatform(platform) && version) {
+          return buildDownloadUrl(platform, version);
+        }
       }
 
-      return buildDownloadUrl(platform, version);
+      if (segments.length === 5) {
+        const [root, projectId, platform, version, filename] = segments;
+        if (
+          root === "projects" &&
+          projectId &&
+          filename === PACKAGE_ZIP_FILENAME &&
+          isPlatform(platform) &&
+          version
+        ) {
+          return buildProjectDownloadUrl(projectId, platform, version);
+        }
+      }
+
+      throw new StorageError(`Cannot build a download URL for "${key}"`);
     },
   };
 }

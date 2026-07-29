@@ -2,26 +2,38 @@ import type { CheckResponse, Manifest, PackageMetadata, Platform } from "@openot
 
 import { apiRequest, downloadUrl } from "@/lib/api-client";
 
-export function listPackages(): Promise<PackageMetadata[]> {
-  return apiRequest<PackageMetadata[]>("/packages");
+/**
+ * Every function here takes an explicit `projectId` and calls the project-scoped routes
+ * (`/projects/:id/packages/...`) — authenticated by the dashboard's own session cookie via
+ * requireApiKey's session fallback (see apiKey.middleware.ts), the same way `/projects` and
+ * `/api-keys` already are. There is deliberately no "legacy flat route" fallback here: once a
+ * project exists, package management always goes through it, so releases are never accidentally
+ * written to the old global/flat namespace from the dashboard.
+ */
+function basePath(projectId: string): string {
+  return `/projects/${projectId}/packages`;
 }
 
-export function getPackage(platform: Platform, version: string): Promise<PackageMetadata> {
-  return apiRequest<PackageMetadata>(`/packages/${platform}/${version}`);
+export function listPackages(projectId: string): Promise<PackageMetadata[]> {
+  return apiRequest<PackageMetadata[]>(basePath(projectId));
 }
 
-export function deletePackage(platform: Platform, version: string): Promise<{ deleted: boolean }> {
-  return apiRequest(`/packages/${platform}/${version}`, { method: "DELETE" });
+export function getPackage(projectId: string, platform: Platform, version: string): Promise<PackageMetadata> {
+  return apiRequest<PackageMetadata>(`${basePath(projectId)}/${platform}/${version}`);
 }
 
-export function rollbackPackage(platform: Platform, version: string): Promise<Manifest> {
-  return apiRequest<Manifest>("/packages/rollback", { method: "POST", body: { platform, version } });
+export function deletePackage(projectId: string, platform: Platform, version: string): Promise<{ deleted: boolean }> {
+  return apiRequest(`${basePath(projectId)}/${platform}/${version}`, { method: "DELETE" });
 }
 
-export function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckResponse> {
-  return apiRequest<CheckResponse>("/packages/check", { query: { platform, currentVersion } });
+export function rollbackPackage(projectId: string, platform: Platform, version: string): Promise<Manifest> {
+  return apiRequest<Manifest>(`${basePath(projectId)}/rollback`, { method: "POST", body: { platform, version } });
 }
 
-export function getPackageDownloadUrl(platform: Platform, version: string): string {
-  return downloadUrl(`/packages/${platform}/${version}/download`);
+export function checkForUpdate(projectId: string, platform: Platform, currentVersion: string): Promise<CheckResponse> {
+  return apiRequest<CheckResponse>(`${basePath(projectId)}/check`, { query: { platform, currentVersion } });
+}
+
+export function getPackageDownloadUrl(projectId: string, platform: Platform, version: string): string {
+  return downloadUrl(`${basePath(projectId)}/${platform}/${version}/download`);
 }

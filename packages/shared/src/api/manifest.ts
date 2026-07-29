@@ -32,3 +32,8 @@ export interface Manifest {
 export function buildDownloadUrl(platform: Platform, version: string): string {
   return `/api/v1/packages/${platform}/${version}/download`;
 }
+
+/** Project-scoped counterpart of {@link buildDownloadUrl}, for OpenOTA Cloud multi-tenant routes. */
+export function buildProjectDownloadUrl(projectId: string, platform: Platform, version: string): string {
+  return `/api/v1/projects/${projectId}/packages/${platform}/${version}/download`;
+}

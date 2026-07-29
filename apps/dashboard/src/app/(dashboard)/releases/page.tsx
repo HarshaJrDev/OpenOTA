@@ -1,14 +1,17 @@
 "use client";
 
 import type { PackageMetadata, Platform } from "@openota/shared";
-import { Tags } from "lucide-react";
+import { FolderKanban, Tags } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@openota/ui/badge";
+import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { EmptyState } from "@/components/empty-state";
 import { usePackages } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 function groupByPlatform(packages: PackageMetadata[]): Record<Platform, PackageMetadata[]> {
   const groups: Record<Platform, PackageMetadata[]> = { android: [], ios: [] };
@@ -22,7 +25,28 @@ function groupByPlatform(packages: PackageMetadata[]): Record<Platform, PackageM
 }
 
 export default function ReleasesPage() {
-  const { data: packages, isLoading } = usePackages();
+  const { currentProjectId } = useCurrentProject();
+
+  if (!currentProjectId) {
+    return (
+      <EmptyState
+        icon={FolderKanban}
+        title="No project selected"
+        description="Choose or create a project first — releases are scoped to a single project."
+        action={
+          <Button asChild>
+            <Link href="/projects">Go to Projects</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return <ProjectReleases projectId={currentProjectId} />;
+}
+
+function ProjectReleases({ projectId }: { projectId: string }) {
+  const { data: packages, isLoading } = usePackages(projectId);
   const groups = groupByPlatform(packages ?? []);
 
   return (

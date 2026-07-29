@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Package, RotateCcw, Trash2 } from "lucide-react";
 
 import { Badge } from "@openota/ui/badge";
@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatCard } from "@/components/stat-card";
 import { getPackageDownloadUrl } from "@/features/packages/api";
 import { useDeletePackage, usePackageDetail, useRollbackPackage } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -31,9 +32,15 @@ export default function ReleaseDetailsPage({
 }) {
   const { platform, version } = use(params);
   const router = useRouter();
-  const { data: pkg, isLoading } = usePackageDetail(platform, version);
-  const deleteMutation = useDeletePackage();
-  const rollbackMutation = useRollbackPackage();
+  const searchParams = useSearchParams();
+  const { currentProjectId } = useCurrentProject();
+  // The Packages list links here with ?project=<id> so this page works even if it's opened
+  // directly (e.g. a bookmarked/shared link) rather than only via in-app navigation.
+  const projectId = searchParams.get("project") ?? currentProjectId ?? undefined;
+
+  const { data: pkg, isLoading } = usePackageDetail(projectId, platform, version);
+  const deleteMutation = useDeletePackage(projectId ?? "");
+  const rollbackMutation = useRollbackPackage(projectId ?? "");
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRollback, setConfirmRollback] = useState(false);
@@ -65,7 +72,7 @@ export default function ReleaseDetailsPage({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <a href={getPackageDownloadUrl(pkg.platform, pkg.bundleVersion)}>
+            <a href={getPackageDownloadUrl(projectId!, pkg.platform, pkg.bundleVersion)}>
               <Download className="mr-2 h-4 w-4" /> Download
             </a>
           </Button>

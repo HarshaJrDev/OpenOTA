@@ -1,16 +1,16 @@
 import { Command } from "commander";
 
-import { loadConfig, writeConfig } from "../services/config.service.js";
+import { loadConfig } from "../services/config.service.js";
+import { removeApiKey } from "../services/credentials.service.js";
 import { log } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
 
 export async function runLogout(): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
-  const { apiKey: _apiKey, ...rest } = config;
 
-  await writeConfig(root, rest);
-  log.success("Logged out. API key removed from openota.config.json");
+  await removeApiKey(config.serverUrl);
+  log.success(`Logged out. API key removed for ${config.serverUrl}.`);
 }
 
 export function registerLogoutCommand(program: Command): void {

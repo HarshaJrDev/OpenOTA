@@ -6,6 +6,7 @@ import fse from "fs-extra";
 
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
+import { getApiKey } from "../services/credentials.service.js";
 import { uploadPackage } from "../services/upload.service.js";
 import type { Platform } from "../types/index.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
@@ -20,7 +21,8 @@ interface UploadCommandOptions {
 export async function runUpload(options: UploadCommandOptions): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
-  const client = createApiClient(config);
+  const apiKey = await getApiKey(config.serverUrl);
+  const client = createApiClient(config, apiKey);
 
   // The manifest built alongside the zip (by `openota build`) is the authoritative source for
   // runtimeVersion/bundleName — recomputing them here risks drifting from what was actually

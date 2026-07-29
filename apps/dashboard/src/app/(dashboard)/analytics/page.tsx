@@ -9,9 +9,11 @@ import { Skeleton } from "@openota/ui/skeleton";
 
 import { StatCard } from "@/components/stat-card";
 import { usePackages } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function AnalyticsPage() {
-  const { data: packages, isLoading } = usePackages();
+  const { currentProjectId } = useCurrentProject();
+  const { data: packages, isLoading } = usePackages(currentProjectId);
 
   const byPlatform = ["android", "ios"].map((platform) => ({
     platform,

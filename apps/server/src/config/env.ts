@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 
 import { config } from "dotenv";
@@ -27,6 +28,16 @@ const envSchema = z
     // deployment; set it to require `Authorization: Bearer <key>` on every mutating request
     // (upload/rollback/delete). This is a single shared secret, not a per-user credential system.
     OPENOTA_API_KEY: z.string().min(1).optional(),
+    // Multi-tenant metadata (users/projects/api keys/releases) only — OTA package bytes still
+    // live entirely in StorageProvider. SQLite by default so self-hosting needs zero extra
+    // infrastructure; a deployment that never creates a project/dashboard user never touches this
+    // beyond the one-time schema bootstrap, and the legacy global-OPENOTA_API_KEY flat routes are
+    // completely unaffected either way.
+    DATABASE_URL: z.string().min(1).optional(),
+    // Signs dashboard session cookies (HMAC, not a full JWT library — see auth/session.ts). Must
+    // be set explicitly in production; a random per-boot value in dev/test is fine since that just
+    // invalidates sessions on restart, never a security issue for a throwaway dev secret.
+    SESSION_SECRET: z.string().min(16).optional(),
     // Comma-separated allowlist. Unset (default) reflects any origin — acceptable here since
     // there's no cookie/session auth for CORS to leak (the CLI's API key travels as an explicit
     // Authorization header, never ambient browser-sent credentials), and check/list/download are
@@ -76,6 +87,21 @@ export const env = {
   maxPackageSizeBytes: Math.floor(parsed.data.OPENOTA_MAX_PACKAGE_SIZE_MB * 1024 * 1024),
   // Never log this value — see the schema comment on OPENOTA_API_KEY above.
   apiKey: parsed.data.OPENOTA_API_KEY,
+  // Tests get an isolated in-memory DB by default (never shared/leaked between test files);
+  // real runs default to a single self-hosted-friendly SQLite file, overridable via DATABASE_URL.
+  databaseUrl: parsed.data.DATABASE_URL ?? (parsed.data.NODE_ENV === "test" ? ":memory:" : "file:./data/openota.db"),
+  // Never log this value. A missing SESSION_SECRET in production is a real misconfiguration
+  // (every restart would silently invalidate all dashboard sessions with a new random secret,
+  // and worse, an attacker who can predict process-start timing gains no advantage since this
+  // is still cryptographically random — but it's still wrong to run production without pinning
+  // it), so fail loudly instead of booting on a value nobody chose.
+  sessionSecret:
+    parsed.data.SESSION_SECRET ??
+    (parsed.data.NODE_ENV === "production"
+      ? (() => {
+          throw new Error("SESSION_SECRET is required when NODE_ENV=production");
+        })()
+      : randomBytes(32).toString("hex")),
   corsAllowedOrigins: parsed.data.CORS_ALLOWED_ORIGINS
     ? parsed.data.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
     : undefined,

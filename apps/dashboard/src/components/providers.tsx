@@ -7,6 +7,8 @@ import { Toaster } from "sonner";
 
 import { TooltipProvider } from "@openota/ui/tooltip";
 
+import { CurrentProjectProvider } from "@/features/projects/current-project-context";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(
     () =>
@@ -24,10 +26,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={200}>
-          {children}
-          <Toaster richColors position="top-right" />
-        </TooltipProvider>
+        <CurrentProjectProvider>
+          <TooltipProvider delayDuration={200}>
+            {children}
+            <Toaster richColors position="top-right" />
+          </TooltipProvider>
+        </CurrentProjectProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

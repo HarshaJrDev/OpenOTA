@@ -9,9 +9,11 @@ import { Skeleton } from "@openota/ui/skeleton";
 
 import { EmptyState } from "@/components/empty-state";
 import { usePackages } from "@/features/packages/hooks";
+import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function ChannelsPage() {
-  const { data: packages, isLoading } = usePackages();
+  const { currentProjectId } = useCurrentProject();
+  const { data: packages, isLoading } = usePackages(currentProjectId);
 
   const platforms = Array.from(new Set((packages ?? []).map((pkg) => pkg.platform))) as Platform[];
 

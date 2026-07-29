@@ -2,6 +2,7 @@ import { Command } from "commander";
 
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
+import { getApiKey } from "../services/credentials.service.js";
 import { uploadPackage } from "../services/upload.service.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
@@ -17,7 +18,8 @@ export async function runRelease(options: ReleaseCommandOptions): Promise<void> 
   const root = getProjectRoot();
   const buildResults = await runBuild(options);
   const config = await loadConfig(root);
-  const client = createApiClient(config);
+  const apiKey = await getApiKey(config.serverUrl);
+  const client = createApiClient(config, apiKey);
 
   for (const result of buildResults) {
     const spinner = startSpinner(`Uploading ${result.platform} package (0%)...`);

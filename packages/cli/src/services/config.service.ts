@@ -15,6 +15,9 @@ const configSchema = z.object({
   deployment: z.string().min(1).default(DEFAULT_DEPLOYMENT),
   platforms: z.array(z.enum(SUPPORTED_PLATFORMS)).min(1),
   bundleOutput: z.string().min(1).default(DEFAULT_BUNDLE_OUTPUT),
+  // Deprecated: `login` used to write the API key here. Still accepted (never rejected) so an
+  // old openota.config.json doesn't hard-break, but no command reads this for auth anymore — see
+  // credentials.service.ts. `doctor` warns if this is still present so it gets cleaned up.
   apiKey: z.string().optional(),
   // Required, not defaulted: silently inventing a runtimeVersion (e.g. from package.json) is
   // exactly the footgun this field exists to prevent — see MissingRuntimeVersionError and

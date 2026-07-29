@@ -3,6 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 import { env } from "../config/env.js";
+import { apiKeysRepo, projectsRepo, usersRepo } from "../db/repositories.js";
+import { readSessionCookie } from "../modules/auth/cookie.js";
+import { verifySessionToken } from "../modules/auth/session.js";
+import { hashApiKey, isProjectApiKey } from "../modules/apikey/crypto.js";
 import { UnauthorizedError } from "../shared/errors.js";
 
 /** Constant-time comparison — a plain `!==` short-circuits on the first mismatched byte, which
@@ -16,26 +20,96 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Self-hosted OpenOTA has no account/org system — this is a single shared secret, not a
- * per-user credential store. If OPENOTA_API_KEY isn't set, the server runs open (a solo
- * developer or a deployment already behind a private network/VPN doesn't need this); if it is
- * set, every request through this middleware must present it as `Authorization: Bearer <key>`.
- * Apply this only to mutating routes (upload/rollback/delete) — devices reading `check`/download
- * are never expected to carry a server-admin secret.
+ * Three coexisting auth modes, tried in order, never overlapping security systems to keep in
+ * sync:
+ *
+ * 1. Project-scoped keys (`ota_live_...`, CLI/CI/device): looked up by prefix, hash-verified in
+ *    constant time, rejected if revoked. On success sets `req.project`, which downstream route
+ *    handlers (see `requireProjectMatch`) use to enforce that a key for project A can never act
+ *    on project B.
+ * 2. Dashboard session cookie (browser, first-party): only tried when there's a `:projectId` in
+ *    the URL and no valid API key was presented. The dashboard never holds a full API key client-
+ *    side (they're shown once, by design — see apikey/service.ts), so it authenticates release
+ *    management purely as "this logged-in user owns this project," the same ownership check
+ *    `project/service.ts#getOwnedProject` already enforces on the session-only project/api-key
+ *    routes. Sets `req.project` exactly like the API-key path, so `requireProjectMatch` and every
+ *    downstream handler treat both paths identically.
+ * 3. Self-hosted OpenOTA's original single shared secret (`OPENOTA_API_KEY`) — unchanged from
+ *    before: no account/org system, one global secret, `req.project` is left `undefined` and
+ *    downstream code treats that as "the legacy flat/global namespace". If `OPENOTA_API_KEY` isn't
+ *    set, the server runs open on this path (solo developer / already-trusted network).
+ *
+ * Apply this only to mutating/private routes (upload/rollback/delete/list) — devices reading
+ * `check`/download are never expected to carry a server-admin, project, or session secret.
  */
 export function requireApiKey(req: Request, _res: Response, next: NextFunction): void {
-  if (!env.apiKey) {
+  const header = req.header("authorization");
+  const presented = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+
+  if (presented && isProjectApiKey(presented)) {
+    const prefix = presented.slice(0, "ota_live_".length + 8);
+    const hashed = hashApiKey(presented);
+    const candidates = apiKeysRepo.findByPrefix(prefix);
+    const match = candidates.find((row) => {
+      const a = Buffer.from(row.hashed_key);
+      const b = Buffer.from(hashed);
+      return a.length === b.length && timingSafeEqual(a, b);
+    });
+
+    if (!match || match.revoked_at) {
+      next(new UnauthorizedError());
+      return;
+    }
+
+    const project = projectsRepo.findById(match.project_id);
+    if (!project) {
+      next(new UnauthorizedError());
+      return;
+    }
+
+    apiKeysRepo.touchLastUsed(match.id);
+    req.project = project;
     next();
     return;
   }
 
-  const header = req.header("authorization");
-  const presented = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+  const projectId = (req.params as Record<string, string | undefined>).projectId;
+  if (!presented && projectId) {
+    const sessionUser = resolveSessionUser(req);
+    if (sessionUser) {
+      const project = projectsRepo.findById(projectId);
+      if (project && project.owner_id === sessionUser.id) {
+        req.project = project;
+        next();
+        return;
+      }
+    }
+  }
+
+  if (!env.apiKey) {
+    next();
+    return;
+  }
 
   if (!presented || !safeEqual(presented, env.apiKey)) {
     next(new UnauthorizedError());
     return;
   }
 
+  next();
+}
+
+function resolveSessionUser(req: Request) {
+  const token = readSessionCookie(req);
+  const verified = token ? verifySessionToken(token) : null;
+  return verified ? usersRepo.findById(verified.userId) : undefined;
+}
+
+/** 403s if the authenticated project (see requireApiKey) doesn't match the :projectId route param — the one check that actually enforces cross-tenant isolation on project-scoped routes. */
+export function requireProjectMatch(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.project || req.project.id !== req.params.projectId) {
+    next(new UnauthorizedError());
+    return;
+  }
   next();
 }

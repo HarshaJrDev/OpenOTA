@@ -2,6 +2,7 @@ import { Command } from "commander";
 
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
+import { getApiKey } from "../services/credentials.service.js";
 import { ROLLBACK_ENDPOINT } from "../constants/index.js";
 import type { Platform } from "../types/index.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
@@ -15,7 +16,8 @@ interface RollbackCommandOptions {
 export async function runRollback(options: RollbackCommandOptions): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
-  const client = createApiClient(config);
+  const apiKey = await getApiKey(config.serverUrl);
+  const client = createApiClient(config, apiKey);
 
   const spinner = startSpinner(`Rolling back ${options.platform} to v${options.version}...`);
 

@@ -50,6 +50,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       headers: options.body ? { "Content-Type": "application/json" } : undefined,
       body: options.body ? JSON.stringify(options.body) : undefined,
       cache: "no-store",
+      // Sends/receives the dashboard's session cookie — required for every /auth, /projects and
+      // /projects/:id/api-keys call. See app.ts's CORS config: this only works because the server
+      // sets `credentials: true` and reflects a real origin (never `*`) in response.
+      credentials: "include",
     });
   } catch (error) {
     throw new ApiError("NETWORK_ERROR", error instanceof Error ? error.message : "Network request failed");

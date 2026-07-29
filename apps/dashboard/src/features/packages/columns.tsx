@@ -18,11 +18,12 @@ import {
 import { getPackageDownloadUrl } from "./api";
 
 export interface PackageRowActions {
+  projectId: string;
   onDelete: (pkg: PackageMetadata) => void;
   onRollback: (pkg: PackageMetadata) => void;
 }
 
-export function buildPackageColumns({ onDelete, onRollback }: PackageRowActions): ColumnDef<PackageMetadata>[] {
+export function buildPackageColumns({ projectId, onDelete, onRollback }: PackageRowActions): ColumnDef<PackageMetadata>[] {
   return [
     {
       accessorKey: "platform",
@@ -43,7 +44,7 @@ export function buildPackageColumns({ onDelete, onRollback }: PackageRowActions)
       ),
       cell: ({ row }) => (
         <Link
-          href={`/packages/${row.original.platform}/${row.original.bundleVersion}`}
+          href={`/packages/${row.original.platform}/${row.original.bundleVersion}?project=${projectId}`}
           className="font-medium hover:underline"
         >
           v{row.original.bundleVersion}
@@ -90,12 +91,12 @@ export function buildPackageColumns({ onDelete, onRollback }: PackageRowActions)
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/packages/${pkg.platform}/${pkg.bundleVersion}`}>
+                <Link href={`/packages/${pkg.platform}/${pkg.bundleVersion}?project=${projectId}`}>
                   <Eye className="mr-2 h-4 w-4" /> View Manifest
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href={getPackageDownloadUrl(pkg.platform, pkg.bundleVersion)}>
+                <a href={getPackageDownloadUrl(projectId, pkg.platform, pkg.bundleVersion)}>
                   <Download className="mr-2 h-4 w-4" /> Download
                 </a>
               </DropdownMenuItem>

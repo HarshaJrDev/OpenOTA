@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
-import { loadConfig, writeConfig } from "../services/config.service.js";
+import { loadConfig } from "../services/config.service.js";
+import { saveApiKey } from "../services/credentials.service.js";
 import { log } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
 
@@ -12,8 +13,10 @@ export async function runLogin(options: LoginCommandOptions): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
 
-  await writeConfig(root, { ...config, apiKey: options.apiKey });
-  log.success("Logged in. API key saved to openota.config.json");
+  // Written to the user-level credentials file, never to openota.config.json — that file lives
+  // in the project repo and is meant to be committed. See credentials.service.ts's doc comment.
+  await saveApiKey(config.serverUrl, options.apiKey);
+  log.success(`Logged in. API key saved for ${config.serverUrl}.`);
 }
 
 export function registerLoginCommand(program: Command): void {

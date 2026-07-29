@@ -14,16 +14,25 @@ import type { StorageProvider } from "../../providers/storage/provider.js";
 
 const ACTIVE_POINTER_FILENAME = "active.json";
 
-export function createPackageStorageService(storage: StorageProvider) {
+/**
+ * `keyPrefix` (e.g. `projects/{projectId}`) isolates one tenant's storage keys from every other
+ * tenant's and from the legacy flat/global namespace — this is the ONLY thing that changes
+ * between a project-scoped `PackageStorageService` instance and the legacy one; every method
+ * below is otherwise identical, so upload/check/rollback logic never needs to know which mode
+ * it's running in. Server-constructed only — never derived from anything client-supplied.
+ */
+export function createPackageStorageService(storage: StorageProvider, keyPrefix = "") {
+  const prefix = keyPrefix ? `${keyPrefix}/` : "";
+
   function packageDir(platform: Platform, version: string): string {
     assertSafePathSegment(platform);
     assertSafePathSegment(version);
-    return `${platform}/${version}`;
+    return `${prefix}${platform}/${version}`;
   }
 
   function activePointerKey(platform: Platform): string {
     assertSafePathSegment(platform);
-    return `${platform}/${ACTIVE_POINTER_FILENAME}`;
+    return `${prefix}${platform}/${ACTIVE_POINTER_FILENAME}`;
   }
 
   return {
@@ -99,7 +108,7 @@ export function createPackageStorageService(storage: StorageProvider) {
 
     async listVersions(platform: Platform): Promise<string[]> {
       assertSafePathSegment(platform);
-      const entries = await storage.list(platform);
+      const entries = await storage.list(`${prefix}${platform}`);
       return entries.filter((entry) => entry.isDirectory).map((entry) => entry.name);
     },
 
@@ -120,7 +129,7 @@ export function createPackageStorageService(storage: StorageProvider) {
     },
 
     async listPlatforms(): Promise<Platform[]> {
-      const entries = await storage.list("");
+      const entries = await storage.list(keyPrefix);
       return entries
         .filter((entry) => entry.isDirectory)
         .map((entry) => entry.name)
