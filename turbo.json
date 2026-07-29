@@ -11,7 +11,11 @@
       "dependsOn": ["^lint"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      // Workspace deps (e.g. @openota/sdk -> @openota/shared) are consumed via their compiled
+      // dist/*.d.ts output, not source — so type-checking a package requires its dependencies to
+      // have been *built* first, not merely type-checked. "^check-types" alone left a clean CI
+      // checkout with no dist/ at all, failing with "Cannot find module '@openota/shared'".
+      "dependsOn": ["^build"]
     },
     "test": {
       "dependsOn": ["^build"]
