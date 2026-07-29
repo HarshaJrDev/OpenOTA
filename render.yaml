@@ -1,8 +1,26 @@
+# Render Blueprint for the OpenOTA server (apps/server).
+#
+# Deploy: push this repo, then in the Render dashboard "New +" -> "Blueprint" and pick this repo.
+#
+# IMPORTANT — persistence: the server keeps its multi-tenant data (users, projects, API keys,
+# releases) in a SQLite file, and with STORAGE_PROVIDER=local it also stores OTA package bytes on
+# disk. Both must survive restarts/redeploys, which requires a persistent disk. Render disks are
+# only available on paid instance types (Starter and up) — the Free plan has an ephemeral
+# filesystem, so on Free every signup/project/release is wiped on each restart. This blueprint
+# therefore uses `plan: starter` with a mounted disk.
+#
+# If you want a Free-tier demo instead (data resets on restart — fine only for a throwaway link):
+#   1. change `plan: starter` -> `plan: free`
+#   2. delete the entire `disk:` block
+#   3. set STORAGE_ROOT to a relative path (e.g. ./storage) and DATABASE_URL to file:./data/openota.db
+#      (still ephemeral, but valid). Optionally set STORAGE_PROVIDER=supabase so at least the
+#      package bytes persist off-box (the SQLite metadata DB will still reset).
+
 services:
   - type: web
     name: openota-server
     runtime: node
-    plan: free
+    plan: starter
     rootDir: .
     buildCommand: pnpm install --frozen-lockfile && pnpm turbo build --filter=@openota/server
     startCommand: pnpm --filter @openota/server start:prod
@@ -10,6 +28,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Signs session cookies. Render generates a strong value once and keeps it stable across
+      # deploys (rotating it would invalidate everyone's session).
       - key: SESSION_SECRET
         generateValue: true
       - key: STORAGE_PROVIDER
@@ -18,8 +38,12 @@ services:
         value: /data/storage
       - key: DATABASE_URL
         value: file:/data/openota.db
+      # Must be the dashboard's exact origin (e.g. https://open-ota-dashboard.vercel.app) — the
+      # cross-site session cookie only works when the API returns credentials for a real origin,
+      # never "*". Set in the Render dashboard; not committed here.
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      # Optional legacy single-tenant self-host key. Leave unset for the multi-tenant/dashboard flow.
       - key: OPENOTA_API_KEY
         sync: false
     disk:
