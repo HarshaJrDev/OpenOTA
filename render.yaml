@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: openota-server
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo build --filter=@openota/server
+    startCommand: pnpm --filter @openota/server start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: STORAGE_ROOT
+        value: /data/storage
+      - key: DATABASE_URL
+        value: file:/data/openota.db
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: OPENOTA_API_KEY
+        sync: false
+    disk:
+      name: openota-data
+      mountPath: /data
+      sizeGB: 1
