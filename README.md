@@ -39,6 +39,8 @@ value; nothing about the CLI/SDK/native runtime depends on it specifically.
 Full end-to-end walkthrough (native wiring, SDK integration, verifying a release, sync, rollback,
 negative paths): **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**
 Flat command/API reference: **[docs/COMMANDS.md](./docs/COMMANDS.md)**
+Multi-tenant Cloud mode — accounts, projects, per-project API keys, dashboard, full Cloud API
+reference: **[docs/CLOUD.md](./docs/CLOUD.md)**
 
 ## Architecture
 
