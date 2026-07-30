@@ -83,3 +83,9 @@ export class UnauthorizedError extends AppError {
     super("UNAUTHORIZED", message, 401);
   }
 }
+
+export class TooManyRequestsError extends AppError {
+  constructor(message = "Too many requests") {
+    super("TOO_MANY_REQUESTS", message, 429);
+  }
+}

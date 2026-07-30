@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { authRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import { setSessionCookie, clearSessionCookie } from "./cookie.js";
@@ -13,7 +14,7 @@ const credentialsSchema = z.object({
 
 export const authRouter: ExpressRouter = Router();
 
-authRouter.post("/signup", (req, res, next) => {
+authRouter.post("/signup", authRateLimiter, (req, res, next) => {
   try {
     const { email, password } = credentialsSchema.parse(req.body);
     const { userId, token } = authService.signup(email, password);
@@ -24,7 +25,7 @@ authRouter.post("/signup", (req, res, next) => {
   }
 });
 
-authRouter.post("/login", (req, res, next) => {
+authRouter.post("/login", authRateLimiter, (req, res, next) => {
   try {
     const { email, password } = credentialsSchema.parse(req.body);
     const { userId, token } = authService.login(email, password);

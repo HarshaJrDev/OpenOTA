@@ -21,6 +21,13 @@ initSchema();
 
 export const app: Express = express();
 
+// Behind Render/most PaaS there is exactly one proxy hop in front of the app. Trusting it makes
+// `req.ip` the real client address (from X-Forwarded-For) instead of the proxy's — required for
+// the auth rate limiter to bucket per real client rather than lumping everyone together. `1`
+// (not `true`) is deliberate: trusting *all* hops would let a client spoof its IP via a forged
+// X-Forwarded-For header and evade the limiter.
+app.set("trust proxy", 1);
+
 app.use(pinoHttp.default({ logger }));
 
 // Unset CORS_ALLOWED_ORIGINS reflects any origin for the CLI/device surface (see env.ts's comment

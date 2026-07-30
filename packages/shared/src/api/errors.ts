@@ -12,6 +12,7 @@ export const ERROR_CODES = [
   "NOT_CONFIGURED",
   "PATH_SECURITY_ERROR",
   "UNAUTHORIZED",
+  "TOO_MANY_REQUESTS",
 
   // Package / manifest
   "PACKAGE_NOT_FOUND",
