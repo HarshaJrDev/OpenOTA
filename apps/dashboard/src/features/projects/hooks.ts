@@ -27,3 +27,20 @@ export function useCreateProject() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: projectKeys.list() }),
   });
 }
+
+export function useRenameProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, name }: { projectId: string; name: string }) =>
+      projectsApi.renameProject(projectId, name),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: projectKeys.all }),
+  });
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) => projectsApi.deleteProject(projectId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: projectKeys.all }),
+  });
+}

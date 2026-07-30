@@ -244,4 +244,58 @@ describe("multi-tenant isolation", () => {
     const res = await request(app).get(`/api/v1/projects/${projectId}/packages`);
     expect(res.status).toBe(401);
   });
+
+  it("owner can rename their project; slug stays stable", async () => {
+    const cookie = await signup("owner-k@example.test");
+    const projectId = await createProject(cookie, "Old Name");
+    const before = await request(app).get(`/api/v1/projects/${projectId}`).set("Cookie", cookie);
+    const slug = before.body.data.slug as string;
+
+    const res = await request(app).patch(`/api/v1/projects/${projectId}`).set("Cookie", cookie).send({ name: "New Name" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe("New Name");
+    expect(res.body.data.slug).toBe(slug); // slug intentionally unchanged
+  });
+
+  it("a non-owner cannot rename or delete someone else's project (404, not 403 — no existence leak)", async () => {
+    const ownerCookie = await signup("owner-l-owner@example.test");
+    const otherCookie = await signup("owner-l-other@example.test");
+    const projectId = await createProject(ownerCookie, "Project L");
+
+    const rename = await request(app).patch(`/api/v1/projects/${projectId}`).set("Cookie", otherCookie).send({ name: "hijack" });
+    expect(rename.status).toBe(404);
+
+    const del = await request(app).delete(`/api/v1/projects/${projectId}`).set("Cookie", otherCookie);
+    expect(del.status).toBe(404);
+
+    // owner's project is untouched
+    const stillThere = await request(app).get(`/api/v1/projects/${projectId}`).set("Cookie", ownerCookie);
+    expect(stillThere.status).toBe(200);
+    expect(stillThere.body.data.name).toBe("Project L");
+  });
+
+  it("owner can delete their project; it and its API keys become inaccessible afterwards", async () => {
+    const cookie = await signup("owner-m@example.test");
+    const projectId = await createProject(cookie, "Project M");
+    const { fullKey } = await createApiKey(cookie, projectId);
+
+    const del = await request(app).delete(`/api/v1/projects/${projectId}`).set("Cookie", cookie);
+    expect(del.status).toBe(200);
+    expect(del.body.data.deleted).toBe(true);
+
+    // project gone
+    expect((await request(app).get(`/api/v1/projects/${projectId}`).set("Cookie", cookie)).status).toBe(404);
+    // its API key no longer authorizes anything (cascade-deleted)
+    const withDeadKey = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages`)
+      .set("Authorization", `Bearer ${fullKey}`);
+    expect(withDeadKey.status).toBe(401);
+  });
+
+  it("rejects an empty project name on rename (validation)", async () => {
+    const cookie = await signup("owner-n@example.test");
+    const projectId = await createProject(cookie, "Project N");
+    const res = await request(app).patch(`/api/v1/projects/${projectId}`).set("Cookie", cookie).send({ name: "" });
+    expect(res.status).toBe(400);
+  });
 });

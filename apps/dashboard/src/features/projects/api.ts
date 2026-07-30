@@ -20,3 +20,11 @@ export function createProject(name: string): Promise<Project> {
 export function getProject(projectId: string): Promise<Project> {
   return apiRequest(`/projects/${projectId}`);
 }
+
+export function renameProject(projectId: string, name: string): Promise<Project> {
+  return apiRequest(`/projects/${projectId}`, { method: "PATCH", body: { name } });
+}
+
+export function deleteProject(projectId: string): Promise<{ deleted: boolean }> {
+  return apiRequest(`/projects/${projectId}`, { method: "DELETE" });
+}

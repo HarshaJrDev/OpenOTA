@@ -61,6 +61,15 @@ export const projectsRepo = {
   slugExists(slug: string): boolean {
     return db.prepare("SELECT 1 FROM projects WHERE slug = ?").get(slug) !== undefined;
   },
+  updateName(id: string, name: string): ProjectRow | undefined {
+    db.prepare("UPDATE projects SET name = ?, updated_at = ? WHERE id = ?").run(name, new Date().toISOString(), id);
+    return this.findById(id);
+  },
+  // FK cascade (see db/client.ts schema: ON DELETE CASCADE + PRAGMA foreign_keys=ON) removes the
+  // project's app_configs, api_keys and releases metadata in the same statement.
+  delete(id: string): void {
+    db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+  },
 };
 
 export const apiKeysRepo = {

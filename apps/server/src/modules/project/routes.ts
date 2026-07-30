@@ -2,10 +2,15 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { requireSession } from "../../middleware/session.middleware.js";
+import { createStorageProvider } from "../../providers/storage/index.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "./service.js";
 
-const createProjectSchema = z.object({ name: z.string().min(1).max(100) });
+const projectNameSchema = z.object({ name: z.string().min(1).max(100) });
+
+// One provider instance for this router (used by DELETE for best-effort storage cleanup). Cheap
+// to hold: for local storage it's a set of closures over a path; env is validated at boot.
+const storage = createStorageProvider();
 
 export const projectRouter: ExpressRouter = Router();
 
@@ -18,7 +23,7 @@ export const projectRouter: ExpressRouter = Router();
 // keeps this router's auth scoped to only the routes it actually defines.
 projectRouter.post("/", requireSession, (req, res, next) => {
   try {
-    const { name } = createProjectSchema.parse(req.body);
+    const { name } = projectNameSchema.parse(req.body);
     // req.user is guaranteed by requireSession above.
     const project = projectService.createProject(req.user!.id, name);
     sendSuccess(res, project, 201);
@@ -38,6 +43,26 @@ projectRouter.get("/", requireSession, (req, res, next) => {
 projectRouter.get("/:projectId", requireSession, (req, res, next) => {
   try {
     sendSuccess(res, projectService.getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+projectRouter.patch("/:projectId", requireSession, (req, res, next) => {
+  try {
+    const { name } = projectNameSchema.parse(req.body);
+    const { projectId } = req.params as unknown as { projectId: string };
+    sendSuccess(res, projectService.renameProject(req.user!.id, projectId, name));
+  } catch (error) {
+    next(error);
+  }
+});
+
+projectRouter.delete("/:projectId", requireSession, async (req, res, next) => {
+  try {
+    const { projectId } = req.params as unknown as { projectId: string };
+    await projectService.deleteProject(req.user!.id, projectId, storage);
+    sendSuccess(res, { deleted: true });
   } catch (error) {
     next(error);
   }

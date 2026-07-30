@@ -27,7 +27,7 @@ function getServerUrl(): string {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "DELETE";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: Record<string, string | undefined>;
   body?: unknown;
 }

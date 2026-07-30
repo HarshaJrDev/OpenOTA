@@ -64,12 +64,12 @@ Sign up ─► Create Project ─► Generate API Key ─► openota login ─�
 |---|---|---|
 | **Sign up / Log in** | `/login` | Email + password (min 8 chars). Session persists 30 days. |
 | **Create Project** | `/projects` | Enter a name → get a Project ID (`proj`-style UUID) + URL slug. |
+| **Rename / Delete Project** | `/projects` (⋮ menu per card) | Rename edits the display name (slug stays stable). Delete is permanent — removes the project + all its API keys and releases (confirmation required). |
 | **Generate API Key** | `/api-keys` (select project first) | Full key shown **once** in a copy-to-clipboard modal. Copy it now — it is never retrievable again. |
 | **View Releases** | `/packages`, `/releases` | Per-project. Rollback + delete available with confirmation dialogs. |
 | **Settings** | `/settings` | Override the server URL this browser talks to. |
 
 **Not implemented today (do not expect these):**
-- **Edit Project / Delete Project** — no endpoint exists; a project is create + view only.
 - **"Create App" as a separate entity** — an "app" is simply a project's platform (`android`/`ios`). There is no distinct App resource or App-settings screen. `runtimeVersion` is configured in the React Native project's `openota.config.json` + `MainApplication.kt`, **not** in the dashboard.
 - **Devices / Analytics / Logs pages** — placeholders; they require device check-in/reporting the server does not implement yet, and the pages say so.
 
@@ -110,6 +110,8 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 | POST | `/projects` | `{ name }` (1–100 chars) | `201` project object |
 | GET | `/projects` | — | `200` array of the caller's projects |
 | GET | `/projects/:projectId` | — | `200` project; `404` if not owned |
+| PATCH | `/projects/:projectId` | `{ name }` | `200` updated project (renames display name; slug stays stable) |
+| DELETE | `/projects/:projectId` | — | `200` `{ deleted: true }` — cascades API keys + releases; best-effort storage cleanup |
 
 ### API keys — `/projects/:projectId/api-keys` (session cookie, owner only)
 
