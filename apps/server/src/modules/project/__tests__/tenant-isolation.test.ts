@@ -298,4 +298,34 @@ describe("multi-tenant isolation", () => {
     const res = await request(app).patch(`/api/v1/projects/${projectId}`).set("Cookie", cookie).send({ name: "" });
     expect(res.status).toBe(400);
   });
+
+  it("a Bearer session token authenticates with NO cookie (cross-domain path)", async () => {
+    // Login/signup return the token in the body; the cross-domain dashboard sends it as a Bearer
+    // header because the third-party session cookie may be blocked. Prove every session-authed
+    // surface works with the token alone and no Cookie header at all.
+    const res = await request(app).post("/api/v1/auth/signup").send({ email: "bearer@example.test", password: "correct-horse" });
+    const token = res.body.data.token as string;
+    expect(token).toBeTruthy();
+
+    const me = await request(app).get("/api/v1/auth/me").set("Authorization", `Bearer ${token}`);
+    expect(me.status).toBe(200);
+    expect(me.body.data.email).toBe("bearer@example.test");
+
+    const created = await request(app)
+      .post("/api/v1/projects")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Bearer Project" });
+    expect(created.status).toBe(201);
+
+    // a project-scoped route (session, not API key) via the Bearer token
+    const list = await request(app)
+      .get(`/api/v1/projects/${created.body.data.id}/packages`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(list.status).toBe(200);
+  });
+
+  it("a garbage Bearer token is rejected", async () => {
+    const me = await request(app).get("/api/v1/auth/me").set("Authorization", "Bearer not-a-real-token");
+    expect(me.status).toBe(401);
+  });
 });

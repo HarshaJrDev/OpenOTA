@@ -1,5 +1,6 @@
 import { parseApiResponse, ResponseValidationError, type ErrorCode } from "@openota/shared";
 
+import { getAuthToken } from "./auth-token";
 import { getServerUrlOverride } from "./server-config";
 
 /**
@@ -46,17 +47,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
+  const headers: Record<string, string> = {};
+  if (options.body) headers["Content-Type"] = "application/json";
+  // Primary auth in production: the stored session token as a Bearer header, which works
+  // cross-domain even when the third-party session cookie is blocked. `credentials: "include"`
+  // still sends the cookie too, so same-origin/self-hosted keeps working with no token.
+  const token = getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   let response: Response;
 
   try {
     response = await fetch(url.toString(), {
       method: options.method ?? "GET",
-      headers: options.body ? { "Content-Type": "application/json" } : undefined,
+      headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
       cache: "no-store",
-      // Sends/receives the dashboard's session cookie — required for every /auth, /projects and
-      // /projects/:id/api-keys call. See app.ts's CORS config: this only works because the server
-      // sets `credentials: true` and reflects a real origin (never `*`) in response.
       credentials: "include",
     });
   } catch (error) {

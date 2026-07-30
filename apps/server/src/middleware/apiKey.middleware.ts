@@ -3,11 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 import { env } from "../config/env.js";
-import { apiKeysRepo, projectsRepo, usersRepo } from "../db/repositories.js";
-import { readSessionCookie } from "../modules/auth/cookie.js";
-import { verifySessionToken } from "../modules/auth/session.js";
+import { apiKeysRepo, projectsRepo } from "../db/repositories.js";
 import { hashApiKey, isProjectApiKey } from "../modules/apikey/crypto.js";
 import { UnauthorizedError } from "../shared/errors.js";
+import { resolveSessionUser } from "./session.middleware.js";
 
 /** Constant-time comparison — a plain `!==` short-circuits on the first mismatched byte, which
  * leaks how many leading characters of a guess were correct via response timing. Lengths differing
@@ -73,8 +72,11 @@ export function requireApiKey(req: Request, _res: Response, next: NextFunction):
     return;
   }
 
+  // Dashboard session — via a Bearer session token (production, cross-domain) or the session
+  // cookie (same-origin). resolveSessionUser ignores `ota_live_` Bearer values, so this never
+  // collides with the API-key path above.
   const projectId = (req.params as Record<string, string | undefined>).projectId;
-  if (!presented && projectId) {
+  if (projectId) {
     const sessionUser = resolveSessionUser(req);
     if (sessionUser) {
       const project = projectsRepo.findById(projectId);
@@ -97,12 +99,6 @@ export function requireApiKey(req: Request, _res: Response, next: NextFunction):
   }
 
   next();
-}
-
-function resolveSessionUser(req: Request) {
-  const token = readSessionCookie(req);
-  const verified = token ? verifySessionToken(token) : null;
-  return verified ? usersRepo.findById(verified.userId) : undefined;
 }
 
 /** 403s if the authenticated project (see requireApiKey) doesn't match the :projectId route param — the one check that actually enforces cross-tenant isolation on project-scoped routes. */
