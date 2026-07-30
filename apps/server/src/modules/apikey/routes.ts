@@ -15,11 +15,11 @@ export const apiKeyRouter: ExpressRouter = Router({ mergeParams: true });
 
 apiKeyRouter.use(requireSession);
 
-apiKeyRouter.post("/", (req, res, next) => {
+apiKeyRouter.post("/", async (req, res, next) => {
   try {
     const { name } = createKeySchema.parse(req.body);
-    const project = getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
-    const { key, fullKey } = apiKeyService.createKey(project.id, name);
+    const project = await getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
+    const { key, fullKey } = await apiKeyService.createKey(project.id, name);
     // fullKey is returned exactly once, here, and never persisted or logged in plaintext again.
     sendSuccess(res, { ...key, hashed_key: undefined, fullKey }, 201);
   } catch (error) {
@@ -27,19 +27,19 @@ apiKeyRouter.post("/", (req, res, next) => {
   }
 });
 
-apiKeyRouter.get("/", (req, res, next) => {
+apiKeyRouter.get("/", async (req, res, next) => {
   try {
-    const project = getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
-    sendSuccess(res, apiKeyService.listKeys(project.id));
+    const project = await getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
+    sendSuccess(res, await apiKeyService.listKeys(project.id));
   } catch (error) {
     next(error);
   }
 });
 
-apiKeyRouter.delete("/:keyId", (req, res, next) => {
+apiKeyRouter.delete("/:keyId", async (req, res, next) => {
   try {
-    const project = getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
-    apiKeyService.revokeKey(project.id, req.params.keyId!);
+    const project = await getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId);
+    await apiKeyService.revokeKey(project.id, req.params.keyId!);
     sendSuccess(res, { revoked: true });
   } catch (error) {
     next(error);

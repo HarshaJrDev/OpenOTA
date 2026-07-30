@@ -67,3 +67,9 @@ packages/*/*.tgz
 apps/example/openota/
 examples/OpenOTAExample
 examples/OpenOTAExample
+apps/server/dev.db-shm
+apps/server/dev.db-wal
+
+# Embedded PGlite local data dir
+data/pgdata/
+apps/server/data/

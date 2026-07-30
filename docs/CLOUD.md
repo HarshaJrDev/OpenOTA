@@ -26,7 +26,7 @@ Browser (Dashboard, *.vercel.app)          React Native app / CI
 │  OpenOTA Server (apps/server, Express)                       │
 │                                                              │
 │   Auth (users, sessions)  ─┐                                 │
-│   Projects                 ├─► SQLite (DATABASE_URL)         │
+│   Projects                 ├─► Postgres (DATABASE_URL)       │
 │   API keys                 │   metadata only                 │
 │   Releases (metadata)     ─┘                                 │
 │                                                              │
@@ -35,7 +35,7 @@ Browser (Dashboard, *.vercel.app)          React Native app / CI
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **SQLite** holds only tenancy metadata: `users`, `projects`, `app_configs`, `api_keys`, `releases`. It never holds bundle bytes.
+- **Postgres** holds only tenancy metadata: `users`, `projects`, `app_configs`, `api_keys`, `releases`. It never holds bundle bytes. Locally / self-hosted this is an embedded **PGlite** database (in-process, zero external infra, persisted to `./data/pgdata`); in Cloud it's a managed Postgres (e.g. Supabase) via `DATABASE_URL`.
 - **StorageProvider** holds the actual OTA package zips + manifests, isolated per project. The storage backend is never exposed to end users — see [STORAGE.md](./STORAGE.md).
 
 ---
@@ -98,8 +98,8 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 
 | Method | Path | Auth | Body | Success |
 |---|---|---|---|---|
-| POST | `/auth/signup` | none | `{ email, password }` (password ≥ 8) | `201` `{ userId }` + `Set-Cookie` |
-| POST | `/auth/login` | none | `{ email, password }` | `200` `{ userId }` + `Set-Cookie` |
+| POST | `/auth/signup` | none | `{ email, password }` (password ≥ 8) | `201` `{ userId, token }` + `Set-Cookie` |
+| POST | `/auth/login` | none | `{ email, password }` | `200` `{ userId, token }` + `Set-Cookie` |
 | POST | `/auth/logout` | none | — | `200` `{ loggedOut: true }` (clears cookie) |
 | GET | `/auth/me` | session | — | `200` `{ userId, email }`; `401` if not logged in |
 
@@ -155,7 +155,7 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 |---|---|---|---|
 | `PORT` | no | `3001` | HTTP port |
 | `NODE_ENV` | no | `development` | `production` enables `Secure` cookies + cross-site cookie mode + requires `SESSION_SECRET` |
-| `DATABASE_URL` | no | `file:./data/openota.db` (test: in-memory) | SQLite location for tenancy metadata. **Needs a persistent disk in prod.** |
+| `DATABASE_URL` | no | embedded PGlite at `./data/pgdata` (test: in-memory) | `postgres://…` for managed Postgres (Supabase in Cloud). Unset = embedded PGlite. Use a real Postgres URL on ephemeral hosts so data survives restarts. |
 | `SESSION_SECRET` | **yes in prod** | random per-boot in dev | Signs session cookies. Must be stable (≥16 chars); the server refuses to boot in production without it. |
 | `SESSION_COOKIE_CROSS_SITE` | no | derived from `NODE_ENV` | `true` → `SameSite=None; Secure` (dashboard and API on different sites); `false` → `SameSite=Lax`. |
 | `CORS_ALLOWED_ORIGINS` | **yes for cross-site dashboard** | reflects request origin | Comma-separated allowlist. Required for the dashboard's credentialed cookie to work cross-origin (browsers reject `*` with credentials). |
@@ -170,14 +170,14 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 
 ## 6. Deployment (Render + Vercel)
 
-**Server → Render** (see `render.yaml`): uses `plan: starter` with a persistent disk at `/data`, because the SQLite DB + local package storage must survive restarts. In the Render dashboard set:
+**Server → Render** (see `render.yaml`): set `DATABASE_URL` to your Supabase Postgres connection string so accounts/projects survive restarts (this removes the need for a persistent disk for the database). If you instead use embedded PGlite, you still need a persistent disk at `/data`. In the Render dashboard set:
 - `CORS_ALLOWED_ORIGINS` = your dashboard origin, e.g. `https://open-ota-dashboard.vercel.app`
 - (`SESSION_SECRET` auto-generates; `NODE_ENV=production` is set by the blueprint)
 
 **Dashboard → Vercel** (see `apps/dashboard/vercel.json`): set
 - `NEXT_PUBLIC_OPENOTA_SERVER_URL` = `https://YOUR-RENDER-SERVER/api/v1` (**must include `/api/v1`**)
 
-**Do not deploy the server to Vercel** — serverless has no persistent disk, so the SQLite DB would reset on every invocation.
+**Do not deploy the server to Vercel** — serverless has no persistent filesystem. With a managed Postgres `DATABASE_URL` the metadata survives, but local package storage still needs a real disk, so use Render/Railway/a container host for the server.
 
 ---
 
@@ -203,4 +203,4 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 - **Storage**: server constructs every storage key (`projects/{id}/…`) — clients never supply paths. Supabase service-role key is server-only.
 - **Package integrity**: SHA-256 verified by the native runtime before activation; zip-bomb cap in the SDK before extraction; path-traversal guards on every storage key.
 
-**Known production gaps** (not yet addressed): no rate limiting on auth/upload endpoints; SQLite (not Postgres) is the metadata store; no email verification / password reset.
+**Known production gaps** (not yet addressed): no email verification / password reset. (Auth endpoints are rate-limited; the metadata store is Postgres — embedded PGlite locally, managed Postgres/Supabase in Cloud.)

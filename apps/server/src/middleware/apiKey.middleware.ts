@@ -41,64 +41,68 @@ function safeEqual(a: string, b: string): boolean {
  * Apply this only to mutating/private routes (upload/rollback/delete/list) — devices reading
  * `check`/download are never expected to carry a server-admin, project, or session secret.
  */
-export function requireApiKey(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.header("authorization");
-  const presented = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+export async function requireApiKey(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const header = req.header("authorization");
+    const presented = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
 
-  if (presented && isProjectApiKey(presented)) {
-    const prefix = presented.slice(0, "ota_live_".length + 8);
-    const hashed = hashApiKey(presented);
-    const candidates = apiKeysRepo.findByPrefix(prefix);
-    const match = candidates.find((row) => {
-      const a = Buffer.from(row.hashed_key);
-      const b = Buffer.from(hashed);
-      return a.length === b.length && timingSafeEqual(a, b);
-    });
+    if (presented && isProjectApiKey(presented)) {
+      const prefix = presented.slice(0, "ota_live_".length + 8);
+      const hashed = hashApiKey(presented);
+      const candidates = await apiKeysRepo.findByPrefix(prefix);
+      const match = candidates.find((row) => {
+        const a = Buffer.from(row.hashed_key);
+        const b = Buffer.from(hashed);
+        return a.length === b.length && timingSafeEqual(a, b);
+      });
 
-    if (!match || match.revoked_at) {
-      next(new UnauthorizedError());
-      return;
-    }
-
-    const project = projectsRepo.findById(match.project_id);
-    if (!project) {
-      next(new UnauthorizedError());
-      return;
-    }
-
-    apiKeysRepo.touchLastUsed(match.id);
-    req.project = project;
-    next();
-    return;
-  }
-
-  // Dashboard session — via a Bearer session token (production, cross-domain) or the session
-  // cookie (same-origin). resolveSessionUser ignores `ota_live_` Bearer values, so this never
-  // collides with the API-key path above.
-  const projectId = (req.params as Record<string, string | undefined>).projectId;
-  if (projectId) {
-    const sessionUser = resolveSessionUser(req);
-    if (sessionUser) {
-      const project = projectsRepo.findById(projectId);
-      if (project && project.owner_id === sessionUser.id) {
-        req.project = project;
-        next();
+      if (!match || match.revoked_at) {
+        next(new UnauthorizedError());
         return;
       }
+
+      const project = await projectsRepo.findById(match.project_id);
+      if (!project) {
+        next(new UnauthorizedError());
+        return;
+      }
+
+      await apiKeysRepo.touchLastUsed(match.id);
+      req.project = project;
+      next();
+      return;
     }
-  }
 
-  if (!env.apiKey) {
+    // Dashboard session — via a Bearer session token (production, cross-domain) or the session
+    // cookie (same-origin). resolveSessionUser ignores `ota_live_` Bearer values, so this never
+    // collides with the API-key path above.
+    const projectId = (req.params as Record<string, string | undefined>).projectId;
+    if (projectId) {
+      const sessionUser = await resolveSessionUser(req);
+      if (sessionUser) {
+        const project = await projectsRepo.findById(projectId);
+        if (project && project.owner_id === sessionUser.id) {
+          req.project = project;
+          next();
+          return;
+        }
+      }
+    }
+
+    if (!env.apiKey) {
+      next();
+      return;
+    }
+
+    if (!presented || !safeEqual(presented, env.apiKey)) {
+      next(new UnauthorizedError());
+      return;
+    }
+
     next();
-    return;
+  } catch (error) {
+    next(error);
   }
-
-  if (!presented || !safeEqual(presented, env.apiKey)) {
-    next(new UnauthorizedError());
-    return;
-  }
-
-  next();
 }
 
 /** 403s if the authenticated project (see requireApiKey) doesn't match the :projectId route param — the one check that actually enforces cross-tenant isolation on project-scoped routes. */

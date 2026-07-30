@@ -21,7 +21,7 @@ const API_KEY_PREFIX = "ota_live_";
  * A Bearer value starting with `ota_live_` is a *project API key*, not a session token, so it is
  * ignored here (it's handled by requireApiKey instead).
  */
-export function resolveSessionUser(req: Request): UserRow | undefined {
+export async function resolveSessionUser(req: Request): Promise<UserRow | undefined> {
   const header = req.header("authorization");
   const bearer = header?.startsWith(BEARER) ? header.slice(BEARER.length) : undefined;
   const rawToken = bearer && !bearer.startsWith(API_KEY_PREFIX) ? bearer : readSessionCookie(req);
@@ -34,13 +34,16 @@ export function resolveSessionUser(req: Request): UserRow | undefined {
 }
 
 /** Dashboard-only auth: requires a valid session (Bearer token or cookie), sets req.user. */
-export function requireSession(req: Request, _res: Response, next: NextFunction): void {
-  const user = resolveSessionUser(req);
-  if (!user) {
-    next(new UnauthorizedError("Not logged in"));
-    return;
+export async function requireSession(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await resolveSessionUser(req);
+    if (!user) {
+      next(new UnauthorizedError("Not logged in"));
+      return;
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  req.user = user;
-  next();
 }

@@ -17,6 +17,12 @@ beforeAll(async () => {
   delete process.env.OPENOTA_API_KEY;
 
   ({ app } = await import("../../../app.js"));
+  // These tests exercise auth/projects/api-keys, which query the DB. Under NODE_ENV=test this
+  // spins up an isolated in-memory PGlite. Done here (not a global setup file) so it runs AFTER
+  // this suite has set its own env vars — importing the DB layer earlier would freeze env.ts
+  // before the flat-route suites set OPENOTA_API_KEY/STORAGE_ROOT.
+  const { initDb } = await import("../../../db/client.js");
+  await initDb();
 });
 
 afterAll(async () => {

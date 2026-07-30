@@ -15,17 +15,17 @@ export class EmailAlreadyRegisteredError extends ValidationError {
   }
 }
 
-export function signup(email: string, password: string): { userId: string; token: string } {
-  if (usersRepo.findByEmail(email)) {
+export async function signup(email: string, password: string): Promise<{ userId: string; token: string }> {
+  if (await usersRepo.findByEmail(email)) {
     throw new EmailAlreadyRegisteredError();
   }
 
-  const user = usersRepo.create(email, hashPassword(password));
+  const user = await usersRepo.create(email, hashPassword(password));
   return { userId: user.id, token: createSessionToken(user.id) };
 }
 
-export function login(email: string, password: string): { userId: string; token: string } {
-  const user = usersRepo.findByEmail(email);
+export async function login(email: string, password: string): Promise<{ userId: string; token: string }> {
+  const user = await usersRepo.findByEmail(email);
   if (!user || !verifyPassword(password, user.password_hash)) {
     throw new InvalidCredentialsError();
   }

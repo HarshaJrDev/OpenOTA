@@ -6,7 +6,6 @@ import pinoHttp from "pino-http";
 
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
-import { initSchema } from "./db/client.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/notFound.middleware.js";
 import { authRouter } from "./modules/auth/routes.js";
@@ -17,8 +16,9 @@ import { projectRouter } from "./modules/project/routes.js";
 import { createStorageProvider } from "./providers/storage/index.js";
 import { sendSuccess } from "./shared/responses.js";
 
-initSchema();
-
+// The database is initialized by the entrypoint (server.ts) or test setup via initDb() before any
+// request is served — it can't run here because app.ts is imported synchronously and the DB
+// connect/bootstrap is async.
 export const app: Express = express();
 
 // Behind Render/most PaaS there is exactly one proxy hop in front of the app. Trusting it makes

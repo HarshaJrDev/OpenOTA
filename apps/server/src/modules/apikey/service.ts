@@ -2,23 +2,24 @@ import { apiKeysRepo, type ApiKeyRow } from "../../db/repositories.js";
 import { NotFoundError, ValidationError } from "../../shared/errors.js";
 import { generateApiKey } from "./crypto.js";
 
-export function createKey(projectId: string, name: string): { key: ApiKeyRow; fullKey: string } {
+export async function createKey(projectId: string, name: string): Promise<{ key: ApiKeyRow; fullKey: string }> {
   const { fullKey, prefix, hashedKey } = generateApiKey();
-  const key = apiKeysRepo.create(projectId, name, prefix, hashedKey);
+  const key = await apiKeysRepo.create(projectId, name, prefix, hashedKey);
   return { key, fullKey };
 }
 
-export function listKeys(projectId: string): Omit<ApiKeyRow, "hashed_key">[] {
-  return apiKeysRepo.listByProject(projectId).map(({ hashed_key: _hashed_key, ...rest }) => rest);
+export async function listKeys(projectId: string): Promise<Omit<ApiKeyRow, "hashed_key">[]> {
+  const keys = await apiKeysRepo.listByProject(projectId);
+  return keys.map(({ hashed_key: _hashed_key, ...rest }) => rest);
 }
 
-export function revokeKey(projectId: string, keyId: string): void {
-  const key = apiKeysRepo.findById(keyId);
+export async function revokeKey(projectId: string, keyId: string): Promise<void> {
+  const key = await apiKeysRepo.findById(keyId);
   if (!key || key.project_id !== projectId) {
     throw new NotFoundError("API key not found");
   }
   if (key.revoked_at) {
     throw new ValidationError("API key is already revoked");
   }
-  apiKeysRepo.revoke(keyId);
+  await apiKeysRepo.revoke(keyId);
 }

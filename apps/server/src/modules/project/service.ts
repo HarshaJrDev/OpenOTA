@@ -5,7 +5,7 @@ import { logger } from "../../config/logger.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
 import { NotFoundError } from "../../shared/errors.js";
 
-function slugify(name: string): string {
+async function slugify(name: string): Promise<string> {
   const base = name
     .toLowerCase()
     .trim()
@@ -14,23 +14,23 @@ function slugify(name: string): string {
     .slice(0, 40);
 
   let slug = base || "project";
-  while (projectsRepo.slugExists(slug)) {
+  while (await projectsRepo.slugExists(slug)) {
     slug = `${base || "project"}-${randomBytes(3).toString("hex")}`;
   }
   return slug;
 }
 
-export function createProject(ownerId: string, name: string): ProjectRow {
-  return projectsRepo.create(ownerId, name, slugify(name));
+export async function createProject(ownerId: string, name: string): Promise<ProjectRow> {
+  return projectsRepo.create(ownerId, name, await slugify(name));
 }
 
-export function listProjects(ownerId: string): ProjectRow[] {
+export function listProjects(ownerId: string): Promise<ProjectRow[]> {
   return projectsRepo.listByOwner(ownerId);
 }
 
 /** Throws NotFoundError rather than returning undefined so callers can't accidentally skip the ownership check. */
-export function getOwnedProject(ownerId: string, projectId: string): ProjectRow {
-  const project = projectsRepo.findById(projectId);
+export async function getOwnedProject(ownerId: string, projectId: string): Promise<ProjectRow> {
+  const project = await projectsRepo.findById(projectId);
   if (!project || project.owner_id !== ownerId) {
     throw new NotFoundError("Project not found");
   }
@@ -39,9 +39,9 @@ export function getOwnedProject(ownerId: string, projectId: string): ProjectRow 
 
 /** Renames a project the caller owns. The slug is intentionally left unchanged — it's a stable
  * identifier that may already be referenced elsewhere; only the display name is editable. */
-export function renameProject(ownerId: string, projectId: string, name: string): ProjectRow {
-  getOwnedProject(ownerId, projectId); // ownership check (throws NotFound otherwise)
-  const updated = projectsRepo.updateName(projectId, name);
+export async function renameProject(ownerId: string, projectId: string, name: string): Promise<ProjectRow> {
+  await getOwnedProject(ownerId, projectId); // ownership check (throws NotFound otherwise)
+  const updated = await projectsRepo.updateName(projectId, name);
   if (!updated) {
     throw new NotFoundError("Project not found");
   }
@@ -62,8 +62,8 @@ export async function deleteProject(
   projectId: string,
   storage: StorageProvider,
 ): Promise<void> {
-  getOwnedProject(ownerId, projectId); // ownership check
-  projectsRepo.delete(projectId);
+  await getOwnedProject(ownerId, projectId); // ownership check
+  await projectsRepo.delete(projectId);
 
   try {
     await storage.delete(`projects/${projectId}`);

@@ -21,38 +21,38 @@ export const projectRouter: ExpressRouter = Router();
 // those requests too (and reject them, since they carry a project API key, not a session cookie)
 // before Express ever got to try the sibling routers. Applying requireSession per-route instead
 // keeps this router's auth scoped to only the routes it actually defines.
-projectRouter.post("/", requireSession, (req, res, next) => {
+projectRouter.post("/", requireSession, async (req, res, next) => {
   try {
     const { name } = projectNameSchema.parse(req.body);
     // req.user is guaranteed by requireSession above.
-    const project = projectService.createProject(req.user!.id, name);
+    const project = await projectService.createProject(req.user!.id, name);
     sendSuccess(res, project, 201);
   } catch (error) {
     next(error);
   }
 });
 
-projectRouter.get("/", requireSession, (req, res, next) => {
+projectRouter.get("/", requireSession, async (req, res, next) => {
   try {
-    sendSuccess(res, projectService.listProjects(req.user!.id));
+    sendSuccess(res, await projectService.listProjects(req.user!.id));
   } catch (error) {
     next(error);
   }
 });
 
-projectRouter.get("/:projectId", requireSession, (req, res, next) => {
+projectRouter.get("/:projectId", requireSession, async (req, res, next) => {
   try {
-    sendSuccess(res, projectService.getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId));
+    sendSuccess(res, await projectService.getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId));
   } catch (error) {
     next(error);
   }
 });
 
-projectRouter.patch("/:projectId", requireSession, (req, res, next) => {
+projectRouter.patch("/:projectId", requireSession, async (req, res, next) => {
   try {
     const { name } = projectNameSchema.parse(req.body);
     const { projectId } = req.params as unknown as { projectId: string };
-    sendSuccess(res, projectService.renameProject(req.user!.id, projectId, name));
+    sendSuccess(res, await projectService.renameProject(req.user!.id, projectId, name));
   } catch (error) {
     next(error);
   }

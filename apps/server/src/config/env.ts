@@ -87,9 +87,10 @@ export const env = {
   maxPackageSizeBytes: Math.floor(parsed.data.OPENOTA_MAX_PACKAGE_SIZE_MB * 1024 * 1024),
   // Never log this value — see the schema comment on OPENOTA_API_KEY above.
   apiKey: parsed.data.OPENOTA_API_KEY,
-  // Tests get an isolated in-memory DB by default (never shared/leaked between test files);
-  // real runs default to a single self-hosted-friendly SQLite file, overridable via DATABASE_URL.
-  databaseUrl: parsed.data.DATABASE_URL ?? (parsed.data.NODE_ENV === "test" ? ":memory:" : "file:./data/openota.db"),
+  // Unset → embedded PGlite (tests: in-memory; otherwise a local ./data/pgdata directory).
+  // `postgres://…` → managed Postgres (Supabase in production). See db/client.ts. Defaults are
+  // resolved there, not here, so this is a straight pass-through.
+  databaseUrl: parsed.data.DATABASE_URL,
   // Never log this value. A missing SESSION_SECRET in production is a real misconfiguration
   // (every restart would silently invalidate all dashboard sessions with a new random secret,
   // and worse, an attacker who can predict process-start timing gains no advantage since this

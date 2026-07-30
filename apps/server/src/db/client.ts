@@ -1,37 +1,75 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import Database from "better-sqlite3";
+import { PGlite } from "@electric-sql/pglite";
+import pg from "pg";
 
 import { env } from "../config/env.js";
 
 /**
- * A single embedded SQLite file is the entire multi-tenant data layer (users/projects/api
- * keys/releases) — OTA package bytes/manifests still live entirely in `StorageProvider`, this DB
- * only tracks ownership/auth metadata. SQLite is deliberately chosen over a hosted RDBMS for v0.1:
- * a self-hoster gets multi-tenancy with zero extra infrastructure (one file, backed up like any
- * other), and `DATABASE_URL` stays the escape hatch name so a future Postgres driver swap (for
- * OpenOTA Cloud at real scale) only touches this file, never callers.
+ * One async query interface over two Postgres backends, chosen by DATABASE_URL:
+ *
+ *   - `postgres://…` / `postgresql://…`  → real Postgres via `pg` (this is Supabase in production).
+ *   - anything else / unset               → PGlite, an embedded in-process Postgres (WASM). Used
+ *     for tests (in-memory) and for local dev / self-hosting with no external database (persisted
+ *     to a directory). Same SQL dialect as production, so there is real dev/prod parity and the
+ *     repositories are written once.
+ *
+ * Both `pg.Pool.query` and `PGlite.query` return `{ rows }` for `(text, params)`, so callers use
+ * the single `query()` export below and never learn which backend is active.
  */
-const dbPath = env.databaseUrl.startsWith("file:")
-  ? path.resolve(env.databaseUrl.slice("file:".length))
-  : env.databaseUrl;
-
-if (dbPath !== ":memory:") {
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+type QueryResult<T> = { rows: T[] };
+interface Db {
+  query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<QueryResult<T>>;
+  /** Runs one or more `;`-separated statements with no parameters (used only for schema bootstrap).
+   * PGlite's parametrized `query()` rejects multi-statement SQL, so this is a distinct path. */
+  exec(text: string): Promise<void>;
 }
 
-export const db: Database.Database = new Database(dbPath);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+function isPostgresUrl(url: string | undefined): boolean {
+  return !!url && (url.startsWith("postgres://") || url.startsWith("postgresql://"));
+}
 
-/**
- * Idempotent schema bootstrap, run once at process start — deliberately not a migration framework
- * (see the plan note on scope): v0.1 has no schema history to migrate yet, and `CREATE TABLE IF NOT
- * EXISTS` is sufficient until the schema needs its first real breaking change.
- */
-export function initSchema(): void {
-  db.exec(`
+let db: Db;
+
+function createDb(): Db {
+  const url = env.databaseUrl;
+
+  if (isPostgresUrl(url)) {
+    // Supabase (and most managed Postgres) require TLS. `rejectUnauthorized: false` accepts their
+    // certificate chain without shipping a CA bundle; the connection is still encrypted.
+    const pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
+    return {
+      query: (text, params) => pool.query(text, params) as never,
+      exec: async (text) => {
+        await pool.query(text); // node-postgres runs multiple statements when there are no params
+      },
+    };
+  }
+
+  // PGlite. `memory://` for tests (never touches disk, isolated per run); a directory otherwise so
+  // local/self-hosted data persists across restarts.
+  let dataDir: string;
+  if (env.nodeEnv === "test") {
+    dataDir = "memory://";
+  } else {
+    const fromUrl = url?.startsWith("file:") ? url.slice("file:".length) : undefined;
+    dataDir = fromUrl ? path.resolve(fromUrl) : path.resolve(process.cwd(), "data/pgdata");
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  const pglite = new PGlite(dataDir);
+  return {
+    query: (text, params) => pglite.query(text, params) as never,
+    exec: async (text) => {
+      await pglite.exec(text);
+    },
+  };
+}
+
+/** Idempotent schema bootstrap. Async because both backends connect lazily on first query. */
+export async function initDb(): Promise<void> {
+  db = createDb();
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id            TEXT PRIMARY KEY,
       email         TEXT NOT NULL UNIQUE,
@@ -80,7 +118,7 @@ export function initSchema(): void {
       runtime_version TEXT NOT NULL,
       storage_key     TEXT NOT NULL,
       checksum        TEXT NOT NULL,
-      size_bytes      INTEGER NOT NULL,
+      size_bytes      BIGINT NOT NULL,
       status          TEXT NOT NULL DEFAULT 'active',
       created_at      TEXT NOT NULL,
       created_by      TEXT REFERENCES api_keys(id),
@@ -88,4 +126,13 @@ export function initSchema(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_releases_lookup ON releases(project_id, platform, channel, runtime_version, status);
   `);
+}
+
+/** The single query entry point used by every repository. Throws if called before initDb(). */
+export async function query<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
+  if (!db) {
+    throw new Error("Database not initialized — call initDb() at startup before handling requests.");
+  }
+  const result = await db.query<T>(text, params);
+  return result.rows;
 }
