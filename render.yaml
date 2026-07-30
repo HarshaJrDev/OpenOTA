@@ -2,19 +2,21 @@
 #
 # Deploy: push this repo, then in the Render dashboard "New +" -> "Blueprint" and pick this repo.
 #
-# IMPORTANT — persistence: the server keeps its multi-tenant data (users, projects, API keys,
-# releases) in a SQLite file, and with STORAGE_PROVIDER=local it also stores OTA package bytes on
-# disk. Both must survive restarts/redeploys, which requires a persistent disk. Render disks are
-# only available on paid instance types (Starter and up) — the Free plan has an ephemeral
-# filesystem, so on Free every signup/project/release is wiped on each restart. This blueprint
-# therefore uses `plan: starter` with a mounted disk.
+# IMPORTANT — persistence:
+#   - Metadata (users/projects/api_keys) lives in Postgres, chosen via DATABASE_URL. Set it to your
+#     Supabase project's connection string (Supabase dashboard -> Project Settings -> Database ->
+#     Connection string -> URI) so accounts/projects survive restarts with NO persistent disk
+#     needed for the database. Leave it unset and the server falls back to an embedded PGlite
+#     database on the mounted disk below — fine for a demo, but ephemeral on Render's Free plan
+#     (no disk) and ties the DB to this one service's disk on paid plans.
+#   - OTA package bytes (with STORAGE_PROVIDER=local, the default below) still need a persistent
+#     disk regardless of the database choice — hence `plan: starter` + the mounted disk. Set
+#     STORAGE_PROVIDER=supabase instead to store package bytes in Supabase Storage and drop the
+#     disk requirement entirely (see docs/STORAGE.md).
 #
-# If you want a Free-tier demo instead (data resets on restart — fine only for a throwaway link):
-#   1. change `plan: starter` -> `plan: free`
-#   2. delete the entire `disk:` block
-#   3. set STORAGE_ROOT to a relative path (e.g. ./storage) and DATABASE_URL to file:./data/openota.db
-#      (still ephemeral, but valid). Optionally set STORAGE_PROVIDER=supabase so at least the
-#      package bytes persist off-box (the SQLite metadata DB will still reset).
+# If you want a Free-tier demo instead (local package storage resets on restart — fine only for a
+# throwaway link): change `plan: starter` -> `plan: free`, delete the `disk:` block, and set
+# STORAGE_PROVIDER=supabase (so package bytes at least persist off-box) or accept it resetting.
 
 services:
   - type: web
@@ -22,7 +24,10 @@ services:
     runtime: node
     plan: starter
     rootDir: .
-    buildCommand: pnpm install --frozen-lockfile && pnpm turbo build --filter=@openota/server
+    # NODE_ENV=production (set below) is also read by `pnpm install`, which then skips
+    # devDependencies (e.g. @types/node) — tsc needs them to build. Force dev deps in for install,
+    # then build; the resulting dist/ doesn't care what NODE_ENV was during compilation.
+    buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm turbo build --filter=@openota/server
     startCommand: pnpm --filter @openota/server start:prod
     healthCheckPath: /health
     envVars:
@@ -32,12 +37,14 @@ services:
       # deploys (rotating it would invalidate everyone's session).
       - key: SESSION_SECRET
         generateValue: true
+      # Set this to your Supabase Postgres connection string so metadata survives restarts. Unset
+      # falls back to embedded PGlite on the mounted disk (see the persistence note above).
+      - key: DATABASE_URL
+        sync: false
       - key: STORAGE_PROVIDER
         value: local
       - key: STORAGE_ROOT
         value: /data/storage
-      - key: DATABASE_URL
-        value: file:/data/openota.db
       # Must be the dashboard's exact origin (e.g. https://open-ota-dashboard.vercel.app) — the
       # cross-site session cookie only works when the API returns credentials for a real origin,
       # never "*". Set in the Render dashboard; not committed here.
