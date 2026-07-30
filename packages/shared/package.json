@@ -51,12 +51,12 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.25.0"
+    "@babel/runtime": "^7.25.0",
+    "typescript": "5.9.2"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "eslint": "^9.39.1",
-    "typescript": "5.9.2",
     "vitest": "^4.1.10"
   }
 }
