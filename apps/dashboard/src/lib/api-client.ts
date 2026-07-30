@@ -18,11 +18,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The OpenOTA Cloud server. Used when neither a per-browser override (Settings) nor a build-time
+ * `NEXT_PUBLIC_OPENOTA_SERVER_URL` is set, so a default deploy talks to the real Render server
+ * (never the old Railway host) out of the box. Must include the `/api/v1` prefix.
+ */
+export const DEFAULT_SERVER_URL = "https://openota.onrender.com/api/v1";
+
 function getServerUrl(): string {
-  const url = getServerUrlOverride() ?? process.env.NEXT_PUBLIC_OPENOTA_SERVER_URL;
-  if (!url) {
-    throw new ApiError("NETWORK_ERROR", "No server configured — set one in Settings, or NEXT_PUBLIC_OPENOTA_SERVER_URL");
-  }
+  const url = getServerUrlOverride() ?? process.env.NEXT_PUBLIC_OPENOTA_SERVER_URL ?? DEFAULT_SERVER_URL;
   return url.replace(/\/+$/, "");
 }
 

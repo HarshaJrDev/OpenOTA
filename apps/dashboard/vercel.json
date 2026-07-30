@@ -2,5 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo build --filter=@openota/dashboard",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_OPENOTA_SERVER_URL": "https://openota.onrender.com/api/v1"
+    }
+  }
 }
