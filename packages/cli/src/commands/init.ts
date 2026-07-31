@@ -8,6 +8,7 @@ import { detectAndroidVersionName } from "../utils/version.js";
 interface InitOptions {
   serverUrl: string;
   runtimeVersion?: string;
+  projectId?: string;
 }
 
 async function runInit(options: InitOptions): Promise<void> {
@@ -63,11 +64,20 @@ async function runInit(options: InitOptions): Promise<void> {
   }
 
   const config = buildDefaultConfig(options.serverUrl, runtimeVersion);
+  if (options.projectId) {
+    config.projectId = options.projectId;
+  }
   await writeConfig(root, config);
 
   log.success("Created openota.config.json");
   log.info(`Server URL: ${config.serverUrl}`);
   log.info(`Platforms: ${config.platforms.join(", ")}`);
+  if (config.projectId) {
+    log.info(`Project ID: ${config.projectId}`);
+  } else {
+    log.info("No --project-id given — this targets a self-hosted server's flat namespace. For OpenOTA " +
+      "Cloud, run `openota login --api-key <key>` next; it resolves and fills in the project automatically.");
+  }
   log.info(
     `Runtime version: ${config.runtimeVersion}${detected ? " (detected from android/app/build.gradle versionName — review this)" : ""}`,
   );
@@ -89,6 +99,10 @@ export function registerInitCommand(program: Command): void {
     .option(
       "--runtime-version <version>",
       "Native binary compatibility identifier (defaults to Android's versionName if detected)",
+    )
+    .option(
+      "--project-id <id>",
+      "OpenOTA Cloud project ID (omit for self-hosted; `openota login` fills this in automatically)",
     )
     .action(async (options: InitOptions) => {
       await runInit(options);

@@ -19,6 +19,8 @@ const configSchema = z.object({
   // old openota.config.json doesn't hard-break, but no command reads this for auth anymore — see
   // credentials.service.ts. `doctor` warns if this is still present so it gets cleaned up.
   apiKey: z.string().optional(),
+  // Cloud only — see OpenOtaConfig's doc comment. Absent = self-hosted flat routes.
+  projectId: z.string().optional(),
   // Required, not defaulted: silently inventing a runtimeVersion (e.g. from package.json) is
   // exactly the footgun this field exists to prevent — see MissingRuntimeVersionError and
   // InvalidRuntimeVersionFormatError below for the dedicated, actionable errors this produces.
@@ -92,6 +94,12 @@ export function buildDefaultConfig(serverUrl: string, runtimeVersion: string): O
 
 export async function writeConfig(root: string, config: OpenOtaConfig): Promise<void> {
   await fse.writeJson(getConfigPath(root), config, { spaces: 2 });
+}
+
+/** Sets `projectId` on the existing config and rewrites it — used by `login` once it resolves which project an API key belongs to. */
+export async function setProjectId(root: string, projectId: string): Promise<void> {
+  const config = await loadConfig(root);
+  await writeConfig(root, { ...config, projectId });
 }
 
 export async function loadConfig(root: string = process.cwd()): Promise<OpenOtaConfig> {

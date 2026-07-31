@@ -334,4 +334,31 @@ describe("multi-tenant isolation", () => {
     const me = await request(app).get("/api/v1/auth/me").set("Authorization", "Bearer not-a-real-token");
     expect(me.status).toBe(401);
   });
+
+  it("GET /projects/me resolves the project a project API key belongs to (used by `openota login`)", async () => {
+    const cookie = await signup("owner-o@example.test");
+    const projectId = await createProject(cookie, "Project O");
+    const { fullKey } = await createApiKey(cookie, projectId);
+
+    const res = await request(app).get("/api/v1/projects/me").set("Authorization", `Bearer ${fullKey}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(projectId);
+    expect(res.body.data.name).toBe("Project O");
+  });
+
+  it("GET /projects/me rejects a session token (only project API keys resolve a project)", async () => {
+    const cookie = await signup("owner-p@example.test");
+    const res = await request(app).get("/api/v1/projects/me").set("Cookie", cookie);
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /projects/me rejects a revoked API key", async () => {
+    const cookie = await signup("owner-q@example.test");
+    const projectId = await createProject(cookie, "Project Q");
+    const { id: keyId, fullKey } = await createApiKey(cookie, projectId);
+    await request(app).delete(`/api/v1/projects/${projectId}/api-keys/${keyId}`).set("Cookie", cookie);
+
+    const res = await request(app).get("/api/v1/projects/me").set("Authorization", `Bearer ${fullKey}`);
+    expect(res.status).toBe(401);
+  });
 });

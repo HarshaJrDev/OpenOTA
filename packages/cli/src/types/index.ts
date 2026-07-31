@@ -9,6 +9,13 @@ export interface OpenOtaConfig {
   bundleOutput: string;
   apiKey?: string;
   /**
+   * OpenOTA Cloud only: which project this app releases to. When set, upload/rollback target the
+   * project-scoped routes (`/projects/{projectId}/packages/...`), correctly isolating releases per
+   * project. Absent for self-hosted single-tenant servers, which use the flat `/packages` routes —
+   * see `endpoints.ts`. Auto-filled by `openota login` when a project API key resolves one.
+   */
+  projectId?: string;
+  /**
    * Native binary compatibility identifier — independent of both the OTA release `version` and
    * `package.json`'s `version`. An OTA bundle is only served to a device whose native runtime
    * reports this exact same value (see `BundleVerifier.kt`'s `INVALID_RUNTIME` check). Bump this

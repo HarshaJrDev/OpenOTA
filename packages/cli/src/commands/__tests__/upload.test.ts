@@ -64,8 +64,33 @@ describe("runUpload", () => {
     }
 
     expect(uploadPackage).toHaveBeenCalledTimes(1);
-    const options = uploadPackage.mock.calls[0]?.[1];
+    const [, endpoint, options] = uploadPackage.mock.calls[0] ?? [];
+    expect(endpoint).toBe("/packages"); // no projectId in config -> flat self-hosted route
     expect(options.runtimeVersion).toBe("1.0.0");
     expect(options.runtimeVersion).not.toBe("0.0.1");
+  });
+
+  it("targets the project-scoped endpoint when openota.config.json has a projectId", async () => {
+    await fse.writeJson(path.join(root, "openota.config.json"), {
+      serverUrl: "http://localhost:3001/api/v1",
+      deployment: "production",
+      platforms: ["android"],
+      bundleOutput: "./openota",
+      runtimeVersion: "1.0.0",
+      projectId: "proj_abc123",
+    });
+
+    const originalCwd = process.cwd();
+    process.chdir(root);
+
+    try {
+      const { runUpload } = await import("../upload.js");
+      await runUpload({ zip: "ota-package.zip", platform: "android", version: "1.0.4" });
+    } finally {
+      process.chdir(originalCwd);
+    }
+
+    const [, endpoint] = uploadPackage.mock.calls[0] ?? [];
+    expect(endpoint).toBe("/projects/proj_abc123/packages");
   });
 });

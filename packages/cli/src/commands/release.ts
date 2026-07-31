@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
 import { getApiKey } from "../services/credentials.service.js";
+import { packagesEndpoint } from "../services/endpoints.js";
 import { uploadPackage } from "../services/upload.service.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
@@ -26,6 +27,7 @@ export async function runRelease(options: ReleaseCommandOptions): Promise<void> 
 
     const uploaded = await uploadPackage(
       client,
+      packagesEndpoint(config),
       {
         zipPath: result.zipPath,
         platform: result.platform,

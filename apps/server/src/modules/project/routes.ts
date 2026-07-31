@@ -1,8 +1,10 @@
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { requireApiKey } from "../../middleware/apiKey.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { createStorageProvider } from "../../providers/storage/index.js";
+import { UnauthorizedError } from "../../shared/errors.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "./service.js";
 
@@ -35,6 +37,24 @@ projectRouter.post("/", requireSession, async (req, res, next) => {
 projectRouter.get("/", requireSession, async (req, res, next) => {
   try {
     sendSuccess(res, await projectService.listProjects(req.user!.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Mounted BEFORE "/:projectId" so this literal segment wins the match. Lets the CLI resolve
+// "which project does this API key belong to" from just the key — no dashboard round-trip needed
+// to learn a projectId before `openota init --project-id` can be filled in. Uses requireApiKey
+// (not requireSession): a project API key already implies exactly one project server-side; this
+// is the one place that fact is exposed back to whoever is holding the key.
+projectRouter.get("/me", requireApiKey, (req, res, next) => {
+  try {
+    if (!req.project) {
+      throw new UnauthorizedError(
+        "This endpoint requires a project-scoped API key (Authorization: Bearer ota_live_...).",
+      );
+    }
+    sendSuccess(res, req.project);
   } catch (error) {
     next(error);
   }

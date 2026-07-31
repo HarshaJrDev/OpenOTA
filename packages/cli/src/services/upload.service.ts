@@ -5,11 +5,11 @@ import type { Manifest } from "@openota/shared";
 import FormData from "form-data";
 import fse from "fs-extra";
 
-import { PACKAGES_ENDPOINT } from "../constants/index.js";
 import type { UploadOptions } from "../types/index.js";
 
 export async function uploadPackage(
   client: AxiosInstance,
+  endpoint: string,
   options: UploadOptions,
   onProgress?: (percent: number) => void,
 ): Promise<Manifest> {
@@ -29,7 +29,7 @@ export async function uploadPackage(
   });
 
   const response = await client.post<{ success: true; data: Manifest }>(
-    PACKAGES_ENDPOINT,
+    endpoint,
     form,
     {
       headers: form.getHeaders(),

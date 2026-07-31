@@ -7,6 +7,7 @@ import fse from "fs-extra";
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
 import { getApiKey } from "../services/credentials.service.js";
+import { packagesEndpoint } from "../services/endpoints.js";
 import { uploadPackage } from "../services/upload.service.js";
 import type { Platform } from "../types/index.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
@@ -35,6 +36,7 @@ export async function runUpload(options: UploadCommandOptions): Promise<void> {
 
   const uploaded = await uploadPackage(
     client,
+    packagesEndpoint(config),
     {
       zipPath,
       platform: options.platform,

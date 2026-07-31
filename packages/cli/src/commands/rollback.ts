@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { createApiClient } from "../services/api.service.js";
 import { loadConfig } from "../services/config.service.js";
 import { getApiKey } from "../services/credentials.service.js";
-import { ROLLBACK_ENDPOINT } from "../constants/index.js";
+import { rollbackEndpoint } from "../services/endpoints.js";
 import type { Platform } from "../types/index.js";
 import { log, startSpinner, succeed } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
@@ -21,7 +21,7 @@ export async function runRollback(options: RollbackCommandOptions): Promise<void
 
   const spinner = startSpinner(`Rolling back ${options.platform} to v${options.version}...`);
 
-  await client.post(ROLLBACK_ENDPOINT, {
+  await client.post(rollbackEndpoint(config), {
     platform: options.platform,
     version: options.version,
   });

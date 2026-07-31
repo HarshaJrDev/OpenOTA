@@ -9,6 +9,7 @@ import { getConfigPath, getProjectRoot, isReactNativeProject } from "../utils/pa
 import { getNodeVersion } from "../utils/version.js";
 import { loadConfig } from "./config.service.js";
 import { credentialsFileMode, getApiKey } from "./credentials.service.js";
+import { resolveProjectFromKey } from "./project.service.js";
 
 async function checkNode(): Promise<DoctorCheckResult> {
   const version = getNodeVersion();
@@ -118,8 +119,36 @@ async function checkServerReachability(root: string): Promise<DoctorCheckResult>
   }
 }
 
+/** Only meaningful for OpenOTA Cloud (a project-scoped key) — self-hosted setups with no projectId skip this. */
+async function checkProjectAccess(root: string): Promise<DoctorCheckResult | undefined> {
+  const config = await loadConfig(root).catch(() => undefined);
+  if (!config?.projectId) {
+    return undefined;
+  }
+
+  const apiKey = await getApiKey(config.serverUrl);
+  if (!apiKey) {
+    return { name: "Project Access", ok: false, message: "not logged in (run `openota login --api-key <key>`)" };
+  }
+
+  const project = await resolveProjectFromKey(config.serverUrl, apiKey);
+  if (!project) {
+    return { name: "Project Access", ok: false, message: "API key did not resolve to a project (check it hasn't been revoked)" };
+  }
+
+  if (project.id !== config.projectId) {
+    return {
+      name: "Project Access",
+      ok: false,
+      message: `API key belongs to project "${project.name}" (${project.id}), not the configured ${config.projectId}`,
+    };
+  }
+
+  return { name: "Project Access", ok: true, message: `"${project.name}" (${project.id})` };
+}
+
 export async function runDoctorChecks(root: string = getProjectRoot()): Promise<DoctorCheckResult[]> {
-  return [
+  const results = [
     await checkNode(),
     await checkReactNative(root),
     await checkAndroid(root),
@@ -129,4 +158,11 @@ export async function runDoctorChecks(root: string = getProjectRoot()): Promise<
     await checkAuthentication(root),
     await checkServerReachability(root),
   ];
+
+  const projectAccess = await checkProjectAccess(root);
+  if (projectAccess) {
+    results.push(projectAccess);
+  }
+
+  return results;
 }

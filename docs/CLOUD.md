@@ -86,7 +86,9 @@ npx openota release --version 1.0.1 --platform android
 ```
 
 - `openota login` writes the API key to **`~/.openota/credentials.json`** (user-level, `chmod 600`), keyed by server URL — **never** into the project's `openota.config.json` (which is safe to commit). `openota logout` removes it.
-- `release`/`upload`/`rollback` read the key from that credentials file for the config's `serverUrl`; if missing they fail with "run `openota login`".
+- `login` also calls `GET /projects/me` with the key to find out which project it belongs to, and **auto-fills `projectId`** into `openota.config.json` if it isn't already set. This is what makes `release`/`upload`/`rollback` target the correct project-scoped routes (`/projects/{id}/packages/...`) instead of the flat self-hosted namespace. If you'd rather set it explicitly, pass `openota init --project-id proj_xxx`.
+- `release`/`upload`/`rollback` read the key from that credentials file for the config's `serverUrl`; if missing they fail with "run `openota login`". **A project API key used without a `projectId` in config falls back to the flat routes** — auth still succeeds (the key itself is valid), but the release lands in the wrong, unisolated namespace. Always run `login` (or set `projectId` in `init`) before releasing to Cloud.
+- `openota doctor` includes a **Project Access** check once `projectId` is set — confirms the configured key still resolves to that exact project.
 
 ---
 
@@ -103,15 +105,16 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 | POST | `/auth/logout` | none | — | `200` `{ loggedOut: true }` (clears cookie) |
 | GET | `/auth/me` | session | — | `200` `{ userId, email }`; `401` if not logged in |
 
-### Projects — `/projects` (session cookie only)
+### Projects — `/projects`
 
-| Method | Path | Body | Success |
-|---|---|---|---|
-| POST | `/projects` | `{ name }` (1–100 chars) | `201` project object |
-| GET | `/projects` | — | `200` array of the caller's projects |
-| GET | `/projects/:projectId` | — | `200` project; `404` if not owned |
-| PATCH | `/projects/:projectId` | `{ name }` | `200` updated project (renames display name; slug stays stable) |
-| DELETE | `/projects/:projectId` | — | `200` `{ deleted: true }` — cascades API keys + releases; best-effort storage cleanup |
+| Method | Path | Auth | Body | Success |
+|---|---|---|---|---|
+| GET | `/projects/me` | **project API key only** | — | `200` the key's own project; `401` for a session token or a non-project key. Used by the CLI's `login` to auto-resolve `projectId`. |
+| POST | `/projects` | session cookie | `{ name }` (1–100 chars) | `201` project object |
+| GET | `/projects` | session cookie | — | `200` array of the caller's projects |
+| GET | `/projects/:projectId` | session cookie | — | `200` project; `404` if not owned |
+| PATCH | `/projects/:projectId` | session cookie | `{ name }` | `200` updated project (renames display name; slug stays stable) |
+| DELETE | `/projects/:projectId` | session cookie | — | `200` `{ deleted: true }` — cascades API keys + releases; best-effort storage cleanup |
 
 ### API keys — `/projects/:projectId/api-keys` (session cookie, owner only)
 
