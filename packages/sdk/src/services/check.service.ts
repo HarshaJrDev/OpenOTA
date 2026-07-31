@@ -1,6 +1,7 @@
 import { CHECK_ENDPOINT, isPlatform, isValidSha256, type Manifest } from "@openota/shared";
 
 import { apiGet } from "../client.js";
+import { getConfig } from "../config.js";
 import { OTAError } from "../errors.js";
 import type { CheckResult, Platform } from "../types.js";
 
@@ -40,8 +41,20 @@ function assertValidCheckResult(value: unknown): asserts value is CheckResult {
   }
 }
 
+/**
+ * A project-scoped key (Cloud) writes releases into `/projects/{id}/packages/...` — an isolated
+ * namespace, not the flat one. Without `projectId` configured, this device would keep checking the
+ * flat `/packages/check` route and never see releases actually published to its own project (or
+ * worse, on a shared multi-tenant server, could see a *different* project's release). See
+ * OtaConfig.projectId's doc comment.
+ */
+function resolveCheckEndpoint(projectId: string | undefined): string {
+  return projectId ? `/projects/${projectId}/packages/check` : CHECK_ENDPOINT;
+}
+
 export async function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckResult> {
-  const data = await apiGet<unknown>(CHECK_ENDPOINT, { platform, currentVersion });
+  const endpoint = resolveCheckEndpoint(getConfig().projectId);
+  const data = await apiGet<unknown>(endpoint, { platform, currentVersion });
   assertValidCheckResult(data);
   return data;
 }

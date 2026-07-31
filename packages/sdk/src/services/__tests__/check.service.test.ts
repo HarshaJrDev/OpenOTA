@@ -91,4 +91,35 @@ describe("checkForUpdate", () => {
     expect(result.available).toBe(false);
     expect(result.manifest).toBeNull();
   });
+
+  it("hits the flat /packages/check route when no projectId is configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true, data: { available: false, latestVersion: "1.0.0", downloadUrl: null, manifest: null } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkForUpdate("android", "1.0.0");
+
+    const requestedUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(requestedUrl).toContain("/packages/check");
+    expect(requestedUrl).not.toContain("/projects/");
+  });
+
+  it("hits the project-scoped route when projectId IS configured — this is the Cloud multi-tenant isolation boundary", async () => {
+    configure({ serverUrl: "https://api.example.com/api/v1", projectId: "proj_abc123" });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true, data: { available: false, latestVersion: "1.0.0", downloadUrl: null, manifest: null } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkForUpdate("android", "1.0.0");
+
+    const requestedUrl = fetchMock.mock.calls[0]?.[0] as string;
+    expect(requestedUrl).toContain("/projects/proj_abc123/packages/check");
+  });
 });

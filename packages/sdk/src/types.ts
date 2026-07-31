@@ -8,6 +8,14 @@ export interface OtaConfig {
   autoRestart: boolean;
   requestTimeout: number;
   headers?: Record<string, string>;
+  /**
+   * OpenOTA Cloud only: which project this app belongs to. When set, `checkForUpdate` targets the
+   * project-scoped route (`/projects/{projectId}/packages/check`) — the isolated namespace that
+   * `openota release`/`upload` write into. Omit for a self-hosted server with no project concept,
+   * which uses the flat `/packages/check` route. Get this from the OpenOTA dashboard's Project
+   * page, or `openota.config.json`'s `projectId` if you're wiring it up alongside the CLI.
+   */
+  projectId?: string;
 }
 
 export type OtaConfigInput = Partial<Omit<OtaConfig, "serverUrl">> & {

@@ -20,6 +20,7 @@ export function configure(input: OtaConfigInput): OtaConfig {
     autoRestart: input.autoRestart ?? DEFAULT_AUTO_RESTART,
     requestTimeout: input.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS,
     headers: input.headers,
+    projectId: input.projectId,
   };
 
   currentConfig = config;
