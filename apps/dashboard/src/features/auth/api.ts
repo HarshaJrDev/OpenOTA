@@ -4,6 +4,7 @@ import { setAuthToken } from "@/lib/auth-token";
 export interface AuthUser {
   userId: string;
   email: string;
+  emailVerified: boolean;
 }
 
 interface AuthResult {
@@ -35,4 +36,20 @@ export async function logout(): Promise<{ loggedOut: boolean }> {
 
 export function me(): Promise<AuthUser> {
   return apiRequest("/auth/me");
+}
+
+export function resendVerificationEmail(): Promise<{ sent: boolean }> {
+  return apiRequest("/auth/verify-email/resend", { method: "POST" });
+}
+
+export function confirmVerificationEmail(token: string): Promise<{ verified: boolean }> {
+  return apiRequest("/auth/verify-email/confirm", { method: "POST", body: { token } });
+}
+
+export function forgotPassword(email: string): Promise<{ sent: boolean }> {
+  return apiRequest("/auth/forgot-password", { method: "POST", body: { email } });
+}
+
+export function resetPassword(token: string, password: string): Promise<{ reset: boolean }> {
+  return apiRequest("/auth/reset-password", { method: "POST", body: { token, password } });
 }

@@ -8,12 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { StatCard } from "@/components/stat-card";
+import { useDevices } from "@/features/devices/hooks";
 import { usePackages } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function AnalyticsPage() {
   const { currentProjectId } = useCurrentProject();
   const { data: packages, isLoading } = usePackages(currentProjectId);
+  const { data: devices, isLoading: devicesLoading } = useDevices(currentProjectId);
+  const totalDownloads = devices?.reduce((sum, device) => sum + device.download_count, 0) ?? 0;
 
   const byPlatform = ["android", "ios"].map((platform) => ({
     platform,
@@ -33,13 +36,19 @@ export default function AnalyticsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
         <p className="text-sm text-muted-foreground">
-          What&apos;s shown here is derived from real package metadata. Device-reported metrics (downloads, installs,
-          failures, rollbacks) need a check-in/reporting API this server doesn&apos;t have yet.
+          Downloads come from real device check-ins. Installs/failures/rollbacks need a separate
+          install-result reporting API this server doesn&apos;t have yet.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Downloads" icon={Download} unavailable unavailableReason="Requires device check-in tracking" />
+        <StatCard
+          title="Downloads"
+          icon={Download}
+          value={totalDownloads.toString()}
+          hint={`${devices?.length ?? 0} known device${devices?.length === 1 ? "" : "s"}`}
+          loading={devicesLoading}
+        />
         <StatCard title="Installs" icon={Activity} unavailable unavailableReason="Requires install-result reporting" />
         <StatCard title="Failures" icon={XCircle} unavailable unavailableReason="Requires install-result reporting" />
         <StatCard title="Rollbacks" icon={RotateCcw} unavailable unavailableReason="Requires install-result reporting" />

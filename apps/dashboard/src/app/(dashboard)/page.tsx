@@ -9,12 +9,15 @@ import { Skeleton } from "@openota/ui/skeleton";
 
 import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
+import { useDevices } from "@/features/devices/hooks";
 import { usePackages } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function OverviewPage() {
   const { currentProjectId } = useCurrentProject();
   const { data: packages, isLoading } = usePackages(currentProjectId);
+  const { data: devices, isLoading: devicesLoading } = useDevices(currentProjectId);
+  const totalDownloads = devices?.reduce((sum, device) => sum + device.download_count, 0) ?? 0;
 
   const sorted = [...(packages ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latest = sorted[0];
@@ -34,10 +37,15 @@ export default function OverviewPage() {
           value={latest ? `v${latest.bundleVersion}` : "—"}
           hint={latest ? `${latest.platform} · ${new Date(latest.createdAt).toLocaleDateString()}` : "No packages uploaded yet"}
         />
-        <StatCard title="Downloads" icon={Download} unavailable unavailableReason="Requires device check-in tracking" />
+        <StatCard title="Downloads" icon={Download} value={totalDownloads.toString()} loading={devicesLoading} />
         <StatCard title="Success Rate" icon={Activity} unavailable unavailableReason="Requires install-result reporting" />
         <StatCard title="Rollback Rate" icon={RotateCcw} unavailable unavailableReason="Requires install-result reporting" />
-        <StatCard title="Devices Online" icon={Smartphone} unavailable unavailableReason="Requires a device registry" />
+        <StatCard
+          title="Known Devices"
+          icon={Smartphone}
+          value={String(devices?.length ?? 0)}
+          loading={devicesLoading}
+        />
         <StatCard
           title="Total Packages"
           icon={Tag}

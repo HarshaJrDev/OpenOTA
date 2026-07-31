@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@openota/ui/button";
@@ -89,9 +90,15 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {mode === "login" && (
+            <Link href="/forgot-password" className="mt-3 block text-center text-sm text-muted-foreground hover:underline">
+              Forgot password?
+            </Link>
+          )}
+
           <button
             type="button"
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:underline"
+            className="mt-2 w-full text-center text-sm text-muted-foreground hover:underline"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
           >
             {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}

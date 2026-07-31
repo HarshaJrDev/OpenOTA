@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { VerifyEmailBanner } from "@/components/layout/verify-email-banner";
 import { useMe } from "@/features/auth/hooks";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
+        {!user.emailVerified && <VerifyEmailBanner email={user.email} />}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
       <CommandPalette />
