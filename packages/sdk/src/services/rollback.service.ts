@@ -1,7 +1,8 @@
 import { getConfig } from "../config.js";
 import { nativeBridge } from "../native/index.js";
 import { otaStorage } from "../storage.js";
-import type { InstallResult } from "../types.js";
+import type { InstallResult, Platform } from "../types.js";
+import { reportInstallResult } from "./report.service.js";
 
 /**
  * Restores the previous generation. The actual restore (moving `rollback/` back into `current/`)
@@ -22,6 +23,10 @@ export async function rollbackPackage(): Promise<InstallResult> {
 
   if (config.autoRestart) {
     await nativeBridge.restart();
+  }
+
+  if (runtimeInfo.currentVersion && runtimeInfo.runtimeVersion) {
+    reportInstallResult("rollback", runtimeInfo.platform as Platform, runtimeInfo.currentVersion, runtimeInfo.runtimeVersion);
   }
 
   return { manifest: null, version: runtimeInfo.currentVersion, bundlePath: runtimeInfo.bundlePath };

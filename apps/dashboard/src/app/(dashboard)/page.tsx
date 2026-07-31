@@ -9,6 +9,7 @@ import { Skeleton } from "@openota/ui/skeleton";
 
 import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
+import { useInstallResultCounts } from "@/features/analytics/hooks";
 import { useDevices } from "@/features/devices/hooks";
 import { usePackages } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
@@ -17,7 +18,13 @@ export default function OverviewPage() {
   const { currentProjectId } = useCurrentProject();
   const { data: packages, isLoading } = usePackages(currentProjectId);
   const { data: devices, isLoading: devicesLoading } = useDevices(currentProjectId);
+  const { data: installResults, isLoading: installResultsLoading } = useInstallResultCounts(currentProjectId);
   const totalDownloads = devices?.reduce((sum, device) => sum + device.download_count, 0) ?? 0;
+  const totalInstalls = (installResults?.success ?? 0) + (installResults?.failure ?? 0);
+  const successRate = totalInstalls > 0 ? Math.round(((installResults?.success ?? 0) / totalInstalls) * 100) : null;
+  const totalRollbackable = totalInstalls + (installResults?.rollback ?? 0);
+  const rollbackRate =
+    totalRollbackable > 0 ? Math.round(((installResults?.rollback ?? 0) / totalRollbackable) * 100) : null;
 
   const sorted = [...(packages ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latest = sorted[0];
@@ -38,8 +45,20 @@ export default function OverviewPage() {
           hint={latest ? `${latest.platform} · ${new Date(latest.createdAt).toLocaleDateString()}` : "No packages uploaded yet"}
         />
         <StatCard title="Downloads" icon={Download} value={totalDownloads.toString()} loading={devicesLoading} />
-        <StatCard title="Success Rate" icon={Activity} unavailable unavailableReason="Requires install-result reporting" />
-        <StatCard title="Rollback Rate" icon={RotateCcw} unavailable unavailableReason="Requires install-result reporting" />
+        <StatCard
+          title="Success Rate"
+          icon={Activity}
+          value={successRate === null ? "—" : `${successRate}%`}
+          hint={successRate === null ? "No install results yet" : undefined}
+          loading={installResultsLoading}
+        />
+        <StatCard
+          title="Rollback Rate"
+          icon={RotateCcw}
+          value={rollbackRate === null ? "—" : `${rollbackRate}%`}
+          hint={rollbackRate === null ? "No install results yet" : undefined}
+          loading={installResultsLoading}
+        />
         <StatCard
           title="Known Devices"
           icon={Smartphone}

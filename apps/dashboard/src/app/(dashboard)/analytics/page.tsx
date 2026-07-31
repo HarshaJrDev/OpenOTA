@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { StatCard } from "@/components/stat-card";
+import { useInstallResultCounts } from "@/features/analytics/hooks";
 import { useDevices } from "@/features/devices/hooks";
 import { usePackages } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
@@ -16,7 +17,10 @@ export default function AnalyticsPage() {
   const { currentProjectId } = useCurrentProject();
   const { data: packages, isLoading } = usePackages(currentProjectId);
   const { data: devices, isLoading: devicesLoading } = useDevices(currentProjectId);
+  const { data: installResults, isLoading: installResultsLoading } = useInstallResultCounts(currentProjectId);
   const totalDownloads = devices?.reduce((sum, device) => sum + device.download_count, 0) ?? 0;
+  const totalInstalls = (installResults?.success ?? 0) + (installResults?.failure ?? 0);
+  const successRate = totalInstalls > 0 ? Math.round(((installResults?.success ?? 0) / totalInstalls) * 100) : null;
 
   const byPlatform = ["android", "ios"].map((platform) => ({
     platform,
@@ -36,8 +40,8 @@ export default function AnalyticsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
         <p className="text-sm text-muted-foreground">
-          Downloads come from real device check-ins. Installs/failures/rollbacks need a separate
-          install-result reporting API this server doesn&apos;t have yet.
+          Downloads come from real device check-ins; installs/failures/rollbacks come from the
+          SDK reporting its own outcome after each activation or rollback.
         </p>
       </div>
 
@@ -49,9 +53,25 @@ export default function AnalyticsPage() {
           hint={`${devices?.length ?? 0} known device${devices?.length === 1 ? "" : "s"}`}
           loading={devicesLoading}
         />
-        <StatCard title="Installs" icon={Activity} unavailable unavailableReason="Requires install-result reporting" />
-        <StatCard title="Failures" icon={XCircle} unavailable unavailableReason="Requires install-result reporting" />
-        <StatCard title="Rollbacks" icon={RotateCcw} unavailable unavailableReason="Requires install-result reporting" />
+        <StatCard
+          title="Success Rate"
+          icon={Activity}
+          value={successRate === null ? "—" : `${successRate}%`}
+          hint={successRate === null ? "No install results reported yet" : `${totalInstalls} install${totalInstalls === 1 ? "" : "s"} reported`}
+          loading={installResultsLoading}
+        />
+        <StatCard
+          title="Failures"
+          icon={XCircle}
+          value={String(installResults?.failure ?? 0)}
+          loading={installResultsLoading}
+        />
+        <StatCard
+          title="Rollbacks"
+          icon={RotateCcw}
+          value={String(installResults?.rollback ?? 0)}
+          loading={installResultsLoading}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

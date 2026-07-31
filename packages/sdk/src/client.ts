@@ -13,17 +13,29 @@ export async function apiGet<T>(path: string, query?: Record<string, string>): P
     }
   }
 
+  return performRequest<T>(url, { method: "GET", headers: { Accept: "application/json", ...config.headers } });
+}
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const config = getConfig();
+  const url = new URL(`${config.serverUrl}${path}`);
+
+  return performRequest<T>(url, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json", ...config.headers },
+    body: JSON.stringify(body),
+  });
+}
+
+async function performRequest<T>(url: URL, init: { method: string; headers: Record<string, string>; body?: string }): Promise<T> {
+  const config = getConfig();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeout);
 
   let response: Response;
 
   try {
-    response = await fetch(url.toString(), {
-      method: "GET",
-      headers: { Accept: "application/json", ...config.headers },
-      signal: controller.signal,
-    });
+    response = await fetch(url.toString(), { ...init, signal: controller.signal });
   } catch (error) {
     throw new NetworkError(`Request to ${url.toString()} failed`, error);
   } finally {

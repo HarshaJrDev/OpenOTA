@@ -3,6 +3,7 @@ import { InstallError } from "../errors.js";
 import { nativeBridge } from "../native/index.js";
 import { otaStorage } from "../storage.js";
 import type { ExtractResult, InstallResult } from "../types.js";
+import { reportInstallResult } from "./report.service.js";
 
 /**
  * Hands the extracted package directory to the native runtime and asks it to activate. Native
@@ -29,8 +30,16 @@ export async function installPackage(extracted: ExtractResult): Promise<InstallR
       await nativeBridge.restart();
     }
 
+    reportInstallResult(
+      runtimeInfo.state === "FAILED" ? "failure" : "success",
+      manifest.platform,
+      manifest.bundleVersion,
+      manifest.runtimeVersion,
+    );
+
     return { manifest, version: manifest.bundleVersion, bundlePath };
   } catch (error) {
+    reportInstallResult("failure", manifest.platform, manifest.bundleVersion, manifest.runtimeVersion);
     throw error instanceof InstallError
       ? error
       : new InstallError(`Failed to activate bundle for ${manifest.platform}@${manifest.bundleVersion}`, error);
