@@ -32,6 +32,19 @@ export interface DeviceCheckinRow {
   last_seen_at: string;
 }
 
+export type InstallResultStatus = "success" | "failure" | "rollback";
+
+export interface InstallResultRow {
+  id: string;
+  project_id: string;
+  device_id: string;
+  platform: string;
+  version: string;
+  runtime_version: string;
+  status: InstallResultStatus;
+  created_at: string;
+}
+
 export interface ProjectRow {
   id: string;
   owner_id: string;
@@ -151,6 +164,44 @@ export const deviceCheckinsRepo = {
       "SELECT * FROM device_checkins WHERE project_id = $1 ORDER BY last_seen_at DESC",
       [projectId],
     );
+  },
+};
+
+export const installResultsRepo = {
+  async record(params: {
+    projectId: string;
+    deviceId: string;
+    platform: string;
+    version: string;
+    runtimeVersion: string;
+    status: InstallResultStatus;
+  }): Promise<void> {
+    await query(
+      `INSERT INTO install_results (id, project_id, device_id, platform, version, runtime_version, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        randomUUID(),
+        params.projectId,
+        params.deviceId,
+        params.platform,
+        params.version,
+        params.runtimeVersion,
+        params.status,
+        new Date().toISOString(),
+      ],
+    );
+  },
+  /** Counts by status — exactly what Analytics' Installs/Failures/Rollbacks stat cards need. */
+  async countsByProject(projectId: string): Promise<Record<InstallResultStatus, number>> {
+    const rows = await query<{ status: InstallResultStatus; count: string }>(
+      "SELECT status, COUNT(*) as count FROM install_results WHERE project_id = $1 GROUP BY status",
+      [projectId],
+    );
+    const counts: Record<InstallResultStatus, number> = { success: 0, failure: 0, rollback: 0 };
+    for (const row of rows) {
+      counts[row.status] = Number(row.count);
+    }
+    return counts;
   },
 };
 

@@ -156,6 +156,21 @@ export async function initDb(): Promise<void> {
       UNIQUE (project_id, device_id)
     );
     CREATE INDEX IF NOT EXISTS idx_device_checkins_project ON device_checkins(project_id, last_seen_at);
+
+    -- Unlike device_checkins (a "last seen" registry), this IS an event log: every install
+    -- attempt outcome is its own row, since Analytics needs counts over time, not just the latest
+    -- status per device.
+    CREATE TABLE IF NOT EXISTS install_results (
+      id              TEXT PRIMARY KEY,
+      project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      device_id       TEXT NOT NULL,
+      platform        TEXT NOT NULL,
+      version         TEXT NOT NULL,
+      runtime_version TEXT NOT NULL,
+      status          TEXT NOT NULL, -- "success" | "failure" | "rollback"
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_install_results_project ON install_results(project_id, status);
   `);
 }
 

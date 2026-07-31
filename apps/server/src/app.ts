@@ -10,6 +10,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/notFound.middleware.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { apiKeyRouter } from "./modules/apikey/routes.js";
+import { analyticsRouter } from "./modules/analytics/routes.js";
 import { devicesRouter } from "./modules/devices/routes.js";
 import { createProjectPackageRouter } from "./modules/package/project-routes.js";
 import { packageRouter } from "./modules/package/routes.js";
@@ -67,6 +68,7 @@ app.use("/api/v1/projects", projectRouter);
 app.use("/api/v1/projects/:projectId/api-keys", apiKeyRouter);
 app.use("/api/v1/projects/:projectId/packages", createProjectPackageRouter(createStorageProvider()));
 app.use("/api/v1/projects/:projectId/devices", devicesRouter);
+app.use("/api/v1/projects/:projectId/analytics", analyticsRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

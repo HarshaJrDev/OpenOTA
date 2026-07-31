@@ -1,17 +1,27 @@
 import { Router, type Router as ExpressRouter } from "express";
 import multer from "multer";
 import os from "node:os";
+import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { deviceCheckinsRepo } from "../../db/repositories.js";
+import { deviceCheckinsRepo, installResultsRepo } from "../../db/repositories.js";
 import { requireApiKey, requireProjectMatch } from "../../middleware/apiKey.middleware.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
+import { sendSuccess } from "../../shared/responses.js";
 import { assertSafePathSegment } from "../../shared/utils.js";
 import { createPackageController, type PackageController } from "./controller.js";
 import { createPackageRepository } from "./repository.js";
 import { createPackageService } from "./service.js";
 import { createPackageStorageService } from "./storage.service.js";
+
+const reportInstallResultSchema = z.object({
+  deviceId: z.string().min(1),
+  platform: z.string().min(1),
+  version: z.string().min(1),
+  runtimeVersion: z.string().min(1),
+  status: z.enum(["success", "failure", "rollback"]),
+});
 
 /**
  * Fire-and-forget device check-in write — never awaited by the caller, never allowed to affect
@@ -106,6 +116,27 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
     return controllerFor(projectId).download(req, res, next);
   });
   router.get("/:platform/:version", (req, res, next) => controllerFor((req.params as unknown as { projectId: string }).projectId).getOne(req, res, next));
+
+  // Device-facing, open (same posture as check/download — no secret, isolation comes from
+  // :projectId itself). This is the SDK's own signal, after it observes the native runtime's
+  // post-activate/rollback state — the server has no independent way to know an install outcome.
+  router.post("/report", async (req, res, next) => {
+    try {
+      const { projectId } = req.params as unknown as { projectId: string };
+      const body = reportInstallResultSchema.parse(req.body);
+      await installResultsRepo.record({
+        projectId,
+        deviceId: body.deviceId,
+        platform: body.platform,
+        version: body.version,
+        runtimeVersion: body.runtimeVersion,
+        status: body.status,
+      });
+      sendSuccess(res, { recorded: true });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   return router;
 }
