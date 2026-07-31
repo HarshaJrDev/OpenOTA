@@ -12,6 +12,10 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+const emailSchema = z.object({ email: z.string().email() });
+const tokenSchema = z.object({ token: z.string().min(1) });
+const resetPasswordSchema = z.object({ token: z.string().min(1), password: z.string().min(8) });
+
 export const authRouter: ExpressRouter = Router();
 
 authRouter.post("/signup", authRateLimiter, async (req, res, next) => {
@@ -44,5 +48,46 @@ authRouter.post("/logout", (_req, res) => {
 });
 
 authRouter.get("/me", requireSession, (req, res) => {
-  sendSuccess(res, { userId: req.user!.id, email: req.user!.email });
+  sendSuccess(res, { userId: req.user!.id, email: req.user!.email, emailVerified: req.user!.email_verified });
+});
+
+authRouter.post("/verify-email/resend", authRateLimiter, requireSession, async (req, res, next) => {
+  try {
+    await authService.resendVerificationEmail(req.user!.id);
+    sendSuccess(res, { sent: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post("/verify-email/confirm", authRateLimiter, async (req, res, next) => {
+  try {
+    const { token } = tokenSchema.parse(req.body);
+    await authService.verifyEmail(token);
+    sendSuccess(res, { verified: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Always 200 with the same body regardless of whether the email is registered — see
+// requestPasswordReset's silent no-op, this is the other half of not leaking account existence.
+authRouter.post("/forgot-password", authRateLimiter, async (req, res, next) => {
+  try {
+    const { email } = emailSchema.parse(req.body);
+    await authService.requestPasswordReset(email);
+    sendSuccess(res, { sent: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post("/reset-password", authRateLimiter, async (req, res, next) => {
+  try {
+    const { token, password } = resetPasswordSchema.parse(req.body);
+    await authService.resetPassword(token, password);
+    sendSuccess(res, { reset: true });
+  } catch (error) {
+    next(error);
+  }
 });

@@ -6,7 +6,30 @@ export interface UserRow {
   id: string;
   email: string;
   password_hash: string;
+  email_verified: boolean;
   created_at: string;
+}
+
+export interface AuthTokenRow {
+  id: string;
+  user_id: string;
+  purpose: "verify_email" | "reset_password";
+  token_hash: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
+export interface DeviceCheckinRow {
+  id: string;
+  project_id: string;
+  device_id: string;
+  platform: string;
+  app_version: string;
+  runtime_version: string;
+  download_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
 }
 
 export interface ProjectRow {
@@ -35,10 +58,16 @@ async function one<T>(rows: T[]): Promise<T | undefined> {
 
 export const usersRepo = {
   async create(email: string, passwordHash: string): Promise<UserRow> {
-    const row: UserRow = { id: randomUUID(), email, password_hash: passwordHash, created_at: new Date().toISOString() };
+    const row: UserRow = {
+      id: randomUUID(),
+      email,
+      password_hash: passwordHash,
+      email_verified: false,
+      created_at: new Date().toISOString(),
+    };
     await query(
-      "INSERT INTO users (id, email, password_hash, created_at) VALUES ($1, $2, $3, $4)",
-      [row.id, row.email, row.password_hash, row.created_at],
+      "INSERT INTO users (id, email, password_hash, email_verified, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [row.id, row.email, row.password_hash, row.email_verified, row.created_at],
     );
     return row;
   },
@@ -47,6 +76,81 @@ export const usersRepo = {
   },
   async findById(id: string): Promise<UserRow | undefined> {
     return one(await query<UserRow>("SELECT * FROM users WHERE id = $1", [id]));
+  },
+  async markEmailVerified(id: string): Promise<void> {
+    await query("UPDATE users SET email_verified = TRUE WHERE id = $1", [id]);
+  },
+  async updatePassword(id: string, passwordHash: string): Promise<void> {
+    await query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, id]);
+  },
+};
+
+export const authTokensRepo = {
+  async create(userId: string, purpose: AuthTokenRow["purpose"], tokenHash: string, expiresAt: string): Promise<AuthTokenRow> {
+    const row: AuthTokenRow = {
+      id: randomUUID(),
+      user_id: userId,
+      purpose,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+      used_at: null,
+      created_at: new Date().toISOString(),
+    };
+    await query(
+      "INSERT INTO auth_tokens (id, user_id, purpose, token_hash, expires_at, used_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [row.id, row.user_id, row.purpose, row.token_hash, row.expires_at, row.used_at, row.created_at],
+    );
+    return row;
+  },
+  /** Unused tokens for a user+purpose, newest first — callers compare the hash themselves. */
+  async findActiveByUser(userId: string, purpose: AuthTokenRow["purpose"]): Promise<AuthTokenRow[]> {
+    return query<AuthTokenRow>(
+      "SELECT * FROM auth_tokens WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL ORDER BY created_at DESC",
+      [userId, purpose],
+    );
+  },
+  async markUsed(id: string): Promise<void> {
+    await query("UPDATE auth_tokens SET used_at = $1 WHERE id = $2", [new Date().toISOString(), id]);
+  },
+};
+
+export const deviceCheckinsRepo = {
+  /** Upserts the per-device "last seen" row; increments download_count only when `isDownload`. */
+  async record(params: {
+    projectId: string;
+    deviceId: string;
+    platform: string;
+    appVersion: string;
+    runtimeVersion: string;
+    isDownload: boolean;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    await query(
+      `INSERT INTO device_checkins (id, project_id, device_id, platform, app_version, runtime_version, download_count, first_seen_at, last_seen_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+       ON CONFLICT (project_id, device_id) DO UPDATE SET
+         platform = EXCLUDED.platform,
+         app_version = EXCLUDED.app_version,
+         runtime_version = EXCLUDED.runtime_version,
+         download_count = device_checkins.download_count + EXCLUDED.download_count,
+         last_seen_at = EXCLUDED.last_seen_at`,
+      [
+        randomUUID(),
+        params.projectId,
+        params.deviceId,
+        params.platform,
+        params.appVersion,
+        params.runtimeVersion,
+        params.isDownload ? 1 : 0,
+        now,
+      ],
+    );
+  },
+  async listByProject(projectId: string): Promise<DeviceCheckinRow[]> {
+    return query<DeviceCheckinRow>(
+      "SELECT * FROM device_checkins WHERE project_id = $1 ORDER BY last_seen_at DESC",
+      [projectId],
+    );
   },
 };
 

@@ -71,11 +71,25 @@ export async function initDb(): Promise<void> {
   db = createDb();
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id            TEXT PRIMARY KEY,
-      email         TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at    TEXT NOT NULL
+      id              TEXT PRIMARY KEY,
+      email           TEXT NOT NULL UNIQUE,
+      password_hash   TEXT NOT NULL,
+      email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at      TEXT NOT NULL
     );
+
+    -- Single-use, expiring tokens for both email verification and password reset. One table
+    -- (distinguished by "purpose") rather than two -- same shape, same lifecycle, same repo methods.
+    CREATE TABLE IF NOT EXISTS auth_tokens (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      purpose    TEXT NOT NULL, -- 'verify_email' | 'reset_password'
+      token_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at    TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id, purpose);
 
     CREATE TABLE IF NOT EXISTS projects (
       id         TEXT PRIMARY KEY,
@@ -125,6 +139,23 @@ export async function initDb(): Promise<void> {
       UNIQUE (project_id, platform, channel, version)
     );
     CREATE INDEX IF NOT EXISTS idx_releases_lookup ON releases(project_id, platform, channel, runtime_version, status);
+
+    -- One row per device per project: upserted on every check/download so this is a "last seen"
+    -- registry (what the Devices dashboard page needs), not an unbounded event log. download_count
+    -- is a running counter so Analytics can show a real number without a separate events table.
+    CREATE TABLE IF NOT EXISTS device_checkins (
+      id              TEXT PRIMARY KEY,
+      project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      device_id       TEXT NOT NULL,
+      platform        TEXT NOT NULL,
+      app_version     TEXT NOT NULL,
+      runtime_version TEXT NOT NULL,
+      download_count  INTEGER NOT NULL DEFAULT 0,
+      first_seen_at   TEXT NOT NULL,
+      last_seen_at    TEXT NOT NULL,
+      UNIQUE (project_id, device_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_device_checkins_project ON device_checkins(project_id, last_seen_at);
   `);
 }
 

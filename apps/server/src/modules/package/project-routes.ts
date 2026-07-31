@@ -4,6 +4,7 @@ import os from "node:os";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
+import { deviceCheckinsRepo } from "../../db/repositories.js";
 import { requireApiKey, requireProjectMatch } from "../../middleware/apiKey.middleware.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
 import { assertSafePathSegment } from "../../shared/utils.js";
@@ -11,6 +12,31 @@ import { createPackageController, type PackageController } from "./controller.js
 import { createPackageRepository } from "./repository.js";
 import { createPackageService } from "./service.js";
 import { createPackageStorageService } from "./storage.service.js";
+
+/**
+ * Fire-and-forget device check-in write — never awaited by the caller, never allowed to affect
+ * the actual check/download response. `deviceId` is optional (older SDKs, or self-hosted apps
+ * that never upgrade) so this silently no-ops rather than requiring it.
+ */
+function recordDeviceCheckin(
+  projectId: string,
+  params: { deviceId?: unknown; platform?: unknown; appVersion?: unknown; runtimeVersion?: unknown; isDownload: boolean },
+): void {
+  const { deviceId, platform, appVersion, runtimeVersion, isDownload } = params;
+  if (typeof deviceId !== "string" || typeof platform !== "string" || typeof appVersion !== "string") {
+    return;
+  }
+  void deviceCheckinsRepo
+    .record({
+      projectId,
+      deviceId,
+      platform,
+      appVersion,
+      runtimeVersion: typeof runtimeVersion === "string" ? runtimeVersion : "unknown",
+      isDownload,
+    })
+    .catch((error) => logger.error({ error, projectId, deviceId }, "failed to record device check-in"));
+}
 
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: env.maxPackageSizeBytes } });
 
@@ -53,10 +79,32 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
     controllerFor((req.params as unknown as { projectId: string }).projectId).list(req, res, next),
   );
 
-  router.get("/check", (req, res, next) => controllerFor((req.params as unknown as { projectId: string }).projectId).checkUpdate(req, res, next));
-  router.get("/:platform/:version/download", (req, res, next) =>
-    controllerFor((req.params as unknown as { projectId: string }).projectId).download(req, res, next),
-  );
+  router.get("/check", (req, res, next) => {
+    const { projectId } = req.params as unknown as { projectId: string };
+    recordDeviceCheckin(projectId, {
+      deviceId: req.query.deviceId,
+      platform: req.query.platform,
+      appVersion: req.query.currentVersion,
+      runtimeVersion: req.query.runtimeVersion,
+      isDownload: false,
+    });
+    return controllerFor(projectId).checkUpdate(req, res, next);
+  });
+  router.get("/:platform/:version/download", (req, res, next) => {
+    const { projectId, platform, version } = req.params as unknown as {
+      projectId: string;
+      platform: string;
+      version: string;
+    };
+    recordDeviceCheckin(projectId, {
+      deviceId: req.query.deviceId,
+      platform,
+      appVersion: version,
+      runtimeVersion: req.query.runtimeVersion,
+      isDownload: true,
+    });
+    return controllerFor(projectId).download(req, res, next);
+  });
   router.get("/:platform/:version", (req, res, next) => controllerFor((req.params as unknown as { projectId: string }).projectId).getOne(req, res, next));
 
   return router;

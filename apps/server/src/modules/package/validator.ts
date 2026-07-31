@@ -25,6 +25,8 @@ export const packageParamsSchema = z.object({
 export const checkUpdateQuerySchema = z.object({
   platform: platformSchema,
   currentVersion: semverSchema,
+  deviceId: z.string().min(1).optional(),
+  runtimeVersion: z.string().min(1).optional(),
 });
 
 export const rollbackSchema = z.object({

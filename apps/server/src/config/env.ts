@@ -44,6 +44,15 @@ const envSchema = z
     // meant to be publicly readable anyway. Set this to restrict the dashboard/browser surface to
     // known origins in a production deployment that wants to be stricter.
     CORS_ALLOWED_ORIGINS: z.string().optional(),
+    // Email delivery for verification/reset links, via Resend's HTTP API (no SMTP setup, no extra
+    // dependency — one fetch() call). Optional: unset means links are logged to the server console
+    // instead of emailed, which keeps self-hosted/dev deployments fully usable with zero email
+    // infrastructure — verification/reset still work, an operator just reads the link from logs.
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().email().default("OpenOTA <onboarding@resend.dev>"),
+    // Public URL of the dashboard, used to build verify-email/reset-password links. Falls back to
+    // the Vercel-hosted dashboard so a deployment that never sets this still produces working links.
+    DASHBOARD_URL: z.string().url().default("https://open-ota-dashboard.vercel.app"),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER !== "supabase") {
@@ -106,4 +115,8 @@ export const env = {
   corsAllowedOrigins: parsed.data.CORS_ALLOWED_ORIGINS
     ? parsed.data.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
     : undefined,
+  // Never log this value — server-only secret.
+  resendApiKey: parsed.data.RESEND_API_KEY,
+  emailFrom: parsed.data.EMAIL_FROM,
+  dashboardUrl: parsed.data.DASHBOARD_URL.replace(/\/+$/, ""),
 };
