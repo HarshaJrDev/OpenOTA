@@ -27,3 +27,21 @@ export const authRateLimiter = rateLimit({
     next(new TooManyRequestsError("Too many attempts. Please wait a few minutes and try again."));
   },
 });
+
+/**
+ * A generous per-IP budget on check/download/report — these are meant to be hit frequently by
+ * real devices (every app launch, every background check), so this exists purely to blunt abuse
+ * (scraping, a misbehaving client polling in a tight loop) rather than throttle normal use. Many
+ * real devices can legitimately share one IP (corporate NAT, carrier-grade NAT on mobile), so the
+ * budget is per-minute and high, not the tight per-15-minutes window auth uses.
+ */
+export const deviceRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many requests. Please slow down and try again shortly."));
+  },
+});

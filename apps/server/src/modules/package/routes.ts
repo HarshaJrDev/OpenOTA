@@ -6,6 +6,7 @@ import multer from "multer";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { requireApiKey } from "../../middleware/apiKey.middleware.js";
+import { deviceRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { createStorageProvider } from "../../providers/storage/index.js";
 import { createPackageController } from "./controller.js";
 import { createPackageRepository } from "./repository.js";
@@ -30,8 +31,8 @@ export const packageRouter: ExpressRouter = Router();
 // server-admin secret.
 packageRouter.post("/", requireApiKey, upload.single("file"), packageController.upload);
 packageRouter.post("/rollback", requireApiKey, packageController.rollback);
-packageRouter.get("/check", packageController.checkUpdate);
+packageRouter.get("/check", deviceRateLimiter, packageController.checkUpdate);
 packageRouter.get("/", packageController.list);
-packageRouter.get("/:platform/:version/download", packageController.download);
+packageRouter.get("/:platform/:version/download", deviceRateLimiter, packageController.download);
 packageRouter.get("/:platform/:version", packageController.getOne);
 packageRouter.delete("/:platform/:version", requireApiKey, packageController.remove);

@@ -13,11 +13,54 @@ import {
   UploadError,
 } from "../../shared/errors.js";
 import { compareSemver } from "../../shared/utils.js";
+import { TtlCache } from "../../shared/ttlCache.js";
 import { buildManifest, buildMetadata } from "./manifest.service.js";
 import type { PackageRepository } from "./repository.js";
 import type { CheckUpdateResult, Manifest, PackageMetadata, Platform, UploadPackageInput } from "./types.js";
 
+// Keyed by platform only — one cache per service instance, and each service instance is already
+// scoped to exactly one project (or the single flat/self-hosted namespace) via its repository, so
+// there's no cross-tenant leak risk here. 30s balances "device polling shouldn't hammer storage
+// on every check" against "a fresh release should show up without a long delay" — upload/rollback
+// also explicitly invalidate below, so a real release is never actually delayed by this TTL; it
+// only bounds the staleness window for *concurrent* checks racing an in-flight release.
+const ACTIVE_RELEASE_CACHE_TTL_MS = 30_000;
+
+interface ActiveRelease {
+  version: string;
+  manifest: Manifest;
+}
+
 export function createPackageService(repository: PackageRepository, logger: Logger) {
+  const activeReleaseCache = new TtlCache<ActiveRelease | null>(ACTIVE_RELEASE_CACHE_TTL_MS);
+
+  async function getActiveRelease(platform: Platform): Promise<ActiveRelease | null> {
+    const cached = activeReleaseCache.get(platform);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    let activeVersion = await repository.getActiveVersion(platform);
+
+    if (!activeVersion) {
+      const versions = await repository.listVersions(platform);
+      if (versions.length === 0) {
+        activeReleaseCache.set(platform, null);
+        return null;
+      }
+
+      // Back-compat safety net for packages uploaded before the active pointer existed.
+      activeVersion = versions.reduce((max, current) =>
+        compareSemver(current.bundleVersion, max.bundleVersion) > 0 ? current : max,
+      ).bundleVersion;
+    }
+
+    const manifest = await repository.findManifest(platform, activeVersion);
+    const result: ActiveRelease = { version: activeVersion, manifest };
+    activeReleaseCache.set(platform, result);
+    return result;
+  }
+
   async function uploadPackage(input: UploadPackageInput): Promise<Manifest> {
     const { platform, version, runtimeVersion, bundleName, sha256, size, assets, tempFilePath, mimeType } = input;
     const startedAt = Date.now();
@@ -50,6 +93,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
       await repository.saveMetadata(platform, version, metadata);
       await repository.saveManifest(platform, version, manifest);
       await repository.setActiveVersion(platform, version);
+      activeReleaseCache.invalidatePrefix(platform);
 
       logger.info(
         { platform, version, size: stat.size, durationMs: Date.now() - startedAt },
@@ -107,36 +151,27 @@ export function createPackageService(repository: PackageRepository, logger: Logg
    * newer one.
    */
   async function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckUpdateResult> {
-    let activeVersion = await repository.getActiveVersion(platform);
+    const active = await getActiveRelease(platform);
 
-    if (!activeVersion) {
-      const versions = await repository.listVersions(platform);
-      if (versions.length === 0) {
-        return { available: false, latestVersion: null, downloadUrl: null, manifest: null };
-      }
-
-      // Back-compat safety net for packages uploaded before the active pointer existed.
-      activeVersion = versions.reduce((max, current) =>
-        compareSemver(current.bundleVersion, max.bundleVersion) > 0 ? current : max,
-      ).bundleVersion;
+    if (!active) {
+      return { available: false, latestVersion: null, downloadUrl: null, manifest: null };
     }
 
-    const available = compareSemver(activeVersion, currentVersion) > 0;
+    const available = compareSemver(active.version, currentVersion) > 0;
 
     if (!available) {
-      return { available: false, latestVersion: activeVersion, downloadUrl: null, manifest: null };
+      return { available: false, latestVersion: active.version, downloadUrl: null, manifest: null };
     }
 
-    const manifest = await repository.findManifest(platform, activeVersion);
     // Never serve a stored downloadUrl — Supabase signed URLs expire, so it must be minted fresh
-    // on every check, not persisted alongside the manifest.
-    const downloadUrl = await repository.getZipDownloadUrl(platform, activeVersion);
+    // on every check, not cached alongside the rest of the active-release lookup above.
+    const downloadUrl = await repository.getZipDownloadUrl(platform, active.version);
 
     return {
       available: true,
-      latestVersion: activeVersion,
+      latestVersion: active.version,
       downloadUrl,
-      manifest: { ...manifest, downloadUrl },
+      manifest: { ...active.manifest, downloadUrl },
     };
   }
 
@@ -147,6 +182,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     }
 
     await repository.setActiveVersion(platform, version);
+    activeReleaseCache.invalidatePrefix(platform);
     logger.info({ platform, version }, "release rolled back");
 
     const manifest = await repository.findManifest(platform, version);

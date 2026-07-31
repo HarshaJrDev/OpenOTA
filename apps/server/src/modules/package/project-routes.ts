@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { deviceCheckinsRepo, installResultsRepo } from "../../db/repositories.js";
 import { requireApiKey, requireProjectMatch } from "../../middleware/apiKey.middleware.js";
+import { deviceRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
 import { sendSuccess } from "../../shared/responses.js";
 import { assertSafePathSegment } from "../../shared/utils.js";
@@ -67,13 +68,27 @@ const upload = multer({ dest: os.tmpdir(), limits: { fileSize: env.maxPackageSiz
 export function createProjectPackageRouter(storageProvider: StorageProvider): ExpressRouter {
   const router: ExpressRouter = Router({ mergeParams: true });
 
+  // Memoized per project, not rebuilt every request: createPackageService's in-memory checkForUpdate
+  // cache (see service.ts) only helps if the same service instance — and therefore the same
+  // cache — is reused across requests for a project. A fresh instance per call would silently
+  // make that cache a no-op. Unbounded map is fine here: one entry per project ever hit, on a
+  // single-instance deployment (see ttlCache.ts's doc comment on the same scaling assumption).
+  const controllers = new Map<string, PackageController>();
+
   function controllerFor(projectId: string): PackageController {
+    const existing = controllers.get(projectId);
+    if (existing) {
+      return existing;
+    }
+
     assertSafePathSegment(projectId);
     const storageKeyPrefix = `projects/${projectId}`;
     const packageStorageService = createPackageStorageService(storageProvider, storageKeyPrefix);
     const packageRepository = createPackageRepository(packageStorageService);
     const packageService = createPackageService(packageRepository, logger);
-    return createPackageController(packageService);
+    const controller = createPackageController(packageService);
+    controllers.set(projectId, controller);
+    return controller;
   }
 
   router.post("/", requireApiKey, requireProjectMatch, upload.single("file"), (req, res, next) =>
@@ -89,7 +104,7 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
     controllerFor((req.params as unknown as { projectId: string }).projectId).list(req, res, next),
   );
 
-  router.get("/check", (req, res, next) => {
+  router.get("/check", deviceRateLimiter, (req, res, next) => {
     const { projectId } = req.params as unknown as { projectId: string };
     recordDeviceCheckin(projectId, {
       deviceId: req.query.deviceId,
@@ -100,7 +115,7 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
     });
     return controllerFor(projectId).checkUpdate(req, res, next);
   });
-  router.get("/:platform/:version/download", (req, res, next) => {
+  router.get("/:platform/:version/download", deviceRateLimiter, (req, res, next) => {
     const { projectId, platform, version } = req.params as unknown as {
       projectId: string;
       platform: string;
@@ -120,7 +135,7 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
   // Device-facing, open (same posture as check/download — no secret, isolation comes from
   // :projectId itself). This is the SDK's own signal, after it observes the native runtime's
   // post-activate/rollback state — the server has no independent way to know an install outcome.
-  router.post("/report", async (req, res, next) => {
+  router.post("/report", deviceRateLimiter, async (req, res, next) => {
     try {
       const { projectId } = req.params as unknown as { projectId: string };
       const body = reportInstallResultSchema.parse(req.body);
