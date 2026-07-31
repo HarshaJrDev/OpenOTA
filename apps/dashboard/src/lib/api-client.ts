@@ -57,6 +57,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   let response: Response;
 
+  // The default deploy talks to a free-tier Render instance that can take 30-60s to wake from
+  // cold. Without a timeout, a cold start left the caller's mutation pending forever with no
+  // feedback (e.g. the signup button stuck on "Please wait..." indefinitely) — 50s comfortably
+  // covers a cold start while still eventually surfacing a real error if the server is down.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 50_000);
+
   try {
     response = await fetch(url.toString(), {
       method: options.method ?? "GET",
@@ -64,9 +71,18 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: options.body ? JSON.stringify(options.body) : undefined,
       cache: "no-store",
       credentials: "include",
+      signal: controller.signal,
     });
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError(
+        "NETWORK_ERROR",
+        "The server took too long to respond. It may be waking up from sleep — please try again in a moment.",
+      );
+    }
     throw new ApiError("NETWORK_ERROR", error instanceof Error ? error.message : "Network request failed");
+  } finally {
+    clearTimeout(timeout);
   }
 
   let rawBody: unknown;

@@ -19,6 +19,18 @@ export default function LoginPage() {
   const login = useLogin();
   const signup = useSignup();
   const mutation = mode === "login" ? login : signup;
+  const [showColdStartHint, setShowColdStartHint] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!mutation.isPending) {
+      setShowColdStartHint(false);
+      return;
+    }
+    // The default server is a free-tier Render instance that can take 30-60s to wake from cold —
+    // show a hint after a few seconds so a slow first request doesn't look like a hang.
+    const timer = setTimeout(() => setShowColdStartHint(true), 4000);
+    return () => clearTimeout(timer);
+  }, [mutation.isPending]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -66,6 +78,11 @@ export default function LoginPage() {
             </div>
 
             {mutation.isError && <p className="text-sm text-destructive">{authErrorMessage(mutation.error)}</p>}
+            {showColdStartHint && (
+              <p className="text-sm text-muted-foreground">
+                Still working — the server may be waking up from sleep, this can take up to a minute.
+              </p>
+            )}
 
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
               {mutation.isPending ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
