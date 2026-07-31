@@ -1,3 +1,4 @@
+import { Reveal } from "./Reveal";
 import { SyncTerminal } from "./SyncTerminal";
 import { GitHubIcon, LinkedInIcon } from "./icons";
 
@@ -88,43 +89,54 @@ export default function App() {
       </nav>
 
       <header className="hero">
+        <div className="hero-glow" aria-hidden="true" />
         <div className="wrap hero-grid">
           <div>
-            <span className="eyebrow">● open source · react native</span>
-            <h1 className="headline">
-              Ship JS updates
-              <br />
-              without the <span className="accent-word">review queue</span>.
-            </h1>
-            <p className="lede">
-              OpenOTA is self-hosted over-the-air infrastructure for React Native: build a signed
-              bundle, push it to your own server, and let devices sync, verify, and roll back on
-              their own — no App Store review, no vendor lock-in.
-            </p>
-            <div className="hero-ctas">
-              <a className="btn btn-primary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                View on GitHub
-              </a>
-              <a className="btn btn-ghost" href="#pipeline">
-                See the pipeline ↓
-              </a>
-            </div>
-            <div className="install-line">
-              <span className="prompt">$</span>
-              <span className="cmd">{INSTALL_COMMAND}</span>
-              <button className="copy-btn" onClick={copyInstallCommand}>
-                copy
-              </button>
-            </div>
+            <Reveal>
+              <span className="eyebrow">● open source · react native</span>
+            </Reveal>
+            <Reveal delay={80}>
+              <h1 className="headline">
+                Ship JS updates
+                <br />
+                without the <span className="accent-word">review queue</span>.
+              </h1>
+            </Reveal>
+            <Reveal delay={160}>
+              <p className="lede">
+                OpenOTA is self-hosted over-the-air infrastructure for React Native: build a signed
+                bundle, push it to your own server, and let devices sync, verify, and roll back on
+                their own — no App Store review, no vendor lock-in.
+              </p>
+            </Reveal>
+            <Reveal delay={240}>
+              <div className="hero-ctas">
+                <a className="btn btn-primary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+                  View on GitHub
+                </a>
+                <a className="btn btn-ghost" href="#pipeline">
+                  See the pipeline ↓
+                </a>
+              </div>
+              <div className="install-line">
+                <span className="prompt">$</span>
+                <span className="cmd">{INSTALL_COMMAND}</span>
+                <button className="copy-btn" onClick={copyInstallCommand}>
+                  copy
+                </button>
+              </div>
+            </Reveal>
           </div>
 
-          <SyncTerminal />
+          <Reveal delay={120}>
+            <SyncTerminal />
+          </Reveal>
         </div>
       </header>
 
       <section className="pipeline" id="pipeline">
         <div className="wrap">
-          <div className="section-head">
+          <Reveal className="section-head">
             <div className="section-kicker">the release pipeline</div>
             <h2 className="section-title">Five steps, one command, no black box.</h2>
             <p className="section-sub">
@@ -132,15 +144,17 @@ export default function App() {
               app runs the same five steps to adopt it — the exact sequence traced in the panel
               above.
             </p>
-          </div>
+          </Reveal>
           <div className="pipeline-row">
             {PIPELINE_STEPS.map((step, index) => (
-              <div className="pstep" key={step.num}>
-                <div className="pnum">{step.num}</div>
-                <h3>{step.title}</h3>
-                <p>{step.body}</p>
-                {index < PIPELINE_STEPS.length - 1 && <span className="arrow">›</span>}
-              </div>
+              <Reveal key={step.num} delay={index * 70} className="pstep-wrap">
+                <div className="pstep">
+                  <div className="pnum">{step.num}</div>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                  {index < PIPELINE_STEPS.length - 1 && <span className="arrow">›</span>}
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -148,17 +162,19 @@ export default function App() {
 
       <section className="features" id="features">
         <div className="wrap">
-          <div className="section-head">
+          <Reveal className="section-head">
             <div className="section-kicker">what's in the box</div>
             <h2 className="section-title">One repo, four pieces, no vendor.</h2>
-          </div>
+          </Reveal>
           <div className="feat-grid">
-            {FEATURES.map((feature) => (
-              <div className="feat" key={feature.tag}>
-                <div className="ftag">{feature.tag}</div>
-                <h3>{feature.title}</h3>
-                <p>{feature.body}</p>
-              </div>
+            {FEATURES.map((feature, index) => (
+              <Reveal key={feature.tag} delay={index * 70} className="feat-wrap">
+                <div className="feat">
+                  <div className="ftag">{feature.tag}</div>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.body}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -166,7 +182,7 @@ export default function App() {
 
       <section className="manifest" id="manifest">
         <div className="wrap manifest-grid">
-          <div className="manifest-copy">
+          <Reveal className="manifest-copy">
             <div className="section-kicker">the contract</div>
             <h2 className="section-title">Every release is just a manifest.</h2>
             <p className="section-sub">
@@ -185,31 +201,33 @@ export default function App() {
                 <span className="mk">✓</span> Runtime version gates compatibility, per platform
               </li>
             </ul>
-          </div>
-          <div className="json-card">
-            <span className="c">// manifest.json</span>
-            {"\n"}
-            {"{\n"}
-            {"  "}
-            <span className="k">"bundleVersion"</span>: <span className="s">"1.2.0"</span>,{"\n"}
-            {"  "}
-            <span className="k">"platform"</span>: <span className="s">"android"</span>,{"\n"}
-            {"  "}
-            <span className="k">"runtimeVersion"</span>: <span className="s">"0.1.0"</span>,{"\n"}
-            {"  "}
-            <span className="k">"sha256"</span>: <span className="s">"0d04b201e29d…8a"</span>,{"\n"}
-            {"  "}
-            <span className="k">"size"</span>: <span className="n">895873</span>,{"\n"}
-            {"  "}
-            <span className="k">"bundleName"</span>: <span className="s">"index.android.bundle"</span>
-            {"\n}"}
-          </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="json-card">
+              <span className="c">// manifest.json</span>
+              {"\n"}
+              {"{\n"}
+              {"  "}
+              <span className="k">"bundleVersion"</span>: <span className="s">"1.2.0"</span>,{"\n"}
+              {"  "}
+              <span className="k">"platform"</span>: <span className="s">"android"</span>,{"\n"}
+              {"  "}
+              <span className="k">"runtimeVersion"</span>: <span className="s">"0.1.0"</span>,{"\n"}
+              {"  "}
+              <span className="k">"sha256"</span>: <span className="s">"0d04b201e29d…8a"</span>,{"\n"}
+              {"  "}
+              <span className="k">"size"</span>: <span className="n">895873</span>,{"\n"}
+              {"  "}
+              <span className="k">"bundleName"</span>: <span className="s">"index.android.bundle"</span>
+              {"\n}"}
+            </div>
+          </Reveal>
         </div>
       </section>
 
       <section className="author">
         <div className="wrap">
-          <div className="author-card">
+          <Reveal className="author-card">
             <div className="author-id">
               <div className="avatar">H</div>
               <div>
@@ -227,7 +245,7 @@ export default function App() {
                 LinkedIn
               </a>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
