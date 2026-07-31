@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind v4's default content scan doesn't cross the pnpm workspace boundary, so classes used
+   only inside @openota/ui's components (Card, Button, Badge, Dialog, etc.) never get generated
+   here — the whole app renders with browser-default styling instead of the design system. */
+@source "../../../../packages/ui/src";
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
