@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("react-native-mmkv", () => {
+  const store = new Map<string, string>();
+  return {
+    createMMKV: () => ({
+      getString: (key: string) => store.get(key),
+      set: (key: string, value: string) => void store.set(key, value),
+      remove: (key: string) => void store.delete(key),
+    }),
+  };
+});
+
 import { configure, resetConfig } from "../../config.js";
 import { OTAError } from "../../errors.js";
 import { checkForUpdate } from "../check.service.js";
@@ -121,5 +132,24 @@ describe("checkForUpdate", () => {
 
     const requestedUrl = fetchMock.mock.calls[0]?.[0] as string;
     expect(requestedUrl).toContain("/projects/proj_abc123/packages/check");
+  });
+
+  it("sends a stable, auto-generated deviceId on every check — this is what device_checkins on the server keys off", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true, data: { available: false, latestVersion: "1.0.0", downloadUrl: null, manifest: null } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkForUpdate("android", "1.0.0");
+    await checkForUpdate("android", "1.0.0");
+
+    const firstUrl = new URL(fetchMock.mock.calls[0]?.[0] as string);
+    const secondUrl = new URL(fetchMock.mock.calls[1]?.[0] as string);
+    const deviceId = firstUrl.searchParams.get("deviceId");
+
+    expect(deviceId).toBeTruthy();
+    expect(secondUrl.searchParams.get("deviceId")).toBe(deviceId);
   });
 });

@@ -3,6 +3,7 @@ import { CHECK_ENDPOINT, isPlatform, isValidSha256, type Manifest } from "@openo
 import { apiGet } from "../client.js";
 import { getConfig } from "../config.js";
 import { OTAError } from "../errors.js";
+import { otaStorage } from "../storage.js";
 import type { CheckResult, Platform } from "../types.js";
 
 function isValidManifest(value: unknown): value is Manifest {
@@ -54,7 +55,13 @@ function resolveCheckEndpoint(projectId: string | undefined): string {
 
 export async function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckResult> {
   const endpoint = resolveCheckEndpoint(getConfig().projectId);
-  const data = await apiGet<unknown>(endpoint, { platform, currentVersion });
+  // deviceId is anonymous and always sent — see storage.ts's getOrCreateDeviceId doc comment. The
+  // server only acts on it for project-scoped Cloud routes; self-hosted flat routes ignore it.
+  const data = await apiGet<unknown>(endpoint, {
+    platform,
+    currentVersion,
+    deviceId: otaStorage.getOrCreateDeviceId(),
+  });
   assertValidCheckResult(data);
   return data;
 }

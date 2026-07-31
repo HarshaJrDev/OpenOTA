@@ -20,4 +20,5 @@ export const MMKV_KEYS = {
   currentVersion: "openota.current.version",
   currentBundlePath: "openota.current.bundlePath",
   currentManifest: "openota.current.manifest",
+  deviceId: "openota.device.id",
 } as const;

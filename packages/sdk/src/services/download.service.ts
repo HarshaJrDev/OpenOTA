@@ -2,16 +2,23 @@ import RNFS from "react-native-fs";
 
 import { getConfig } from "../config.js";
 import { DownloadError } from "../errors.js";
+import { otaStorage } from "../storage.js";
 import type { DownloadResult, Manifest } from "../types.js";
 import { ensureOtaDirectories, getDownloadZipPath } from "../utils/paths.js";
 
 function resolveDownloadUrl(downloadUrl: string, serverUrl: string): string {
+  // Absolute URLs here are pre-signed cloud storage links (e.g. Supabase) — appending a query
+  // param would invalidate the signature, so device-checkin tracking for downloads only covers
+  // the relative-path case (the server's own /packages/.../download route, local storage). The
+  // /check call already records every device on every sync regardless of storage backend.
   if (/^https?:\/\//.test(downloadUrl)) {
     return downloadUrl;
   }
 
   const origin = new URL(serverUrl).origin;
-  return new URL(downloadUrl, origin).toString();
+  const url = new URL(downloadUrl, origin);
+  url.searchParams.set("deviceId", otaStorage.getOrCreateDeviceId());
+  return url.toString();
 }
 
 export async function downloadPackage(

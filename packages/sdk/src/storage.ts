@@ -106,9 +106,41 @@ export const otaStorage = {
     setJson(MMKV_KEYS.currentManifest, manifest);
   },
 
+  /**
+   * A random, anonymous, per-install identifier — not a hardware/advertising ID. Generated once
+   * on first use and persisted in the same MMKV instance as everything else, so it survives app
+   * restarts but resets on reinstall or app-data clear (matching what "device_id" needs to mean
+   * for a "last seen" registry: one row per install, not a way to track a physical device across
+   * reinstalls). Deliberately not gated behind deviceId being present in OtaConfig — every SDK
+   * instance has one, and whether it's sent to the server is decided by the caller.
+   */
+  getOrCreateDeviceId(): string {
+    const existing = mmkv.getString(MMKV_KEYS.deviceId);
+    if (existing) {
+      return existing;
+    }
+
+    const generated = generateDeviceId();
+    mmkv.set(MMKV_KEYS.deviceId, generated);
+    return generated;
+  },
+
   clear(): void {
     deleteKey(mmkv, MMKV_KEYS.currentVersion);
     deleteKey(mmkv, MMKV_KEYS.currentBundlePath);
     deleteKey(mmkv, MMKV_KEYS.currentManifest);
   },
 };
+
+function generateDeviceId(): string {
+  // crypto.randomUUID() isn't guaranteed available in the Hermes/JSC environment this SDK runs
+  // in (and isn't in this package's TS lib target), so this falls back to Math.random — fine
+  // here since the ID only needs to be unique enough to distinguish devices in an analytics
+  // table, not cryptographically unguessable.
+  const globalCrypto = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (typeof globalCrypto?.randomUUID === "function") {
+    return globalCrypto.randomUUID();
+  }
+
+  return `dev_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
