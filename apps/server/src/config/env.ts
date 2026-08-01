@@ -53,6 +53,8 @@ const envSchema = z
     // Public URL of the dashboard, used to build verify-email/reset-password links. Falls back to
     // the Vercel-hosted dashboard so a deployment that never sets this still produces working links.
     DASHBOARD_URL: z.string().url().default("https://open-ota-dashboard.vercel.app"),
+    // Optional — unset means no error tracking, just the existing pino logs (see config/sentry.ts).
+    SENTRY_DSN: z.string().url().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER !== "supabase") {
@@ -119,4 +121,5 @@ export const env = {
   resendApiKey: parsed.data.RESEND_API_KEY,
   emailFrom: parsed.data.EMAIL_FROM,
   dashboardUrl: parsed.data.DASHBOARD_URL.replace(/\/+$/, ""),
+  sentryDsn: parsed.data.SENTRY_DSN,
 };

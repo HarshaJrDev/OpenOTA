@@ -23,6 +23,8 @@ export interface OpenOtaConfig {
    * unsafe to run against the new binary; ordinary JS-only releases keep it unchanged.
    */
   runtimeVersion: string;
+  /** Which channel releases target by default when a command's `--channel` flag is omitted. Server default: "production". */
+  channel?: string;
 }
 
 /** Build-environment metadata (not a package contract) — appVersion/toolchain versions used to produce a build. */
@@ -63,6 +65,7 @@ export interface UploadOptions {
   bundleName: string;
   sha256: string;
   size: number;
+  channel?: string;
 }
 
 export interface DoctorCheckResult {

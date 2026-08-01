@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import { captureException } from "../config/sentry.js";
 import { AppError } from "../shared/errors.js";
 import { sendError } from "../shared/responses.js";
 
@@ -38,5 +39,8 @@ export function errorMiddleware(
 
   const message = error instanceof Error ? error.message : "Unexpected error";
   logger.error({ err: error }, "unhandled error");
+  // Only genuinely unexpected errors reach here — ZodError/MulterError/AppError are all expected,
+  // already-handled cases above and would just be noise in Sentry.
+  captureException(error);
   sendError(res, "INTERNAL_ERROR", message, 500);
 }

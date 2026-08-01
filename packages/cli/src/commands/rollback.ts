@@ -11,6 +11,7 @@ import { getProjectRoot } from "../utils/paths.js";
 interface RollbackCommandOptions {
   platform: Platform;
   version: string;
+  channel?: string;
 }
 
 export async function runRollback(options: RollbackCommandOptions): Promise<void> {
@@ -24,6 +25,7 @@ export async function runRollback(options: RollbackCommandOptions): Promise<void
   await client.post(rollbackEndpoint(config), {
     platform: options.platform,
     version: options.version,
+    channel: options.channel ?? config.channel,
   });
 
   succeed(spinner, `Rolled back ${options.platform} to v${options.version}`);
@@ -35,6 +37,7 @@ export function registerRollbackCommand(program: Command): void {
     .description("Roll back the active deployment to a previous version")
     .requiredOption("--platform <platform>", "Platform (android|ios)")
     .requiredOption("--version <version>", "Version to roll back to")
+    .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
     .action(async (options: RollbackCommandOptions) => {
       try {
         await runRollback(options);

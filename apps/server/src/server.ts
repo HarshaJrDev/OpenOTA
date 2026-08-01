@@ -1,7 +1,40 @@
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
+import { captureException, initSentry } from "./config/sentry.js";
 import { initDb } from "./db/client.js";
+
+// No-op unless SENTRY_DSN is set — see config/sentry.ts.
+initSentry();
+
+// Nothing here blocks boot — these are advisories about configurations that work perfectly on a
+// single instance (today's reality — see ttlCache.ts's doc comment) but silently break if this
+// ever runs as more than one dyno/replica, so they're worth surfacing before that bites someone.
+function warnAboutScalingRisks(): void {
+  if (env.nodeEnv !== "production") {
+    return;
+  }
+
+  if (env.storageProvider === "local") {
+    logger.warn(
+      "STORAGE_PROVIDER=local in production: package bytes live on this instance's local disk. " +
+        "Fine for exactly one instance with a persistent disk; running more than one instance (or " +
+        "an instance with no persistent disk) will silently serve inconsistent/missing packages. " +
+        "Use STORAGE_PROVIDER=supabase to scale beyond one instance.",
+    );
+  }
+
+  if (!env.databaseUrl) {
+    logger.warn(
+      "DATABASE_URL unset in production: falling back to embedded PGlite on local disk. Fine for " +
+        "exactly one instance; user/project/API-key/release metadata will not be shared or survive " +
+        "if this instance is replaced. Set DATABASE_URL to a managed Postgres (e.g. Supabase) for " +
+        "anything beyond a single throwaway instance.",
+    );
+  }
+}
+
+warnAboutScalingRisks();
 
 // Without these, a crash on Render is whatever landed in stdout/stderr at the moment — Node's
 // default uncaughtException handler prints and exits, but not through pino, so it's easy to miss
@@ -10,11 +43,13 @@ import { initDb } from "./db/client.js";
 // after an uncaught exception — it still must exit) while making sure the reason is visible.
 process.on("uncaughtException", (error) => {
   logger.fatal({ err: error }, "uncaught exception — exiting");
+  captureException(error);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason) => {
   logger.fatal({ err: reason }, "unhandled promise rejection — exiting");
+  captureException(reason);
   process.exit(1);
 });
 

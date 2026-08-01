@@ -27,6 +27,7 @@ export function createPackageController(service: PackageService) {
         sha256: body.sha256,
         size: body.size,
         assets: body.assets,
+        channel: body.channel,
         tempFilePath: req.file.path,
         mimeType: req.file.mimetype,
       });
@@ -49,7 +50,7 @@ export function createPackageController(service: PackageService) {
   async function checkUpdate(req: Request, res: Response, next: NextFunction) {
     try {
       const query = checkUpdateQuerySchema.parse(req.query);
-      const result = await service.checkForUpdate(query.platform, query.currentVersion);
+      const result = await service.checkForUpdate(query.platform, query.currentVersion, query.channel);
       sendSuccess(res, result);
     } catch (error) {
       next(error);
@@ -98,7 +99,7 @@ export function createPackageController(service: PackageService) {
   async function rollback(req: Request, res: Response, next: NextFunction) {
     try {
       const body = rollbackSchema.parse(req.body);
-      const manifest = await service.rollbackToVersion(body.platform, body.version);
+      const manifest = await service.rollbackToVersion(body.platform, body.version, body.channel);
       sendSuccess(res, manifest);
     } catch (error) {
       next(error);

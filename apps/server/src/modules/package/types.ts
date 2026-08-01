@@ -12,4 +12,6 @@ export interface UploadPackageInput {
   assets?: string[];
   tempFilePath: string;
   mimeType: string;
+  /** Which channel's active pointer this release becomes. Defaults to "production" if omitted. */
+  channel?: string;
 }

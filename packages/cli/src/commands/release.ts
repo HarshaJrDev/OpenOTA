@@ -13,6 +13,7 @@ interface ReleaseCommandOptions {
   version: string;
   platform?: string;
   dev?: boolean;
+  channel?: string;
 }
 
 export async function runRelease(options: ReleaseCommandOptions): Promise<void> {
@@ -36,6 +37,7 @@ export async function runRelease(options: ReleaseCommandOptions): Promise<void> 
         bundleName: result.manifest.bundleName,
         sha256: result.manifest.sha256,
         size: result.manifest.size,
+        channel: options.channel ?? config.channel,
       },
       (percent) => {
         spinner.text = `Uploading ${result.platform} package (${percent}%)...`;
@@ -55,6 +57,7 @@ export function registerReleaseCommand(program: Command): void {
     .requiredOption("--version <version>", "Version of the OTA package")
     .option("--platform <platform>", "Release a single platform (android|ios)")
     .option("--dev", "Build a development (unminified) bundle", false)
+    .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
     .action(async (options: ReleaseCommandOptions) => {
       try {
         await runRelease(options);

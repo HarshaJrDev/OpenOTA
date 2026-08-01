@@ -17,6 +17,7 @@ interface UploadCommandOptions {
   zip: string;
   platform: Platform;
   version: string;
+  channel?: string;
 }
 
 export async function runUpload(options: UploadCommandOptions): Promise<void> {
@@ -45,6 +46,7 @@ export async function runUpload(options: UploadCommandOptions): Promise<void> {
       bundleName: manifest.bundleName,
       sha256: manifest.sha256,
       size: manifest.size,
+      channel: options.channel ?? config.channel,
     },
     (percent) => {
       spinner.text = `Uploading package (${percent}%)...`;
@@ -61,6 +63,7 @@ export function registerUploadCommand(program: Command): void {
     .requiredOption("--zip <path>", "Path to ota-package.zip")
     .requiredOption("--platform <platform>", "Platform (android|ios)")
     .requiredOption("--version <version>", "Version of the package")
+    .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
     .action(async (options: UploadCommandOptions) => {
       try {
         await runUpload(options);

@@ -22,6 +22,9 @@ export async function uploadPackage(
   form.append("bundleName", options.bundleName);
   form.append("sha256", options.sha256);
   form.append("size", String(options.size));
+  if (options.channel) {
+    form.append("channel", options.channel);
+  }
   form.append("file", createReadStream(options.zipPath), {
     filename: "ota-package.zip",
     contentType: "application/zip",

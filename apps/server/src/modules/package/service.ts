@@ -3,7 +3,7 @@ import fse from "fs-extra";
 
 import type { Logger } from "pino";
 
-import { ALLOWED_UPLOAD_MIME_TYPES } from "@openota/shared";
+import { ALLOWED_UPLOAD_MIME_TYPES, DEFAULT_CHANNEL } from "@openota/shared";
 
 import { env } from "../../config/env.js";
 import {
@@ -34,22 +34,35 @@ interface ActiveRelease {
 export function createPackageService(repository: PackageRepository, logger: Logger) {
   const activeReleaseCache = new TtlCache<ActiveRelease | null>(ACTIVE_RELEASE_CACHE_TTL_MS);
 
-  async function getActiveRelease(platform: Platform): Promise<ActiveRelease | null> {
-    const cached = activeReleaseCache.get(platform);
+  function cacheKey(platform: Platform, channel: string): string {
+    return `${platform}:${channel}`;
+  }
+
+  async function getActiveRelease(platform: Platform, channel: string): Promise<ActiveRelease | null> {
+    const key = cacheKey(platform, channel);
+    const cached = activeReleaseCache.get(key);
     if (cached !== undefined) {
       return cached;
     }
 
-    let activeVersion = await repository.getActiveVersion(platform);
+    let activeVersion = await repository.getActiveVersion(platform, channel);
 
     if (!activeVersion) {
-      const versions = await repository.listVersions(platform);
-      if (versions.length === 0) {
-        activeReleaseCache.set(platform, null);
+      // Back-compat safety net only applies to the default channel — it predates channels
+      // existing at all, so "highest semver ever uploaded" is only a meaningful fallback for
+      // "production". A named channel with no releases yet should just report unavailable, not
+      // silently borrow production's history.
+      if (channel !== DEFAULT_CHANNEL) {
+        activeReleaseCache.set(key, null);
         return null;
       }
 
-      // Back-compat safety net for packages uploaded before the active pointer existed.
+      const versions = await repository.listVersions(platform);
+      if (versions.length === 0) {
+        activeReleaseCache.set(key, null);
+        return null;
+      }
+
       activeVersion = versions.reduce((max, current) =>
         compareSemver(current.bundleVersion, max.bundleVersion) > 0 ? current : max,
       ).bundleVersion;
@@ -57,12 +70,13 @@ export function createPackageService(repository: PackageRepository, logger: Logg
 
     const manifest = await repository.findManifest(platform, activeVersion);
     const result: ActiveRelease = { version: activeVersion, manifest };
-    activeReleaseCache.set(platform, result);
+    activeReleaseCache.set(key, result);
     return result;
   }
 
   async function uploadPackage(input: UploadPackageInput): Promise<Manifest> {
     const { platform, version, runtimeVersion, bundleName, sha256, size, assets, tempFilePath, mimeType } = input;
+    const channel = input.channel ?? DEFAULT_CHANNEL;
     const startedAt = Date.now();
 
     if (!ALLOWED_UPLOAD_MIME_TYPES.includes(mimeType as (typeof ALLOWED_UPLOAD_MIME_TYPES)[number])) {
@@ -92,11 +106,11 @@ export function createPackageService(repository: PackageRepository, logger: Logg
       await repository.saveZip(platform, version, createReadStream(tempFilePath));
       await repository.saveMetadata(platform, version, metadata);
       await repository.saveManifest(platform, version, manifest);
-      await repository.setActiveVersion(platform, version);
-      activeReleaseCache.invalidatePrefix(platform);
+      await repository.setActiveVersion(platform, version, channel);
+      activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
 
       logger.info(
-        { platform, version, size: stat.size, durationMs: Date.now() - startedAt },
+        { platform, version, channel, size: stat.size, durationMs: Date.now() - startedAt },
         "package upload completed",
       );
 
@@ -150,8 +164,12 @@ export function createPackageService(repository: PackageRepository, logger: Logg
    * rollback meaningful: a device can be told to prefer an older version without deleting the
    * newer one.
    */
-  async function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckUpdateResult> {
-    const active = await getActiveRelease(platform);
+  async function checkForUpdate(
+    platform: Platform,
+    currentVersion: string,
+    channel: string = DEFAULT_CHANNEL,
+  ): Promise<CheckUpdateResult> {
+    const active = await getActiveRelease(platform, channel);
 
     if (!active) {
       return { available: false, latestVersion: null, downloadUrl: null, manifest: null };
@@ -176,14 +194,18 @@ export function createPackageService(repository: PackageRepository, logger: Logg
   }
 
   /** Points the platform's active version at an already-uploaded package — never re-uploads or deletes anything. */
-  async function rollbackToVersion(platform: Platform, version: string): Promise<Manifest> {
+  async function rollbackToVersion(
+    platform: Platform,
+    version: string,
+    channel: string = DEFAULT_CHANNEL,
+  ): Promise<Manifest> {
     if (!(await repository.exists(platform, version))) {
       throw new PackageNotFoundError(platform, version);
     }
 
-    await repository.setActiveVersion(platform, version);
-    activeReleaseCache.invalidatePrefix(platform);
-    logger.info({ platform, version }, "release rolled back");
+    await repository.setActiveVersion(platform, version, channel);
+    activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
+    logger.info({ platform, version, channel }, "release rolled back");
 
     const manifest = await repository.findManifest(platform, version);
     const downloadUrl = await repository.getZipDownloadUrl(platform, version);

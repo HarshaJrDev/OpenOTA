@@ -17,6 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
+    "@sentry/node": "^10.69.0",
     "@openota/shared": "workspace:*",
     "@supabase/supabase-js": "^2.48.1",
     "@types/compression": "^1.8.1",

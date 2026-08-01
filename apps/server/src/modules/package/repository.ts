@@ -73,12 +73,12 @@ export function createPackageRepository(packageStorage: PackageStorageService) {
       return result;
     },
 
-    async getActiveVersion(platform: Platform): Promise<string | null> {
-      return packageStorage.readActiveVersion(platform);
+    async getActiveVersion(platform: Platform, channel?: string): Promise<string | null> {
+      return packageStorage.readActiveVersion(platform, channel);
     },
 
-    async setActiveVersion(platform: Platform, version: string): Promise<void> {
-      await packageStorage.writeActiveVersion(platform, version);
+    async setActiveVersion(platform: Platform, version: string, channel?: string): Promise<void> {
+      await packageStorage.writeActiveVersion(platform, version, channel);
     },
   };
 }

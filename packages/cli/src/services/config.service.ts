@@ -25,6 +25,9 @@ const configSchema = z.object({
   // exactly the footgun this field exists to prevent — see MissingRuntimeVersionError and
   // InvalidRuntimeVersionFormatError below for the dedicated, actionable errors this produces.
   runtimeVersion: z.string().min(1),
+  // Optional — omitted means "production" (the server's own default). `release`/`upload`/
+  // `rollback` all accept a `--channel` flag that overrides this per-invocation.
+  channel: z.string().min(1).optional(),
 });
 
 export class ConfigNotFoundError extends Error {

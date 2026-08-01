@@ -76,7 +76,6 @@ Sign up ─► Create Project ─► Generate API Key ─► openota login ─�
 
 **Not implemented today (do not expect these):**
 - **"Create App" as a separate entity** — an "app" is simply a project's platform (`android`/`ios`). There is no distinct App resource or App-settings screen. `runtimeVersion` is configured in the React Native project's `openota.config.json` + `MainApplication.kt`, **not** in the dashboard.
-- **Named release channels** — the CLI/SDK accept a `channel` config value, but the server doesn't act on it in `check` yet; every device on a platform is offered the same active version regardless of channel. The per-platform active-version pointer (used by rollback) is what's real today.
 - **Logs page** — still a placeholder; no request/audit log store exists yet.
 
 ### 3.2 CLI (from a clean machine)
@@ -150,16 +149,18 @@ All `/auth/*` routes are rate-limited (10 requests / 15 min / IP).
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `…/packages` | API key **or** owner session | multipart upload (`file` + fields) |
-| POST | `…/packages/rollback` | API key **or** owner session | `{ platform, version }` |
+| POST | `…/packages` | API key **or** owner session | multipart upload (`file` + fields), optional `channel` field |
+| POST | `…/packages/rollback` | API key **or** owner session | `{ platform, version, channel? }` |
 | GET | `…/packages` | API key **or** owner session | list |
 | DELETE | `…/packages/:platform/:version` | API key **or** owner session | |
-| GET | `…/packages/check` | **public** (device) | `?platform=&currentVersion=&deviceId=&runtimeVersion=`. `deviceId`/`runtimeVersion` are optional but drive the Devices page and the Downloads stat — see §4. Cached 30s server-side (invalidated immediately on upload/rollback). Rate-limited: 120 req/min/IP. |
+| GET | `…/packages/check` | **public** (device) | `?platform=&currentVersion=&deviceId=&runtimeVersion=&channel=`. `deviceId`/`runtimeVersion` drive the Devices page and the Downloads stat; `channel` selects which active-version pointer to check — see §4. Cached 30s server-side (invalidated immediately on upload/rollback). Rate-limited: 120 req/min/IP. |
 | GET | `…/packages/:platform/:version/download` | **public** (device) | streams / signed URL. `?deviceId=` optional (same as check). Rate-limited: 120 req/min/IP. |
 | GET | `…/packages/:platform/:version` | **public** | manifest/metadata |
 | POST | `…/packages/report` | **public** (device) | `{ deviceId, platform, version, runtimeVersion, status }`, `status` ∈ `success \| failure \| rollback`. Feeds the Analytics install-result stats — see §4. Rate-limited: 120 req/min/IP. |
 
 `check`/`download`/`report` are intentionally public (devices carry no secret); isolation there comes from the `:projectId` in the path scoping the storage prefix. Mutations require a key/session **and** that it match `:projectId` (else `401`).
+
+**Channels**: every parameter above defaults to `"production"` if omitted, so nothing that predates channels needs to change. Each `(platform, channel)` pair has its own independent active-version pointer — uploading/rolling back on `channel=beta` never touches `production`'s pointer, and a channel with no releases yet correctly reports "no update available" rather than falling back to another channel's history. The CLI's `openota.config.json` accepts a `channel` field (overridable per-command with `--channel`); the SDK's `OTA.configure({ channel: "beta" })` does the same. This applies identically to the flat self-hosted routes, not just Cloud.
 
 ### Devices & Analytics (project-scoped, session cookie, owner only)
 
@@ -203,6 +204,7 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | `RESEND_API_KEY` | no | — | Sends verification/reset emails via [Resend](https://resend.com)'s HTTP API. **Unset is fully supported**: the email is skipped and the link is logged to the server console instead (`grep` your logs for `verify-email?token=` / `reset-password?token=`) — no email infra required to use these features. |
 | `EMAIL_FROM` | no | `OpenOTA <onboarding@resend.dev>` | `From` address for verification/reset emails (only used when `RESEND_API_KEY` is set) |
 | `DASHBOARD_URL` | no | `https://open-ota-dashboard.vercel.app` | Base URL used to build verification/reset links. Set this to your own dashboard's URL if you're not using the hosted one. |
+| `SENTRY_DSN` | no | — | Sends unexpected errors (500s, crashes) to [Sentry](https://sentry.io). Unset = no-op, same graceful degradation as `RESEND_API_KEY` — structured pino logs still capture everything either way. |
 
 ---
 
@@ -242,4 +244,6 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 - **Storage**: server constructs every storage key (`projects/{id}/…`) — clients never supply paths. Supabase service-role key is server-only.
 - **Package integrity**: SHA-256 verified by the native runtime before activation; zip-bomb cap in the SDK before extraction; path-traversal guards on every storage key.
 
-**Known production gaps** (not yet addressed): named release channels aren't enforced server-side; no request/audit log store; no install-result reporting beyond success/failure/rollback (no error messages/stack traces captured). (All `/auth/*` and device-facing `check`/`download`/`report` endpoints are rate-limited; the hot `check` path is cached 30s server-side with immediate invalidation on release/rollback; the metadata store is Postgres — embedded PGlite locally, managed Postgres/Supabase in Cloud.)
+**Known production gaps** (not yet addressed): no request/audit log store; no install-result reporting beyond success/failure/rollback (no error messages/stack traces captured). (All `/auth/*` and device-facing `check`/`download`/`report` endpoints are rate-limited; the hot `check` path is cached 30s server-side with immediate invalidation on release/rollback; the metadata store is Postgres — embedded PGlite locally, managed Postgres/Supabase in Cloud.)
+
+**Single-instance today, by design.** The 30s check cache and the rate limiter are both in-process — correct and safe on more than one instance (never serves wrong data, just less effective), but not *shared* across instances. The one setting that's actually unsafe to scale horizontally is `STORAGE_PROVIDER=local` (package bytes on local disk, not visible to other instances) — the server logs a warning at boot if this is set alongside `NODE_ENV=production`, same for an unset `DATABASE_URL` (falls back to file-based PGlite, single-instance only). Use `STORAGE_PROVIDER=supabase` and a real `DATABASE_URL` before running more than one instance.

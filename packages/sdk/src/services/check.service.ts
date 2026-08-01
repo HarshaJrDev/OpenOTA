@@ -54,13 +54,16 @@ function resolveCheckEndpoint(projectId: string | undefined): string {
 }
 
 export async function checkForUpdate(platform: Platform, currentVersion: string): Promise<CheckResult> {
-  const endpoint = resolveCheckEndpoint(getConfig().projectId);
+  const config = getConfig();
+  const endpoint = resolveCheckEndpoint(config.projectId);
   // deviceId is anonymous and always sent — see storage.ts's getOrCreateDeviceId doc comment. The
-  // server only acts on it for project-scoped Cloud routes; self-hosted flat routes ignore it.
+  // server only records device check-ins for project-scoped Cloud routes (self-hosted flat routes
+  // have no project to attribute them to), but channel resolution works identically in both modes.
   const data = await apiGet<unknown>(endpoint, {
     platform,
     currentVersion,
     deviceId: otaStorage.getOrCreateDeviceId(),
+    channel: config.channel,
   });
   assertValidCheckResult(data);
   return data;

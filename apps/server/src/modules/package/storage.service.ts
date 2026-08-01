@@ -1,5 +1,6 @@
 import {
   assertSafePathSegment,
+  DEFAULT_CHANNEL,
   MANIFEST_FILENAME,
   METADATA_FILENAME,
   PACKAGE_ZIP_FILENAME,
@@ -30,9 +31,17 @@ export function createPackageStorageService(storage: StorageProvider, keyPrefix 
     return `${prefix}${platform}/${version}`;
   }
 
-  function activePointerKey(platform: Platform): string {
+  // The pre-channels pointer key (`{platform}/active.json`) is treated as the "production"
+  // channel's pointer — every release ever made before channels existed already lives there, so
+  // reading/writing "production" through this same key needs zero migration: existing deployments
+  // keep working unchanged, and every *other* channel gets its own key from day one.
+  function activePointerKey(platform: Platform, channel: string): string {
     assertSafePathSegment(platform);
-    return `${prefix}${platform}/${ACTIVE_POINTER_FILENAME}`;
+    assertSafePathSegment(channel);
+    if (channel === DEFAULT_CHANNEL) {
+      return `${prefix}${platform}/${ACTIVE_POINTER_FILENAME}`;
+    }
+    return `${prefix}${platform}/active.${channel}.json`;
   }
 
   return {
@@ -115,16 +124,17 @@ export function createPackageStorageService(storage: StorageProvider, keyPrefix 
     // The "active" pointer is what `check` actually serves — distinct from "the highest semver
     // ever uploaded". Every upload moves it forward automatically; `rollback` is the only other
     // way it changes, and it can only ever point at a version that has actually been uploaded.
-    async writeActiveVersion(platform: Platform, version: string): Promise<void> {
-      await storage.writeJson(activePointerKey(platform), { version });
+    async writeActiveVersion(platform: Platform, version: string, channel: string = DEFAULT_CHANNEL): Promise<void> {
+      await storage.writeJson(activePointerKey(platform, channel), { version });
     },
 
-    async readActiveVersion(platform: Platform): Promise<string | null> {
-      if (!(await storage.exists(activePointerKey(platform)))) {
+    async readActiveVersion(platform: Platform, channel: string = DEFAULT_CHANNEL): Promise<string | null> {
+      const key = activePointerKey(platform, channel);
+      if (!(await storage.exists(key))) {
         return null;
       }
 
-      const raw = await storage.readJson<{ version: string }>(activePointerKey(platform));
+      const raw = await storage.readJson<{ version: string }>(key);
       return raw.version;
     },
 
