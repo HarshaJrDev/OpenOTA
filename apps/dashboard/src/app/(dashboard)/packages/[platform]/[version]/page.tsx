@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Package, RotateCcw, Trash2 } from "lucide-react";
+import { Download, Layers, Package, RotateCcw, Smartphone, Trash2 } from "lucide-react";
 
 import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
@@ -12,6 +12,7 @@ import { Skeleton } from "@openota/ui/skeleton";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatCard } from "@/components/stat-card";
+import { useReleaseStats } from "@/features/analytics/hooks";
 import { getPackageDownloadUrl } from "@/features/packages/api";
 import { useDeletePackage, usePackageDetail, useRollbackPackage } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
@@ -39,6 +40,7 @@ export default function ReleaseDetailsPage({
   const projectId = searchParams.get("project") ?? currentProjectId ?? undefined;
 
   const { data: pkg, isLoading } = usePackageDetail(projectId, platform, version);
+  const { data: stats, isLoading: statsLoading } = useReleaseStats(projectId, platform, version);
   const deleteMutation = useDeletePackage(projectId ?? "");
   const rollbackMutation = useRollbackPackage(projectId ?? "");
 
@@ -88,9 +90,61 @@ export default function ReleaseDetailsPage({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Runtime Version" icon={Package} value={pkg.runtimeVersion} />
         <StatCard title="Manifest Version" icon={Package} value={String(pkg.manifestVersion)} />
-        <StatCard title="Install Count" icon={Package} unavailable unavailableReason="Requires install-result reporting" />
-        <StatCard title="Download Count" icon={Package} unavailable unavailableReason="Requires device check-in tracking" />
+        <StatCard
+          title="Devices on this version"
+          icon={Smartphone}
+          value={String(stats?.devicesOnVersion ?? 0)}
+          loading={statsLoading}
+        />
+        <StatCard
+          title="Install Outcomes"
+          icon={Layers}
+          value={`${stats?.installCounts.success ?? 0} ok`}
+          hint={
+            stats
+              ? `${stats.installCounts.failure} failed · ${stats.installCounts.rollback} rolled back`
+              : undefined
+          }
+          loading={statsLoading}
+        />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Environments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <Skeleton className="h-16 w-full" />
+          ) : !stats || stats.channels.length === 0 ? (
+            <p className="text-sm text-muted-foreground">This version has never been activated on any channel.</p>
+          ) : (
+            <ul className="divide-y">
+              {stats.channels.map((channel) => (
+                <li key={channel.channel} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0">
+                    <span className="font-medium capitalize">{channel.channel}</span>
+                    {channel.release_notes && <p className="truncate text-xs text-muted-foreground">{channel.release_notes}</p>}
+                    {channel.rollback_reason && (
+                      <p className="truncate text-xs text-muted-foreground">Rollback reason: {channel.rollback_reason}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {channel.status === "active" && channel.rollout_percentage < 100 && (
+                      <Badge variant="outline" className="font-normal text-muted-foreground">
+                        {channel.rollout_percentage}% rollout
+                      </Badge>
+                    )}
+                    <Badge variant={channel.status === "active" ? "success" : channel.status === "rolled_back" ? "destructive" : "secondary"}>
+                      {channel.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

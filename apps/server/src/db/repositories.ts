@@ -207,6 +207,19 @@ export const deviceCheckinsRepo = {
       [projectId],
     );
   },
+
+  /**
+   * Devices currently reporting this exact version as their `app_version` — a live count, not a
+   * download total (a device that later moved on no longer counts here). Used by the release
+   * detail page's "Devices on this version" stat.
+   */
+  async countOnVersion(projectId: string, platform: string, appVersion: string): Promise<number> {
+    const rows = await query<{ count: string }>(
+      "SELECT COUNT(*) as count FROM device_checkins WHERE project_id = $1 AND platform = $2 AND app_version = $3",
+      [projectId, platform, appVersion],
+    );
+    return Number(rows[0]?.count ?? 0);
+  },
 };
 
 export const installResultsRepo = {
@@ -238,6 +251,19 @@ export const installResultsRepo = {
     const rows = await query<{ status: InstallResultStatus; count: string }>(
       "SELECT status, COUNT(*) as count FROM install_results WHERE project_id = $1 GROUP BY status",
       [projectId],
+    );
+    const counts: Record<InstallResultStatus, number> = { success: 0, failure: 0, rollback: 0 };
+    for (const row of rows) {
+      counts[row.status] = Number(row.count);
+    }
+    return counts;
+  },
+
+  /** Same shape as countsByProject, scoped to one release — the release detail page's install outcome breakdown. */
+  async countsByVersion(projectId: string, platform: string, version: string): Promise<Record<InstallResultStatus, number>> {
+    const rows = await query<{ status: InstallResultStatus; count: string }>(
+      "SELECT status, COUNT(*) as count FROM install_results WHERE project_id = $1 AND platform = $2 AND version = $3 GROUP BY status",
+      [projectId, platform, version],
     );
     const counts: Record<InstallResultStatus, number> = { success: 0, failure: 0, rollback: 0 };
     for (const row of rows) {
@@ -455,6 +481,14 @@ export const releasesRepo = {
         "SELECT * FROM releases WHERE project_id = $1 AND platform = $2 AND channel = $3 AND status = 'active'",
         [projectId, platform, channel],
       ),
+    );
+  },
+
+  /** Every channel row for one exact (platform, version) — the release detail page's "live on" list, including past/superseded activations. */
+  async findByVersion(projectId: string, platform: string, version: string): Promise<ReleaseRow[]> {
+    return query<ReleaseRow>(
+      "SELECT * FROM releases WHERE project_id = $1 AND platform = $2 AND version = $3 ORDER BY created_at DESC",
+      [projectId, platform, version],
     );
   },
 

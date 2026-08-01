@@ -110,7 +110,12 @@ function PlatformReleases({
                 <li key={release.bundleVersion} className="relative">
                   <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary" />
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">v{release.bundleVersion}</span>
+                    <Link
+                      href={`/packages/${platform}/${release.bundleVersion}?project=${projectId}`}
+                      className="font-medium hover:underline"
+                    >
+                      v{release.bundleVersion}
+                    </Link>
                     {isActive ? (
                       <Badge variant="success">active</Badge>
                     ) : (
