@@ -77,6 +77,11 @@ export async function initDb(): Promise<void> {
       email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
       created_at      TEXT NOT NULL
     );
+    -- CREATE TABLE IF NOT EXISTS is a no-op on a table that already exists in production (real
+    -- Supabase data predating this column) — it does NOT retroactively add new columns. Every
+    -- column added to an existing table after its initial release needs its own idempotent
+    -- ALTER TABLE here, since there is no separate migration runner.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
     -- Single-use, expiring tokens for both email verification and password reset. One table
     -- (distinguished by "purpose") rather than two -- same shape, same lifecycle, same repo methods.
