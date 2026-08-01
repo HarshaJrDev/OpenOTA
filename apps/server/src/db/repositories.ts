@@ -540,3 +540,16 @@ export const environmentsRepo = {
     return { ...row, name, color, description };
   },
 };
+
+export const settingsRepo = {
+  async get(key: string): Promise<string | undefined> {
+    const row = one(await query<{ value: string }>("SELECT value FROM settings WHERE key = $1", [key]));
+    return (await row)?.value;
+  },
+  async set(key: string, value: string): Promise<void> {
+    await query(
+      "INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = $3",
+      [key, value, new Date().toISOString()],
+    );
+  },
+};

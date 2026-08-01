@@ -1,5 +1,6 @@
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
+import { getEmailTestMode } from "../admin/service.js";
 
 interface SendEmailParams {
   to: string;
@@ -8,10 +9,21 @@ interface SendEmailParams {
 }
 
 /**
- * No RESEND_API_KEY configured → log the email instead of sending it. This is deliberate, not a
- * fallback for errors: it keeps self-hosted/dev deployments fully functional (an operator can
- * read the verification/reset link straight from the server log) without requiring anyone to set
- * up email infrastructure just to run OpenOTA.
+ * No RESEND_API_KEY configured, OR the admin-controlled "email test mode" setting is on (the
+ * default — see admin/service.ts and db/client.ts's schema comment on the `settings` table) → log
+ * the email instead of sending it. This is deliberate, not a fallback for errors: it keeps
+ * self-hosted/dev/testing-stage deployments fully functional (an operator can read the
+ * verification/reset link straight from the server log) without requiring anyone to set up real
+ * email infrastructure, and lets an admin flip real sending on/off from the dashboard without a
+ * redeploy once they're ready to email real users.
+ *
+ * A *configured* key that fails to actually send (revoked key, unverified sending domain, Resend
+ * outage, ...) is deliberately non-fatal too, for the same reason: signup/login/resend/forgot-
+ * password must keep working even when transactional email is broken, since the account itself
+ * doesn't depend on email deliverability (self-hosted operators can still read the link from this
+ * log line, same as the no-key/test-mode path). This previously threw, which turned a Resend-side
+ * failure into a 500 on `/auth/signup` and `/auth/verify-email/resend` for every user, not just an
+ * unsent email — see the incident this comment is fixing.
  */
 async function sendEmail({ to, subject, html }: SendEmailParams): Promise<void> {
   if (!env.resendApiKey) {
@@ -19,19 +31,30 @@ async function sendEmail({ to, subject, html }: SendEmailParams): Promise<void> 
     return;
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: env.emailFrom, to, subject, html }),
-  });
+  if (await getEmailTestMode()) {
+    logger.info({ to, subject, html }, "Email test mode is ON (admin setting) — logging email instead of sending");
+    return;
+  }
 
-  if (!response.ok) {
-    const body = await response.text();
-    logger.error({ status: response.status, body }, "Failed to send email via Resend");
-    throw new Error("Failed to send email");
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: env.emailFrom, to, subject, html }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      logger.error(
+        { to, subject, status: response.status, body },
+        "Failed to send email via Resend — continuing without blocking the caller. Check RESEND_API_KEY validity and that EMAIL_FROM's domain is verified in Resend.",
+      );
+    }
+  } catch (error) {
+    logger.error({ to, subject, err: error }, "Failed to reach Resend — continuing without blocking the caller");
   }
 }
 

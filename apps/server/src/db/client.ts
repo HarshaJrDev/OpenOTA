@@ -219,6 +219,21 @@ export async function initDb(): Promise<void> {
       created_at      TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_install_results_project ON install_results(project_id, status);
+
+    -- Runtime-configurable global settings, editable by an admin from the dashboard without a
+    -- redeploy — deliberately a plain key/value table (one row per setting) rather than a
+    -- dedicated column per setting, since this is expected to grow ad hoc. First (and currently
+    -- only) key: "email_test_mode" ('true' | 'false') — see auth/email.service.ts. Seeded to
+    -- 'true' (test mode ON) so a fresh deployment never emails real users until an admin
+    -- deliberately turns it off, matching the "testing stage" default this was added for.
+    CREATE TABLE IF NOT EXISTS settings (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('email_test_mode', 'true', '1970-01-01T00:00:00.000Z')
+    ON CONFLICT (key) DO NOTHING;
   `);
 }
 

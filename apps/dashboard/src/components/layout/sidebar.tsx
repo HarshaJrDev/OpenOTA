@@ -2,14 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radio } from "lucide-react";
+import { Radio, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useMe } from "@/features/auth/hooks";
 
-import { NAV_ITEMS } from "./nav-items";
+import { NAV_ITEMS, type NavItem } from "./nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: user } = useMe();
+
+  // Admin isn't in the static NAV_ITEMS list — it's server-verified per-request regardless (see
+  // requireAdmin on every /admin/* route), but hiding the link for non-admins avoids a confusing
+  // 401 for the vast majority of users who'll never have access.
+  const items: NavItem[] = user?.isAdmin
+    ? [...NAV_ITEMS, { title: "Admin", href: "/admin", icon: ShieldCheck, shortcut: "g m" }]
+    : NAV_ITEMS;
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:flex">
@@ -19,7 +28,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 p-2">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
 

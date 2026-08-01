@@ -8,6 +8,7 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { notFoundMiddleware } from "./middleware/notFound.middleware.js";
+import { adminRouter } from "./modules/admin/routes.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { apiKeyRouter } from "./modules/apikey/routes.js";
 import { analyticsRouter } from "./modules/analytics/routes.js";
@@ -66,6 +67,7 @@ app.use("/packages", packageRouter);
 // apiKey.middleware.ts's doc comment for how self-hosted-simple mode and project-scoped mode
 // coexist under one `requireApiKey`).
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/projects", projectRouter);
 app.use("/api/v1/projects/:projectId/api-keys", apiKeyRouter);
 app.use("/api/v1/projects/:projectId/packages", createProjectPackageRouter(createStorageProvider()));

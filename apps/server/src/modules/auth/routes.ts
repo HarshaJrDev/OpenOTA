@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { env } from "../../config/env.js";
 import { authRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
@@ -48,7 +49,12 @@ authRouter.post("/logout", (_req, res) => {
 });
 
 authRouter.get("/me", requireSession, (req, res) => {
-  sendSuccess(res, { userId: req.user!.id, email: req.user!.email, emailVerified: req.user!.email_verified });
+  sendSuccess(res, {
+    userId: req.user!.id,
+    email: req.user!.email,
+    emailVerified: req.user!.email_verified,
+    isAdmin: env.adminEmails.has(req.user!.email.toLowerCase()),
+  });
 });
 
 authRouter.post("/verify-email/resend", authRateLimiter, requireSession, async (req, res, next) => {
