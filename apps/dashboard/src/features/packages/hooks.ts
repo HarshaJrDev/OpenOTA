@@ -58,10 +58,12 @@ export function useRollbackPackage(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ platform, version }: { platform: Platform; version: string }) => rollbackPackage(projectId, platform, version),
+    mutationFn: ({ platform, version, channel, reason }: { platform: Platform; version: string; channel?: string; reason?: string }) =>
+      rollbackPackage(projectId, platform, version, { channel, reason }),
     onSuccess: (manifest) => {
       toast.success(`Rolled back ${manifest.platform} to v${manifest.bundleVersion}`);
       void queryClient.invalidateQueries({ queryKey: packageKeys.all(projectId) });
+      void queryClient.invalidateQueries({ queryKey: ["environments", projectId] });
     },
     onError: (error) => {
       toast.error(error instanceof ApiError ? error.message : "Rollback failed");

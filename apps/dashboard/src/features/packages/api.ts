@@ -26,8 +26,16 @@ export function deletePackage(projectId: string, platform: Platform, version: st
   return apiRequest(`${basePath(projectId)}/${platform}/${version}`, { method: "DELETE" });
 }
 
-export function rollbackPackage(projectId: string, platform: Platform, version: string): Promise<Manifest> {
-  return apiRequest<Manifest>(`${basePath(projectId)}/rollback`, { method: "POST", body: { platform, version } });
+export function rollbackPackage(
+  projectId: string,
+  platform: Platform,
+  version: string,
+  options?: { channel?: string; reason?: string },
+): Promise<Manifest> {
+  return apiRequest<Manifest>(`${basePath(projectId)}/rollback`, {
+    method: "POST",
+    body: { platform, version, channel: options?.channel, reason: options?.reason },
+  });
 }
 
 export function checkForUpdate(projectId: string, platform: Platform, currentVersion: string): Promise<CheckResponse> {
