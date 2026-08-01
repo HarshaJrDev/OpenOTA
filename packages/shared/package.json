@@ -1,6 +1,6 @@
 {
   "name": "@openota/shared",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared OTA contracts — Manifest, RuntimeManifest, API envelopes, error codes and runtime states used by every OpenOTA package",
   "type": "module",
   "license": "MIT",

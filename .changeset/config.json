@@ -14,7 +14,6 @@
     "@openota/example",
     "@openota/site",
     "@openota/server",
-    "OpenOTAExample",
     "@openota/ui",
     "@repo/eslint-config",
     "@repo/typescript-config"
