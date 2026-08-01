@@ -1,5 +1,11 @@
 # @openota/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix 0.2.0: `npm publish` was used instead of `pnpm publish` to work around an OTP prompt, which skipped pnpm's `workspace:*` → real-version rewrite. That left `@openota/shared: workspace:*` in the published package.json, which breaks `npm install`/`yarn add` for anyone consuming these packages. 0.2.0 is deprecated in favor of this version.
+
 ## 0.2.0
 
 ### Minor Changes
