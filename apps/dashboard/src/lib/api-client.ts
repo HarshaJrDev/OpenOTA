@@ -47,7 +47,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const headers: Record<string, string> = {};
+  // CSRF defense: forces a CORS preflight on every request (custom headers are never CORS-
+  // safelisted), so CORS_ALLOWED_ORIGINS actually gets to reject cross-site requests even for
+  // otherwise-"simple" methods/content-types. See apiKey.middleware.ts's requireApiKey for the
+  // server-side check this satisfies — it rejects project-scoped, cookie-only requests without it.
+  const headers: Record<string, string> = { "X-Requested-With": "XMLHttpRequest" };
   if (options.body) headers["Content-Type"] = "application/json";
   // Primary auth in production: the stored session token as a Bearer header, which works
   // cross-domain even when the third-party session cookie is blocked. `credentials: "include"`

@@ -55,6 +55,19 @@ const envSchema = z
     DASHBOARD_URL: z.string().url().default("https://open-ota-dashboard.vercel.app"),
     // Optional — unset means no error tracking, just the existing pino logs (see config/sentry.ts).
     SENTRY_DSN: z.string().url().optional(),
+    // DEV MODE default: false. Signup/login have never gated on email_verified — this flag exists
+    // so a production deployment can opt INTO enforcing it later without a code change, not the
+    // other way around. See auth/service.ts's login() for the actual gate.
+    REQUIRE_EMAIL_VERIFICATION: z
+      .string()
+      .optional()
+      .transform((v) => v === "true"),
+    // DEV MODE ONLY — never seeds when NODE_ENV=production, regardless of this flag. See
+    // db/seed.ts. Off by default even in dev so an operator has to opt in explicitly.
+    SEED_DEMO_ACCOUNT: z
+      .string()
+      .optional()
+      .transform((v) => v === "true"),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER !== "supabase") {
@@ -122,4 +135,6 @@ export const env = {
   emailFrom: parsed.data.EMAIL_FROM,
   dashboardUrl: parsed.data.DASHBOARD_URL.replace(/\/+$/, ""),
   sentryDsn: parsed.data.SENTRY_DSN,
+  requireEmailVerification: parsed.data.REQUIRE_EMAIL_VERIFICATION,
+  seedDemoAccount: parsed.data.SEED_DEMO_ACCOUNT,
 };

@@ -205,6 +205,8 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | `EMAIL_FROM` | no | `OpenOTA <onboarding@resend.dev>` | `From` address for verification/reset emails (only used when `RESEND_API_KEY` is set) |
 | `DASHBOARD_URL` | no | `https://open-ota-dashboard.vercel.app` | Base URL used to build verification/reset links. Set this to your own dashboard's URL if you're not using the hosted one. |
 | `SENTRY_DSN` | no | — | Sends unexpected errors (500s, crashes) to [Sentry](https://sentry.io). Unset = no-op, same graceful degradation as `RESEND_API_KEY` — structured pino logs still capture everything either way. |
+| `REQUIRE_EMAIL_VERIFICATION` | no | `false` | **DEV MODE default is off.** Signup has always logged the user in immediately and login has never checked `email_verified` — that's unchanged. Set to `true` to make `login` reject unverified accounts (a verification email is always sent regardless of this flag; this only controls whether login enforces it). |
+| `SEED_DEMO_ACCOUNT` | no | `false` | **DEV MODE ONLY** — hard-guarded to never run when `NODE_ENV=production`, regardless of this flag. Seeds `demo@openota.dev` (pre-verified) on boot if it doesn't exist yet; idempotent. Password is in source at `db/seed.ts` (deliberately not logged). |
 
 ---
 

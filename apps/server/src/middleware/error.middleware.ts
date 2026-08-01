@@ -37,10 +37,21 @@ export function errorMiddleware(
     return;
   }
 
-  const message = error instanceof Error ? error.message : "Unexpected error";
+  // express.json() throws a SyntaxError (with a body-parser-attached `status`/`statusCode` of 400)
+  // for malformed request bodies — a client mistake, not a server fault. Handled here so it isn't
+  // reported as an unexpected 500/Sentry error and so the 400 status is preserved.
+  if (error instanceof SyntaxError && "status" in error && error.status === 400) {
+    logger.warn({ error: error.message }, "malformed request body");
+    sendError(res, "VALIDATION_ERROR", "Request body is not valid JSON", 400);
+    return;
+  }
+
   logger.error({ err: error }, "unhandled error");
-  // Only genuinely unexpected errors reach here — ZodError/MulterError/AppError are all expected,
-  // already-handled cases above and would just be noise in Sentry.
   captureException(error);
-  sendError(res, "INTERNAL_ERROR", message, 500);
+  // Never forward error.message here: this is the catch-all for genuinely unexpected exceptions
+  // (a raw Postgres error, a TypeError, anything not already an AppError above) — .message on
+  // those can contain schema/constraint/column names, file paths, or other internal detail. The
+  // real message is already logged (and sent to Sentry) server-side; the client only ever gets a
+  // generic message plus the request's pino-assigned id for support correlation via logs.
+  sendError(res, "INTERNAL_ERROR", "An unexpected error occurred", 500);
 }

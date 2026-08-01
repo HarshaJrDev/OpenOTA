@@ -76,7 +76,30 @@ export async function requireApiKey(req: Request, _res: Response, next: NextFunc
     // Dashboard session — via a Bearer session token (production, cross-domain) or the session
     // cookie (same-origin). resolveSessionUser ignores `ota_live_` Bearer values, so this never
     // collides with the API-key path above.
+    //
+    // CSRF note: a Bearer token already forces a CORS preflight (a custom Authorization header is
+    // never CORS-safelisted), so a request that presented one is safe as-is regardless of what
+    // follows. A request with NO Authorization header at all, if authenticated here, can only be
+    // riding the session *cookie* — and in production that cookie is `SameSite=None` (required for
+    // the cross-site dashboard, see cookie.ts). This router's upload route takes `multipart/form-
+    // data`, a CORS-safelisted "simple" content type browsers send WITHOUT a preflight regardless
+    // of CORS_ALLOWED_ORIGINS. Without this check, a malicious site could forge a plain auto-
+    // submitting HTML form (no JavaScript, no need to read the response) that uploads an attacker-
+    // controlled OTA package to a victim's project purely off their ambient cookie. Requiring this
+    // header on the no-Authorization-header path forces a preflight (custom headers are never
+    // safelisted either), which then lets CORS_ALLOWED_ORIGINS actually reject the forged request:
+    // a forged HTML form cannot add custom headers, and a forged fetch()/XHR from a disallowed
+    // origin fails preflight before the browser ever sends the real request.
     const projectId = (req.params as Record<string, string | undefined>).projectId;
+    // Scoped to exactly the vulnerable case: a project-scoped route, no Authorization header at
+    // all (so the only way this can still authenticate below is the ambient cookie). Flat self-
+    // hosted routes never reach here with a projectId, so an operator running fully open
+    // (OPENOTA_API_KEY unset) is completely unaffected by this check.
+    if (projectId && !presented && req.header("x-requested-with") !== "XMLHttpRequest") {
+      next(new UnauthorizedError());
+      return;
+    }
+
     if (projectId) {
       const sessionUser = await resolveSessionUser(req);
       if (sessionUser) {

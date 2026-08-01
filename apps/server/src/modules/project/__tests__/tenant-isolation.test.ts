@@ -199,9 +199,12 @@ describe("multi-tenant isolation", () => {
     const cookie = await signup("owner-h@example.test");
     const projectId = await createProject(cookie, "Project H");
 
+    // X-Requested-With is required on every cookie-only, project-scoped request — see the CSRF
+    // regression test below for why. This is what the real dashboard's api-client.ts sends.
     const upload = await request(app)
       .post(`/api/v1/projects/${projectId}/packages`)
       .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
       .field("platform", "android")
       .field("version", "1.0.0")
       .field("runtimeVersion", "1.0.0")
@@ -211,15 +214,41 @@ describe("multi-tenant isolation", () => {
       .attach("file", Buffer.from("session-auth"), { filename: "bundle.zip", contentType: "application/zip" });
     expect(upload.status).toBe(201);
 
-    const list = await request(app).get(`/api/v1/projects/${projectId}/packages`).set("Cookie", cookie);
+    const list = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest");
     expect(list.status).toBe(200);
     expect(list.body.data).toHaveLength(1);
 
     const rollback = await request(app)
       .post(`/api/v1/projects/${projectId}/packages/rollback`)
       .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
       .send({ platform: "android", version: "1.0.0" });
     expect(rollback.status).toBe(200);
+  });
+
+  it("CSRF regression: a project-scoped request authenticated by cookie alone, with no X-Requested-With header, is rejected", async () => {
+    // This is exactly the shape of request a malicious cross-site HTML form CAN forge (a plain
+    // multipart POST with the ambient session cookie attached) and exactly the shape a forged
+    // request CANNOT add a custom header to. If this ever starts passing again, the CSRF hole is
+    // back.
+    const cookie = await signup("csrf-victim@example.test");
+    const projectId = await createProject(cookie, "CSRF Target Project");
+
+    const forgedUpload = await request(app)
+      .post(`/api/v1/projects/${projectId}/packages`)
+      .set("Cookie", cookie)
+      .field("platform", "android")
+      .field("version", "1.0.0")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "d".repeat(64))
+      .field("size", "9")
+      .attach("file", Buffer.from("forged"), { filename: "bundle.zip", contentType: "application/zip" });
+
+    expect(forgedUpload.status).toBe(401);
   });
 
   it("dashboard session cookie for a NON-owner is rejected on someone else's project", async () => {

@@ -1,3 +1,4 @@
+import { env } from "../../config/env.js";
 import { query } from "../../db/client.js";
 import { authTokensRepo, usersRepo } from "../../db/repositories.js";
 import { NotFoundError, ValidationError } from "../../shared/errors.js";
@@ -27,6 +28,22 @@ export class InvalidOrExpiredTokenError extends ValidationError {
   }
 }
 
+export class EmailNotVerifiedError extends ValidationError {
+  constructor() {
+    super("Please verify your email before logging in");
+  }
+}
+
+/**
+ * DEV MODE default (REQUIRE_EMAIL_VERIFICATION unset/false): signup logs the user in immediately
+ * and login never checks email_verified — this has been true since verification was added, not a
+ * behavior change. A verification email is still sent and the dashboard still shows the "verify
+ * your account" banner; it's just advisory, not blocking.
+ *
+ * Set REQUIRE_EMAIL_VERIFICATION=true (production) to flip login() into rejecting unverified
+ * accounts — see the check inside login() below. The verification system itself (tokens, email
+ * sending, /verify-email/*) is never removed by DEV MODE; only whether login enforces it changes.
+ */
 export async function signup(email: string, password: string): Promise<{ userId: string; token: string }> {
   if (await usersRepo.findByEmail(email)) {
     throw new EmailAlreadyRegisteredError();
@@ -41,6 +58,12 @@ export async function login(email: string, password: string): Promise<{ userId: 
   const user = await usersRepo.findByEmail(email);
   if (!user || !verifyPassword(password, user.password_hash)) {
     throw new InvalidCredentialsError();
+  }
+
+  // Feature-flagged, off by default — see the doc comment above signup(). Checked after password
+  // verification (never before) so this can't be used to enumerate registered emails.
+  if (env.requireEmailVerification && !user.email_verified) {
+    throw new EmailNotVerifiedError();
   }
 
   return { userId: user.id, token: createSessionToken(user.id) };
