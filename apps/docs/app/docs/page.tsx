@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cloud, KeyRound, Package, Server, Settings, Smartphone, Terminal } from "lucide-react";
+import { Boxes, Cloud, Database, HardDrive, KeyRound, Layers, Package, Server, Settings, Smartphone, Sparkles, Terminal } from "lucide-react";
 
 import { Badge } from "@openota/ui/badge";
 import { Card } from "@openota/ui/card";
@@ -11,12 +11,66 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
+  { href: "#introduction", label: "Introduction" },
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#core-concepts", label: "Core concepts" },
+  { href: "#requirements", label: "What you need" },
   { href: "#quickstart", label: "Quickstart" },
   { href: "#self-hosted-vs-cloud", label: "Self-hosted vs. Cloud" },
   { href: "#cli", label: "CLI reference" },
   { href: "#sdk", label: "SDK config" },
   { href: "#dashboard", label: "Dashboard features" },
   { href: "#env", label: "Environment variables" },
+];
+
+const CORE_CONCEPTS = [
+  {
+    icon: Package,
+    title: "Release",
+    desc: "One versioned JS bundle for one platform — built by openota build, checksummed, and uploaded. Immutable once uploaded.",
+  },
+  {
+    icon: Layers,
+    title: "Environment (Channel)",
+    desc: 'Production / Staging / Development. Each has its own independent "active" release per platform — releasing to Staging never touches Production.',
+  },
+  {
+    icon: Smartphone,
+    title: "Runtime version",
+    desc: "A compatibility fence, not a feature version. A device only accepts an OTA release whose runtimeVersion exactly matches its own native binary.",
+  },
+  {
+    icon: Sparkles,
+    title: "Rollback",
+    desc: "Moves an environment's active pointer back to a previously-uploaded release. Instant, on-device, no re-download needed — nothing is ever deleted.",
+  },
+];
+
+const REQUIREMENTS = [
+  {
+    icon: Server,
+    title: "A server",
+    required: "Required",
+    desc: "Self-hosted (docker compose up) or OpenOTA Cloud — identical API either way, your app never knows the difference.",
+  },
+  {
+    icon: Database,
+    title: "Postgres",
+    required: "Recommended",
+    desc: "Unset falls back to an embedded file-based DB (PGlite) — fine for one instance/testing, not for anything you'd call production.",
+  },
+  {
+    icon: HardDrive,
+    title: "Storage backend",
+    required: "Required",
+    desc: "local disk (needs a persistent volume) or supabase (Supabase Storage). This is what actually holds your JS bundle bytes — kept deliberately separate from Postgres.",
+  },
+  {
+    icon: Boxes,
+    title: "Email sending",
+    required: "Optional",
+    desc: "Unset means verification/reset links are logged to the server console instead of emailed — fully functional without it.",
+  },
 ];
 
 const CLI_COMMANDS = [
@@ -32,7 +86,7 @@ const CLI_COMMANDS = [
 
 const SDK_OPTIONS = [
   { key: "serverUrl", type: "string", required: true, desc: "Your OpenOTA server's API base, including /api/v1." },
-  { key: "channel", type: "string", required: false, desc: 'Defaults to "production". Not yet enforced server-side in check — see Known gaps.' },
+  { key: "channel", type: "string", required: false, desc: 'Defaults to "production". Selects which environment\'s active release this device receives — each environment tracks its own independently.' },
   { key: "autoRestart", type: "boolean", required: false, desc: "Reload the JS bundle automatically after install/rollback. Default true." },
   { key: "requestTimeout", type: "number", required: false, desc: "Milliseconds before a check/download request aborts. Default 15000." },
   { key: "headers", type: "Record<string,string>", required: false, desc: "Extra headers sent on every request." },
@@ -89,6 +143,107 @@ export default function DocsPage() {
             and what the Cloud dashboard actually does today (no fabricated features).
           </p>
         </div>
+
+        <section id="introduction" className="scroll-mt-24 space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight">Introduction</h2>
+          <p className="text-muted-foreground">
+            OpenOTA lets you ship JavaScript changes to a React Native app instantly — no app store
+            review, no waiting days for a rollout. You build a bundle, push it to your own server (or
+            OpenOTA Cloud), and every installed app checks in, downloads, verifies, and applies the
+            update on its own. If something goes wrong, rollback is instant and happens entirely
+            on-device.
+          </p>
+          <p className="text-muted-foreground">
+            It&apos;s the same idea as CodePush or Expo Updates, with two differences that shape
+            everything else in these docs: <strong className="text-foreground">you own the server</strong>{" "}
+            (self-host it, or use the hosted Cloud — same code, your choice), and{" "}
+            <strong className="text-foreground">the device never trusts the server blindly</strong> — the
+            native runtime re-verifies every bundle&apos;s checksum itself before running it.
+          </p>
+        </section>
+
+        <section id="how-it-works" className="scroll-mt-24 space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
+          <Card className="overflow-hidden border-border/60 bg-card/60 p-6">
+            <pre className="overflow-x-auto font-mono text-xs leading-relaxed text-muted-foreground sm:text-sm">
+{`Your RN app (SDK)   ──check/download──▶   OpenOTA Server
+      ▲                                        │
+      │ verify + apply                         ├──▶ Postgres  (metadata)
+      │                                        └──▶ Storage   (bundle .zip)
+ openota CLI  ─────────release────────────────▶`}
+            </pre>
+          </Card>
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground marker:text-foreground">
+            <li>
+              <strong className="text-foreground">You release.</strong> <code>openota release</code> bundles your JS
+              (via Metro), computes a SHA-256 checksum, and uploads it to your server.
+            </li>
+            <li>
+              <strong className="text-foreground">The server stores it two ways.</strong> Postgres holds only
+              metadata (which version is &quot;active&quot; per environment); the actual bundle bytes go to your
+              storage backend. Kept separate on purpose — see{" "}
+              <a href="#requirements" className="underline underline-offset-4 hover:text-foreground">
+                What you need
+              </a>
+              .
+            </li>
+            <li>
+              <strong className="text-foreground">A device checks in.</strong> <code>OTA.check()</code> asks the
+              server &quot;what&apos;s active for my platform + environment?&quot; and compares it to the
+              device&apos;s current version.
+            </li>
+            <li>
+              <strong className="text-foreground">It downloads and verifies independently.</strong> The native
+              (Kotlin/Swift) runtime re-computes the checksum itself before ever running the new code — the
+              server&apos;s word is never enough on its own.
+            </li>
+            <li>
+              <strong className="text-foreground">Rollback is instant and local.</strong> The previous bundle stays
+              on-device, so rolling back is a pointer swap, not a re-download.
+            </li>
+          </ol>
+        </section>
+
+        <section id="core-concepts" className="scroll-mt-24 space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight">Core concepts</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CORE_CONCEPTS.map((c) => (
+              <Card key={c.title} className="border-border/60 bg-card/60 p-5">
+                <c.icon className="h-5 w-5 text-brand-from" />
+                <h3 className="mt-3 font-medium">{c.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{c.desc}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section id="requirements" className="scroll-mt-24 space-y-4">
+          <h2 className="text-2xl font-semibold tracking-tight">What you need</h2>
+          <p className="text-muted-foreground">
+            If you&apos;re using OpenOTA Cloud, all of this is already running — skip straight to{" "}
+            <a href="#quickstart" className="underline underline-offset-4 hover:text-foreground">
+              Quickstart
+            </a>
+            . If you&apos;re self-hosting, here&apos;s exactly what&apos;s required vs. optional.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {REQUIREMENTS.map((r) => (
+              <Card key={r.title} className="border-border/60 bg-card/60 p-5">
+                <div className="flex items-center gap-2">
+                  <r.icon className="h-5 w-5 text-brand-from" />
+                  <h3 className="font-medium">{r.title}</h3>
+                  <Badge variant={r.required === "Required" ? "default" : r.required === "Recommended" ? "secondary" : "outline"} className="ml-auto text-xs">
+                    {r.required}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{r.desc}</p>
+              </Card>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            No Redis, no message queue, no separate auth provider — deliberately minimal.
+          </p>
+        </section>
 
         <Section id="quickstart" icon={Terminal} title="Quickstart">
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
@@ -203,7 +358,7 @@ npx openota release --version 1.0.1 --platform android`}</code>
               { title: "Auth", desc: "Signup, login, email verification, forgot/reset password." },
               { title: "Projects", desc: "Create, rename, delete. Each isolates its own releases, keys, and devices." },
               { title: "API keys", desc: "Full key shown once on creation, stored server-side only as a hash." },
-              { title: "Releases", desc: "Per-project history with a real rollback button." },
+              { title: "Environments", desc: "Production/Staging/Development per project, each with its own release, visual rollback, and deployment history." },
               { title: "Devices", desc: "Real per-device last-seen registry, populated by the SDK automatically." },
               { title: "Analytics", desc: "Downloads, success rate, failures, rollbacks — all real, none fabricated." },
             ].map((f) => (

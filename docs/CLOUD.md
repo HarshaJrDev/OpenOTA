@@ -1,6 +1,24 @@
 # OpenOTA Cloud (Multi-Tenant Mode)
 
-OpenOTA runs in two modes from the **same** server binary:
+## What is OpenOTA?
+
+OpenOTA lets you ship JavaScript changes to a React Native app instantly — no app store review. You
+build a bundle, push it to a server (self-hosted or OpenOTA Cloud), and every installed app checks
+in, downloads, verifies, and applies the update on its own. Rollback is instant and happens entirely
+on-device.
+
+**How it flows:** `openota release` → your server (Postgres for metadata, a storage backend for the
+actual `.zip` bytes — kept deliberately separate) → device `OTA.check()`/download → the **native**
+runtime re-verifies the checksum itself before ever running the new code. The server is never
+blindly trusted.
+
+**What you need to run it:** a server (self-hosted or Cloud), a storage backend for bundle bytes
+(local disk or Supabase Storage), and — recommended, not strictly required — a real Postgres
+database (unset falls back to an embedded file-based DB, fine for one instance, not for production).
+Email sending is optional; unset just logs verification/reset links to the console instead.
+
+This document covers **Cloud** (multi-tenant) specifically. OpenOTA runs in two modes from the
+**same** server binary:
 
 | | Self-hosted (single-tenant) | Cloud (multi-tenant) |
 |---|---|---|
