@@ -106,6 +106,9 @@ export async function initDb(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
 
+    -- "App" in the dashboard's RN-developer-facing vocabulary — one row per (project, platform).
+    -- runtime_version here is a *default/display* value, not an enforced constraint (actual
+    -- compatibility gating stays entirely native-side, unchanged — see docs/GETTING_STARTED.md).
     CREATE TABLE IF NOT EXISTS app_configs (
       id              TEXT PRIMARY KEY,
       project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -114,6 +117,18 @@ export async function initDb(): Promise<void> {
       created_at      TEXT NOT NULL,
       UNIQUE (project_id, platform, runtime_version)
     );
+    -- Same ADD-COLUMN-IF-NOT-EXISTS lesson as users.email_verified: this table already existed
+    -- (empty — confirmed never written to before this) so CREATE TABLE IF NOT EXISTS alone won't
+    -- add these on a deployment that already booted once with the old shape.
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS package_name TEXT;
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS bundle_identifier TEXT;
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS min_supported_version TEXT;
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS updated_at TEXT;
+    -- One row per (project, platform) is the actual model now (runtime_version is just a field on
+    -- it). No DB-level UNIQUE constraint for this — PGlite doesn't support ADD CONSTRAINT IF NOT
+    -- EXISTS (Postgres 15+ only) and dropping/recreating the old three-column constraint needs
+    -- its backend-generated name, which isn't worth the portability cost. appConfigsRepo.upsert()
+    -- (find-by-project+platform, then insert-or-update) is what actually guarantees one row.
 
     CREATE TABLE IF NOT EXISTS api_keys (
       id           TEXT PRIMARY KEY,

@@ -54,6 +54,18 @@ export interface ProjectRow {
   updated_at: string;
 }
 
+export interface AppConfigRow {
+  id: string;
+  project_id: string;
+  platform: string;
+  runtime_version: string;
+  package_name: string | null;
+  bundle_identifier: string | null;
+  min_supported_version: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ApiKeyRow {
   id: string;
   project_id: string;
@@ -296,6 +308,62 @@ export const apiKeysRepo = {
   },
   async revoke(id: string): Promise<void> {
     await query("UPDATE api_keys SET revoked_at = $1 WHERE id = $2 AND revoked_at IS NULL", [new Date().toISOString(), id]);
+  },
+};
+
+export const appConfigsRepo = {
+  async listByProject(projectId: string): Promise<AppConfigRow[]> {
+    return query<AppConfigRow>("SELECT * FROM app_configs WHERE project_id = $1 ORDER BY platform ASC", [projectId]);
+  },
+
+  async findOne(projectId: string, platform: string): Promise<AppConfigRow | undefined> {
+    return one(
+      await query<AppConfigRow>("SELECT * FROM app_configs WHERE project_id = $1 AND platform = $2", [projectId, platform]),
+    );
+  },
+
+  /** Upsert on (project_id, platform) — the dashboard's "Configure app" form calls this whether or not a row exists yet. */
+  async upsert(
+    projectId: string,
+    platform: string,
+    fields: { runtimeVersion?: string; packageName?: string; bundleIdentifier?: string; minSupportedVersion?: string },
+  ): Promise<AppConfigRow> {
+    const existing = await this.findOne(projectId, platform);
+    const now = new Date().toISOString();
+
+    if (!existing) {
+      const row: AppConfigRow = {
+        id: randomUUID(),
+        project_id: projectId,
+        platform,
+        runtime_version: fields.runtimeVersion ?? "1.0.0",
+        package_name: fields.packageName ?? null,
+        bundle_identifier: fields.bundleIdentifier ?? null,
+        min_supported_version: fields.minSupportedVersion ?? null,
+        created_at: now,
+        updated_at: now,
+      };
+      await query(
+        `INSERT INTO app_configs (id, project_id, platform, runtime_version, package_name, bundle_identifier, min_supported_version, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [row.id, row.project_id, row.platform, row.runtime_version, row.package_name, row.bundle_identifier, row.min_supported_version, row.created_at, row.updated_at],
+      );
+      return row;
+    }
+
+    const updated: AppConfigRow = {
+      ...existing,
+      runtime_version: fields.runtimeVersion ?? existing.runtime_version,
+      package_name: fields.packageName ?? existing.package_name,
+      bundle_identifier: fields.bundleIdentifier ?? existing.bundle_identifier,
+      min_supported_version: fields.minSupportedVersion ?? existing.min_supported_version,
+      updated_at: now,
+    };
+    await query(
+      "UPDATE app_configs SET runtime_version = $1, package_name = $2, bundle_identifier = $3, min_supported_version = $4, updated_at = $5 WHERE id = $6",
+      [updated.runtime_version, updated.package_name, updated.bundle_identifier, updated.min_supported_version, updated.updated_at, existing.id],
+    );
+    return updated;
   },
 };
 
