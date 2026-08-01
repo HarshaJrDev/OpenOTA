@@ -1,5 +1,6 @@
 import {
   Activity,
+  AppWindow,
   Boxes,
   FolderKanban,
   Gauge,
@@ -23,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Projects", href: "/projects", icon: FolderKanban, shortcut: "g j" },
   { title: "Packages", href: "/packages", icon: Boxes, shortcut: "g p" },
   { title: "Environments", href: "/environments", icon: Layers, shortcut: "g e" },
+  { title: "Apps", href: "/apps", icon: AppWindow, shortcut: "g u" },
   { title: "Releases", href: "/releases", icon: Tags, shortcut: "g r" },
   { title: "Devices", href: "/devices", icon: Smartphone, shortcut: "g d" },
   { title: "Analytics", href: "/analytics", icon: Activity, shortcut: "g a" },
