@@ -69,9 +69,15 @@ Sign up ─► Create Project ─► Generate API Key ─► openota login ─�
 | **View Releases** | `/packages`, `/releases` | Per-project. Rollback + delete available with confirmation dialogs. |
 | **Settings** | `/settings` | Override the server URL this browser talks to. |
 
+| **Verify email** | banner shown across the dashboard until verified | Signup sends a verification link (logged to the server console if `RESEND_API_KEY` isn't set — see §5). Resend from the banner; the link hits `/verify-email`. |
+| **Forgot / reset password** | `/forgot-password`, `/reset-password` (linked from `/login`) | Never reveals whether an email is registered. Reset link is 1-hour, single-use. |
+| **Devices** | `/devices` (select project first) | Real per-device "last seen" rows: device id, app version, runtime version, platform, download count, last seen. Populated automatically once the SDK's `deviceId` starts checking in — see §4. |
+| **Analytics** | `/analytics` | Downloads (from device check-ins) and Success Rate / Failures / Rollbacks (from install-result reporting, see §4) are real. Installs still needs no separate reporting beyond what's already wired. |
+
 **Not implemented today (do not expect these):**
 - **"Create App" as a separate entity** — an "app" is simply a project's platform (`android`/`ios`). There is no distinct App resource or App-settings screen. `runtimeVersion` is configured in the React Native project's `openota.config.json` + `MainApplication.kt`, **not** in the dashboard.
-- **Devices / Analytics / Logs pages** — placeholders; they require device check-in/reporting the server does not implement yet, and the pages say so.
+- **Named release channels** — the CLI/SDK accept a `channel` config value, but the server doesn't act on it in `check` yet; every device on a platform is offered the same active version regardless of channel. The per-platform active-version pointer (used by rollback) is what's real today.
+- **Logs page** — still a placeholder; no request/audit log store exists yet.
 
 ### 3.2 CLI (from a clean machine)
 
@@ -90,6 +96,16 @@ npx openota release --version 1.0.1 --platform android
 - `release`/`upload`/`rollback` read the key from that credentials file for the config's `serverUrl`; if missing they fail with "run `openota login`". **A project API key used without a `projectId` in config falls back to the flat routes** — auth still succeeds (the key itself is valid), but the release lands in the wrong, unisolated namespace. Always run `login` (or set `projectId` in `init`) before releasing to Cloud.
 - `openota doctor` includes a **Project Access** check once `projectId` is set — confirms the configured key still resolves to that exact project.
 
+### 3.3 SDK (on-device) — what feeds Devices & Analytics
+
+Set `projectId` in `OTA.configure(...)` (same value as `openota.config.json`'s `projectId`) and the SDK does the rest automatically — no extra API calls to wire up yourself:
+
+- Generates a random, anonymous per-install `deviceId` once, persisted in the same MMKV instance as everything else (survives restarts; resets on reinstall/app-data clear — it identifies an install, not a physical device).
+- Sends it on every `OTA.check()` and `OTA.download()` call → populates the **Devices** page and the **Downloads** stat.
+- Calls the `/packages/report` endpoint automatically after every activation or rollback, reading the outcome straight from the native runtime's own state (`success` / `failure` / `rollback`) → populates **Analytics**' Success Rate / Failures / Rollbacks. This is fire-and-forget — a flaky network never fails or delays the actual install/rollback.
+
+Self-hosted apps with no `projectId` configured skip all of this silently (nowhere to record it — the flat namespace has no project concept), same as everything else project-scoped.
+
 ---
 
 ## 4. API reference (Cloud)
@@ -100,10 +116,16 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 
 | Method | Path | Auth | Body | Success |
 |---|---|---|---|---|
-| POST | `/auth/signup` | none | `{ email, password }` (password ≥ 8) | `201` `{ userId, token }` + `Set-Cookie` |
+| POST | `/auth/signup` | none | `{ email, password }` (password ≥ 8) | `201` `{ userId, token }` + `Set-Cookie`. Also sends a verification email (or logs the link — see §5). |
 | POST | `/auth/login` | none | `{ email, password }` | `200` `{ userId, token }` + `Set-Cookie` |
 | POST | `/auth/logout` | none | — | `200` `{ loggedOut: true }` (clears cookie) |
-| GET | `/auth/me` | session | — | `200` `{ userId, email }`; `401` if not logged in |
+| GET | `/auth/me` | session | — | `200` `{ userId, email, emailVerified }`; `401` if not logged in |
+| POST | `/auth/verify-email/resend` | session | — | `200` `{ sent: true }`. No-op if already verified. |
+| POST | `/auth/verify-email/confirm` | none | `{ token }` | `200` `{ verified: true }`; `400` if invalid/expired/already used |
+| POST | `/auth/forgot-password` | none | `{ email }` | `200` `{ sent: true }` always — never reveals whether the email is registered |
+| POST | `/auth/reset-password` | none | `{ token, password }` (password ≥ 8) | `200` `{ reset: true }`; `400` if invalid/expired/already used |
+
+All `/auth/*` routes are rate-limited (10 requests / 15 min / IP).
 
 ### Projects — `/projects`
 
@@ -132,11 +154,21 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 | POST | `…/packages/rollback` | API key **or** owner session | `{ platform, version }` |
 | GET | `…/packages` | API key **or** owner session | list |
 | DELETE | `…/packages/:platform/:version` | API key **or** owner session | |
-| GET | `…/packages/check` | **public** (device) | `?platform=&currentVersion=` |
-| GET | `…/packages/:platform/:version/download` | **public** (device) | streams / signed URL |
+| GET | `…/packages/check` | **public** (device) | `?platform=&currentVersion=&deviceId=&runtimeVersion=`. `deviceId`/`runtimeVersion` are optional but drive the Devices page and the Downloads stat — see §4. Cached 30s server-side (invalidated immediately on upload/rollback). Rate-limited: 120 req/min/IP. |
+| GET | `…/packages/:platform/:version/download` | **public** (device) | streams / signed URL. `?deviceId=` optional (same as check). Rate-limited: 120 req/min/IP. |
 | GET | `…/packages/:platform/:version` | **public** | manifest/metadata |
+| POST | `…/packages/report` | **public** (device) | `{ deviceId, platform, version, runtimeVersion, status }`, `status` ∈ `success \| failure \| rollback`. Feeds the Analytics install-result stats — see §4. Rate-limited: 120 req/min/IP. |
 
-`check`/`download` are intentionally public (devices carry no secret); isolation there comes from the `:projectId` in the path scoping the storage prefix. Mutations require a key/session **and** that it match `:projectId` (else `401`).
+`check`/`download`/`report` are intentionally public (devices carry no secret); isolation there comes from the `:projectId` in the path scoping the storage prefix. Mutations require a key/session **and** that it match `:projectId` (else `401`).
+
+### Devices & Analytics (project-scoped, session cookie, owner only)
+
+| Method | Path | Success |
+|---|---|---|
+| GET | `/projects/:projectId/devices` | `200` array of `{ id, device_id, platform, app_version, runtime_version, download_count, first_seen_at, last_seen_at }`, newest-seen first |
+| GET | `/projects/:projectId/analytics/install-results` | `200` `{ success, failure, rollback }` counts |
+
+Both are populated entirely by what the SDK reports (§4) — there's no way to fabricate this data from the dashboard.
 
 ### Example
 
@@ -168,6 +200,9 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | `SUPABASE_STORAGE_BUCKET` | no | `openota-releases` | |
 | `OPENOTA_MAX_PACKAGE_SIZE_MB` | no | `200` | Upload size cap |
 | `OPENOTA_API_KEY` | no | — | Legacy single-tenant shared secret (flat routes only); leave unset for Cloud |
+| `RESEND_API_KEY` | no | — | Sends verification/reset emails via [Resend](https://resend.com)'s HTTP API. **Unset is fully supported**: the email is skipped and the link is logged to the server console instead (`grep` your logs for `verify-email?token=` / `reset-password?token=`) — no email infra required to use these features. |
+| `EMAIL_FROM` | no | `OpenOTA <onboarding@resend.dev>` | `From` address for verification/reset emails (only used when `RESEND_API_KEY` is set) |
+| `DASHBOARD_URL` | no | `https://open-ota-dashboard.vercel.app` | Base URL used to build verification/reset links. Set this to your own dashboard's URL if you're not using the hosted one. |
 
 ---
 
@@ -194,6 +229,7 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | Users/projects vanish after redeploy | No persistent disk | Use a plan with a mounted disk (Render Starter+) |
 | `401` on a project route with a valid key | Key belongs to a different project | Use the key issued for that exact project |
 | `openota release` says not logged in | No credential for this server URL | `openota login --api-key …` |
+| `column "..." does not exist` on an **existing** deployment after an update | Schema bootstrap uses `CREATE TABLE IF NOT EXISTS`, which is a no-op against a table that already has data — it does not retroactively add new columns | Redeploy the latest server code; new columns ship as an explicit `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` alongside the `CREATE TABLE`, so this self-heals on next boot. A brand-new deployment never hits this (fresh `CREATE TABLE` already has every column). |
 
 ---
 
@@ -206,4 +242,4 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 - **Storage**: server constructs every storage key (`projects/{id}/…`) — clients never supply paths. Supabase service-role key is server-only.
 - **Package integrity**: SHA-256 verified by the native runtime before activation; zip-bomb cap in the SDK before extraction; path-traversal guards on every storage key.
 
-**Known production gaps** (not yet addressed): no email verification / password reset. (Auth endpoints are rate-limited; the metadata store is Postgres — embedded PGlite locally, managed Postgres/Supabase in Cloud.)
+**Known production gaps** (not yet addressed): named release channels aren't enforced server-side; no request/audit log store; no install-result reporting beyond success/failure/rollback (no error messages/stack traces captured). (All `/auth/*` and device-facing `check`/`download`/`report` endpoints are rate-limited; the hot `check` path is cached 30s server-side with immediate invalidation on release/rollback; the metadata store is Postgres — embedded PGlite locally, managed Postgres/Supabase in Cloud.)

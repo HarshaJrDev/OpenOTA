@@ -39,8 +39,9 @@ value; nothing about the CLI/SDK/native runtime depends on it specifically.
 Full end-to-end walkthrough (native wiring, SDK integration, verifying a release, sync, rollback,
 negative paths): **[docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)**
 Flat command/API reference: **[docs/COMMANDS.md](./docs/COMMANDS.md)**
-Multi-tenant Cloud mode — accounts, projects, per-project API keys, dashboard, full Cloud API
-reference: **[docs/CLOUD.md](./docs/CLOUD.md)**
+Multi-tenant Cloud mode — accounts, projects, per-project API keys, email verification, password
+reset, device tracking, install-result analytics, dashboard, full Cloud API reference:
+**[docs/CLOUD.md](./docs/CLOUD.md)**
 
 ## Architecture
 
@@ -70,7 +71,9 @@ storage backend) directly, only to the OpenOTA API.
 | `packages/sdk` | `@openota/sdk` — the on-device `OTA.*` API (check/download/verify/install/sync/rollback). |
 | `packages/native-android` | Android TurboModule — bundle staging, SHA-256 verification, activation, crash-loop-safe rollback. See its own [README](./packages/native-android/README.md). |
 | `packages/shared` | Shared TypeScript contracts (Manifest, error codes, API envelopes) used by every package above. |
-| `apps/dashboard` | Web dashboard for browsing releases (packages, rollback, analytics). |
+| `apps/dashboard` | Cloud web dashboard — auth (signup/login/email verification/password reset), projects, API keys, releases + rollback, real device tracking, install-result analytics. |
+| `apps/docs` | Marketing/docs landing page for OpenOTA Cloud. |
+| `apps/openota-site` | The self-hosted-focused marketing site. |
 | `apps/example` | A real React Native app used as the OTA integration playground/demo. |
 | `apps/e2e` | End-to-end certification suite (real CLI → real server → real Android instrumented tests). |
 

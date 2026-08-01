@@ -89,6 +89,9 @@ function Nav() {
           <a href="#how-it-works" className="transition-colors hover:text-foreground">
             How it works
           </a>
+          <Link href="/docs" className="transition-colors hover:text-foreground">
+            Docs
+          </Link>
           <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
             GitHub
           </a>
@@ -245,10 +248,10 @@ function Cta() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild>
-              <a href="https://github.com/HarshaJrDev/OpenOTA#readme">
+              <Link href="/docs">
                 Read the docs
                 <ArrowRight />
-              </a>
+              </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
               <a href="https://github.com/HarshaJrDev/OpenOTA">Star on GitHub</a>
@@ -269,6 +272,9 @@ function Footer() {
           <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
             GitHub
           </a>
+          <Link href="/docs" className="transition-colors hover:text-foreground">
+            Docs
+          </Link>
           <a href="#features" className="transition-colors hover:text-foreground">
             Features
           </a>
