@@ -166,6 +166,11 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_releases_lookup ON releases(project_id, platform, channel, runtime_version, status);
     ALTER TABLE releases ADD COLUMN IF NOT EXISTS release_notes TEXT;
     ALTER TABLE releases ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
+    -- Staged rollout: what fraction of devices on this (platform, channel) get the active release,
+    -- gated by a deterministic hash of (deviceId, version) in checkForUpdate — see
+    -- package/service.ts. Always 100 outside the dashboard-driven Cloud path (self-hosted has no
+    -- releases-table writes at all, so it never reads anything but the default).
+    ALTER TABLE releases ADD COLUMN IF NOT EXISTS rollout_percentage INTEGER NOT NULL DEFAULT 100;
 
     -- Purely presentational metadata on top of the existing channel mechanism (see
     -- package/storage.service.ts's per-(platform,channel) active-version pointer) — "Environment"

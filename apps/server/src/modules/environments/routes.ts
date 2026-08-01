@@ -13,6 +13,11 @@ const updateEnvironmentSchema = z.object({
   description: z.string().max(300).optional(),
 });
 
+const updateRolloutSchema = z.object({
+  platform: z.enum(["android", "ios"]),
+  percentage: z.number().int().min(0).max(100),
+});
+
 /**
  * Dashboard-only, session-authed, same ownership-check pattern as devices/routes.ts. "Environment"
  * is presentational metadata (name/color/description) layered on top of the channel mechanism that
@@ -61,6 +66,19 @@ environmentsRouter.get("/:channel/history", requireSession, async (req, res, nex
 
     const platform = typeof req.query.platform === "string" ? req.query.platform : undefined;
     sendSuccess(res, await releasesRepo.listByProject(projectId, platform, channel));
+  } catch (error) {
+    next(error);
+  }
+});
+
+environmentsRouter.patch("/:channel/rollout", requireSession, async (req, res, next) => {
+  try {
+    const { projectId, channel } = req.params as unknown as { projectId: string; channel: string };
+    await projectService.getOwnedProject(req.user!.id, projectId);
+
+    const { platform, percentage } = updateRolloutSchema.parse(req.body);
+    const updated = await releasesRepo.setRolloutPercentage(projectId, platform, channel, percentage);
+    sendSuccess(res, updated ?? null);
   } catch (error) {
     next(error);
   }

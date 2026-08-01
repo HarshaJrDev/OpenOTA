@@ -194,4 +194,44 @@ describe("environments", () => {
       .send({ color: "red" });
     expect(patchRes.status).toBe(404);
   });
+
+  it("staged rollout: 0% withholds the update from every device, 100% (default) serves it to all", async () => {
+    const cookie = await signup("env-owner-g@example.test");
+    const projectId = await createProject(cookie, "Env Project G");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "1.0.0");
+
+    const rolloutRes = await request(app)
+      .patch(`/api/v1/projects/${projectId}/environments/production/rollout`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ platform: "android", percentage: 0 });
+    expect(rolloutRes.status).toBe(200);
+    expect(rolloutRes.body.data.rollout_percentage).toBe(0);
+
+    for (const deviceId of ["device-a", "device-b", "device-c"]) {
+      const checkRes = await request(app)
+        .get(`/api/v1/projects/${projectId}/packages/check`)
+        .query({ platform: "android", currentVersion: "0.0.1", deviceId });
+      expect(checkRes.body.data.available).toBe(false);
+    }
+
+    // A device with no id can't be bucketed, so it's let through rather than starved forever.
+    const anonymousCheck = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages/check`)
+      .query({ platform: "android", currentVersion: "0.0.1" });
+    expect(anonymousCheck.body.data.available).toBe(true);
+
+    await request(app)
+      .patch(`/api/v1/projects/${projectId}/environments/production/rollout`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ platform: "android", percentage: 100 });
+
+    const fullyRolledOut = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages/check`)
+      .query({ platform: "android", currentVersion: "0.0.1", deviceId: "device-a" });
+    expect(fullyRolledOut.body.data.available).toBe(true);
+  });
 });

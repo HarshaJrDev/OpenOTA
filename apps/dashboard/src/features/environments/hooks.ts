@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { ApiError } from "@/lib/api-client";
 
-import { getEnvironmentHistory, listEnvironments, updateEnvironment } from "./api";
+import { getEnvironmentHistory, listEnvironments, updateEnvironment, updateRolloutPercentage } from "./api";
 
 export const environmentKeys = {
   list: (projectId: string) => ["environments", projectId] as const,
@@ -38,5 +38,18 @@ export function useUpdateEnvironment(projectId: string) {
       void queryClient.invalidateQueries({ queryKey: environmentKeys.list(projectId) });
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update environment"),
+  });
+}
+
+export function useUpdateRolloutPercentage(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ channel, platform, percentage }: { channel: string; platform: Platform; percentage: number }) =>
+      updateRolloutPercentage(projectId, channel, platform, percentage),
+    onSuccess: () => {
+      toast.success("Rollout updated");
+      void queryClient.invalidateQueries({ queryKey: environmentKeys.list(projectId) });
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update rollout"),
   });
 }

@@ -13,7 +13,7 @@ import {
   PackageTooLargeError,
   UploadError,
 } from "../../shared/errors.js";
-import { compareSemver } from "../../shared/utils.js";
+import { compareSemver, rolloutBucket } from "../../shared/utils.js";
 import { TtlCache } from "../../shared/ttlCache.js";
 import { buildManifest, buildMetadata } from "./manifest.service.js";
 import type { PackageRepository } from "./repository.js";
@@ -190,6 +190,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     platform: Platform,
     currentVersion: string,
     channel: string = DEFAULT_CHANNEL,
+    deviceId?: string,
   ): Promise<CheckUpdateResult> {
     const active = await getActiveRelease(platform, channel);
 
@@ -201,6 +202,20 @@ export function createPackageService(repository: PackageRepository, logger: Logg
 
     if (!available) {
       return { available: false, latestVersion: active.version, downloadUrl: null, manifest: null };
+    }
+
+    // Staged rollout only applies to Cloud projects with a releases-table row for the active
+    // version (self-hosted's flat mode never writes one, so it's always treated as 100%). A
+    // device with no id can't be bucketed deterministically, so it's let through rather than
+    // silently starved of updates forever.
+    if (projectId && deviceId) {
+      const activeRelease = await releasesRepo.findActive(projectId, platform, channel);
+      if (activeRelease && activeRelease.rollout_percentage < 100) {
+        const bucket = rolloutBucket(deviceId, activeRelease.id);
+        if (bucket >= activeRelease.rollout_percentage) {
+          return { available: false, latestVersion: active.version, downloadUrl: null, manifest: null };
+        }
+      }
     }
 
     // Never serve a stored downloadUrl — Supabase signed URLs expire, so it must be minted fresh

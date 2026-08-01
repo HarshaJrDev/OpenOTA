@@ -94,6 +94,7 @@ export interface ReleaseRow {
   created_by: string | null;
   release_notes: string | null;
   rollback_reason: string | null;
+  rollout_percentage: number;
 }
 
 export interface EnvironmentRow {
@@ -455,6 +456,20 @@ export const releasesRepo = {
         [projectId, platform, channel],
       ),
     );
+  },
+
+  /** Adjusts exposure on the currently-active release only — a no-op (returns undefined) if there's no active release yet. */
+  async setRolloutPercentage(
+    projectId: string,
+    platform: string,
+    channel: string,
+    percentage: number,
+  ): Promise<ReleaseRow | undefined> {
+    await query(
+      "UPDATE releases SET rollout_percentage = $1 WHERE project_id = $2 AND platform = $3 AND channel = $4 AND status = 'active'",
+      [percentage, projectId, platform, channel],
+    );
+    return this.findActive(projectId, platform, channel);
   },
 };
 

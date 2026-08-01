@@ -8,12 +8,13 @@ import Link from "next/link";
 import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@openota/ui/popover";
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { EmptyState } from "@/components/empty-state";
 import type { Environment, EnvironmentRelease } from "@/features/environments/api";
 import { HistoryDialog } from "@/features/environments/history-dialog";
-import { useEnvironments } from "@/features/environments/hooks";
+import { useEnvironments, useUpdateRolloutPercentage } from "@/features/environments/hooks";
 import { RollbackDialog } from "@/features/environments/rollback-dialog";
 import { useCurrentProject } from "@/features/projects/current-project-context";
 
@@ -117,15 +118,7 @@ function EnvironmentCard({ projectId, environment }: { projectId: string; enviro
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                {active && (
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 font-normal text-muted-foreground"
-                    title="Staged rollout is not yet supported — every release ships to 100% of devices immediately."
-                  >
-                    100% rollout
-                  </Badge>
-                )}
+                {active && <RolloutControl projectId={projectId} channel={environment.channel} platform={platform} release={active} />}
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="History" onClick={() => setHistoryPlatform(platform)}>
                   <ScrollText className="h-3.5 w-3.5" />
                 </Button>
@@ -168,5 +161,68 @@ function EnvironmentCard({ projectId, environment }: { projectId: string; enviro
         />
       )}
     </Card>
+  );
+}
+
+function RolloutControl({
+  projectId,
+  channel,
+  platform,
+  release,
+}: {
+  projectId: string;
+  channel: string;
+  platform: Platform;
+  release: EnvironmentRelease;
+}) {
+  const mutation = useUpdateRolloutPercentage(projectId);
+  const [draft, setDraft] = React.useState(release.rollout_percentage);
+  const [open, setOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setDraft(release.rollout_percentage);
+  }, [release.rollout_percentage]);
+
+  function handleSave() {
+    if (draft !== release.rollout_percentage) {
+      mutation.mutate({ channel, platform, percentage: draft });
+    }
+    setOpen(false);
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Badge
+          variant="outline"
+          className="shrink-0 cursor-pointer font-normal text-muted-foreground hover:bg-accent"
+          title={`v${release.version} is rolled out to ${release.rollout_percentage}% of devices — click to change`}
+        >
+          {release.rollout_percentage}% rollout
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 space-y-3" align="end">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Rollout — v{release.version}</span>
+          <span className="text-muted-foreground">{draft}%</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={draft}
+          onChange={(e) => setDraft(Number(e.target.value))}
+          className="w-full accent-primary"
+        />
+        <p className="text-xs text-muted-foreground">
+          Devices are bucketed deterministically per release, so this can only move exposure up or down — it can&apos;t target
+          specific devices.
+        </p>
+        <Button size="sm" className="w-full" onClick={handleSave} disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving…" : "Save"}
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }

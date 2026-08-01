@@ -9,6 +9,7 @@ export interface EnvironmentRelease {
   status: "active" | "inactive" | "rolled_back";
   release_notes: string | null;
   rollback_reason: string | null;
+  rollout_percentage: number;
   created_at: string;
 }
 
@@ -39,5 +40,17 @@ export function updateEnvironment(
 export function getEnvironmentHistory(projectId: string, channel: string, platform: Platform): Promise<EnvironmentRelease[]> {
   return apiRequest<EnvironmentRelease[]>(`/projects/${projectId}/environments/${channel}/history`, {
     query: { platform },
+  });
+}
+
+export function updateRolloutPercentage(
+  projectId: string,
+  channel: string,
+  platform: Platform,
+  percentage: number,
+): Promise<EnvironmentRelease> {
+  return apiRequest<EnvironmentRelease>(`/projects/${projectId}/environments/${channel}/rollout`, {
+    method: "PATCH",
+    body: { platform, percentage },
   });
 }
