@@ -77,6 +77,11 @@ export function createPackageRepository(packageStorage: PackageStorageService) {
       return packageStorage.readActiveVersion(platform, channel);
     },
 
+    /** The storage key a package's zip lives at — server-constructed, never client-supplied. Used only to record it in the release-history log (see releasesRepo). */
+    zipKey(platform: Platform, version: string): string {
+      return packageStorage.zipKey(platform, version);
+    },
+
     async setActiveVersion(platform: Platform, version: string, channel?: string): Promise<void> {
       await packageStorage.writeActiveVersion(platform, version, channel);
     },

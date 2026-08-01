@@ -19,18 +19,22 @@ export function createPackageController(service: PackageService) {
         throw new ValidationError("No file uploaded");
       }
 
-      const manifest = await service.uploadPackage({
-        platform: body.platform,
-        version: body.version,
-        runtimeVersion: body.runtimeVersion,
-        bundleName: body.bundleName,
-        sha256: body.sha256,
-        size: body.size,
-        assets: body.assets,
-        channel: body.channel,
-        tempFilePath: req.file.path,
-        mimeType: req.file.mimetype,
-      });
+      const manifest = await service.uploadPackage(
+        {
+          platform: body.platform,
+          version: body.version,
+          runtimeVersion: body.runtimeVersion,
+          bundleName: body.bundleName,
+          sha256: body.sha256,
+          size: body.size,
+          assets: body.assets,
+          channel: body.channel,
+          releaseNotes: body.releaseNotes,
+          tempFilePath: req.file.path,
+          mimeType: req.file.mimetype,
+        },
+        req.apiKeyId,
+      );
 
       sendSuccess(res, manifest, 201);
     } catch (error) {
@@ -99,7 +103,7 @@ export function createPackageController(service: PackageService) {
   async function rollback(req: Request, res: Response, next: NextFunction) {
     try {
       const body = rollbackSchema.parse(req.body);
-      const manifest = await service.rollbackToVersion(body.platform, body.version, body.channel);
+      const manifest = await service.rollbackToVersion(body.platform, body.version, body.channel, req.apiKeyId, body.reason);
       sendSuccess(res, manifest);
     } catch (error) {
       next(error);

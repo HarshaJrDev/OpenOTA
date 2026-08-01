@@ -18,6 +18,7 @@ interface UploadCommandOptions {
   platform: Platform;
   version: string;
   channel?: string;
+  releaseNotes?: string;
 }
 
 export async function runUpload(options: UploadCommandOptions): Promise<void> {
@@ -47,6 +48,7 @@ export async function runUpload(options: UploadCommandOptions): Promise<void> {
       sha256: manifest.sha256,
       size: manifest.size,
       channel: options.channel ?? config.channel,
+      releaseNotes: options.releaseNotes,
     },
     (percent) => {
       spinner.text = `Uploading package (${percent}%)...`;
@@ -64,6 +66,7 @@ export function registerUploadCommand(program: Command): void {
     .requiredOption("--platform <platform>", "Platform (android|ios)")
     .requiredOption("--version <version>", "Version of the package")
     .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
+    .option("--release-notes <notes>", "Changelog for this release, shown on the dashboard")
     .action(async (options: UploadCommandOptions) => {
       try {
         await runUpload(options);

@@ -14,4 +14,6 @@ export interface UploadPackageInput {
   mimeType: string;
   /** Which channel's active pointer this release becomes. Defaults to "production" if omitted. */
   channel?: string;
+  /** Free-text changelog for this release — shown on the dashboard's release history/detail views. */
+  releaseNotes?: string;
 }

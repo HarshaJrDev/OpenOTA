@@ -69,6 +69,7 @@ export async function requireApiKey(req: Request, _res: Response, next: NextFunc
 
       await apiKeysRepo.touchLastUsed(match.id);
       req.project = project;
+      req.apiKeyId = match.id;
       next();
       return;
     }

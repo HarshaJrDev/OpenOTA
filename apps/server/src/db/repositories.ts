@@ -65,6 +65,35 @@ export interface ApiKeyRow {
   revoked_at: string | null;
 }
 
+export type ReleaseStatus = "active" | "inactive" | "rolled_back";
+
+export interface ReleaseRow {
+  id: string;
+  project_id: string;
+  platform: string;
+  channel: string;
+  version: string;
+  runtime_version: string;
+  storage_key: string;
+  checksum: string;
+  size_bytes: number;
+  status: ReleaseStatus;
+  created_at: string;
+  created_by: string | null;
+  release_notes: string | null;
+  rollback_reason: string | null;
+}
+
+export interface EnvironmentRow {
+  id: string;
+  project_id: string;
+  channel: string;
+  name: string;
+  color: string;
+  description: string | null;
+  created_at: string;
+}
+
 async function one<T>(rows: T[]): Promise<T | undefined> {
   return rows[0];
 }
@@ -267,5 +296,130 @@ export const apiKeysRepo = {
   },
   async revoke(id: string): Promise<void> {
     await query("UPDATE api_keys SET revoked_at = $1 WHERE id = $2 AND revoked_at IS NULL", [new Date().toISOString(), id]);
+  },
+};
+
+export const releasesRepo = {
+  /**
+   * One call per upload/rollback event — see package/service.ts. Marks whatever was previously
+   * `active` for this (project, platform, channel) as `newStatus` (superseded on a fresh upload,
+   * rolled_back on a rollback), then either flips an existing row for `version` back to `active`
+   * (the rollback-to-a-prior-version case) or inserts a brand new one (a genuinely new upload).
+   */
+  async recordActivation(params: {
+    projectId: string;
+    platform: string;
+    channel: string;
+    version: string;
+    runtimeVersion: string;
+    storageKey: string;
+    checksum: string;
+    sizeBytes: number;
+    createdBy: string | null;
+    releaseNotes?: string | null;
+    rollbackReason?: string | null;
+    previousStatus: "inactive" | "rolled_back";
+  }): Promise<void> {
+    const now = new Date().toISOString();
+
+    await query(
+      "UPDATE releases SET status = $1 WHERE project_id = $2 AND platform = $3 AND channel = $4 AND status = 'active'",
+      [params.previousStatus, params.projectId, params.platform, params.channel],
+    );
+
+    const existing = await query<ReleaseRow>(
+      "SELECT * FROM releases WHERE project_id = $1 AND platform = $2 AND channel = $3 AND version = $4",
+      [params.projectId, params.platform, params.channel, params.version],
+    );
+
+    if (existing.length > 0) {
+      await query(
+        "UPDATE releases SET status = 'active', rollback_reason = COALESCE($1, rollback_reason) WHERE id = $2",
+        [params.rollbackReason ?? null, existing[0]!.id],
+      );
+      return;
+    }
+
+    await query(
+      `INSERT INTO releases (id, project_id, platform, channel, version, runtime_version, storage_key, checksum, size_bytes, status, created_at, created_by, release_notes, rollback_reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $13)`,
+      [
+        randomUUID(),
+        params.projectId,
+        params.platform,
+        params.channel,
+        params.version,
+        params.runtimeVersion,
+        params.storageKey,
+        params.checksum,
+        params.sizeBytes,
+        now,
+        params.createdBy,
+        params.releaseNotes ?? null,
+        params.rollbackReason ?? null,
+      ],
+    );
+  },
+
+  async listByProject(projectId: string, platform?: string, channel?: string): Promise<ReleaseRow[]> {
+    const conditions = ["project_id = $1"];
+    const params: unknown[] = [projectId];
+
+    if (platform) {
+      params.push(platform);
+      conditions.push(`platform = $${params.length}`);
+    }
+    if (channel) {
+      params.push(channel);
+      conditions.push(`channel = $${params.length}`);
+    }
+
+    return query<ReleaseRow>(
+      `SELECT * FROM releases WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`,
+      params,
+    );
+  },
+
+  async findActive(projectId: string, platform: string, channel: string): Promise<ReleaseRow | undefined> {
+    return one(
+      await query<ReleaseRow>(
+        "SELECT * FROM releases WHERE project_id = $1 AND platform = $2 AND channel = $3 AND status = 'active'",
+        [projectId, platform, channel],
+      ),
+    );
+  },
+};
+
+export const environmentsRepo = {
+  async create(projectId: string, channel: string, name: string, color: string, description?: string): Promise<EnvironmentRow> {
+    const row: EnvironmentRow = {
+      id: randomUUID(),
+      project_id: projectId,
+      channel,
+      name,
+      color,
+      description: description ?? null,
+      created_at: new Date().toISOString(),
+    };
+    await query(
+      "INSERT INTO environments (id, project_id, channel, name, color, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [row.id, row.project_id, row.channel, row.name, row.color, row.description, row.created_at],
+    );
+    return row;
+  },
+  async listByProject(projectId: string): Promise<EnvironmentRow[]> {
+    return query<EnvironmentRow>("SELECT * FROM environments WHERE project_id = $1 ORDER BY created_at ASC", [projectId]);
+  },
+  async update(projectId: string, channel: string, fields: { name?: string; color?: string; description?: string }): Promise<EnvironmentRow | undefined> {
+    const existing = one(await query<EnvironmentRow>("SELECT * FROM environments WHERE project_id = $1 AND channel = $2", [projectId, channel]));
+    const row = await existing;
+    if (!row) {
+      return undefined;
+    }
+    const name = fields.name ?? row.name;
+    const color = fields.color ?? row.color;
+    const description = fields.description ?? row.description;
+    await query("UPDATE environments SET name = $1, color = $2, description = $3 WHERE id = $4", [name, color, description, row.id]);
+    return { ...row, name, color, description };
   },
 };

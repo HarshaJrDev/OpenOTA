@@ -66,6 +66,7 @@ export interface UploadOptions {
   sha256: string;
   size: number;
   channel?: string;
+  releaseNotes?: string;
 }
 
 export interface DoctorCheckResult {

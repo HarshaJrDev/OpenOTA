@@ -1,9 +1,18 @@
 import { randomBytes } from "node:crypto";
 
-import { projectsRepo, type ProjectRow } from "../../db/repositories.js";
+import { environmentsRepo, projectsRepo, type ProjectRow } from "../../db/repositories.js";
 import { logger } from "../../config/logger.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
 import { NotFoundError } from "../../shared/errors.js";
+
+// A React Native developer's mental model is "prod / staging / dev," not "the flat channel
+// namespace" — see docs/CLOUD.md's Channels section. These map 1:1 onto channel strings the
+// server/CLI/SDK already understand; this table only adds the label/color/description on top.
+export const DEFAULT_ENVIRONMENTS = [
+  { channel: "production", name: "Production", color: "green", description: "Live release seen by real users." },
+  { channel: "staging", name: "Staging", color: "amber", description: "Pre-release testing." },
+  { channel: "development", name: "Development", color: "blue", description: "Internal builds." },
+] as const;
 
 async function slugify(name: string): Promise<string> {
   const base = name
@@ -21,7 +30,13 @@ async function slugify(name: string): Promise<string> {
 }
 
 export async function createProject(ownerId: string, name: string): Promise<ProjectRow> {
-  return projectsRepo.create(ownerId, name, await slugify(name));
+  const project = await projectsRepo.create(ownerId, name, await slugify(name));
+
+  for (const env of DEFAULT_ENVIRONMENTS) {
+    await environmentsRepo.create(project.id, env.channel, env.name, env.color, env.description);
+  }
+
+  return project;
 }
 
 export function listProjects(ownerId: string): Promise<ProjectRow[]> {

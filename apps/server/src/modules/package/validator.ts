@@ -24,6 +24,7 @@ export const uploadPackageSchema = z.object({
   size: z.coerce.number().int().positive(),
   assets: z.array(z.string()).optional(),
   channel: channelSchema.optional(),
+  releaseNotes: z.string().max(4000).optional(),
 });
 
 export const packageParamsSchema = z.object({
@@ -43,6 +44,7 @@ export const rollbackSchema = z.object({
   platform: platformSchema,
   version: semverSchema,
   channel: channelSchema.optional(),
+  reason: z.string().max(2000).optional(),
 });
 
 export type UploadPackageBody = z.infer<typeof uploadPackageSchema>;

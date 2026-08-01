@@ -85,7 +85,7 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
     const storageKeyPrefix = `projects/${projectId}`;
     const packageStorageService = createPackageStorageService(storageProvider, storageKeyPrefix);
     const packageRepository = createPackageRepository(packageStorageService);
-    const packageService = createPackageService(packageRepository, logger);
+    const packageService = createPackageService(packageRepository, logger, projectId);
     const controller = createPackageController(packageService);
     controllers.set(projectId, controller);
     return controller;

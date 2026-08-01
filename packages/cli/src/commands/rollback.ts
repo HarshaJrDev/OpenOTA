@@ -12,6 +12,7 @@ interface RollbackCommandOptions {
   platform: Platform;
   version: string;
   channel?: string;
+  reason?: string;
 }
 
 export async function runRollback(options: RollbackCommandOptions): Promise<void> {
@@ -26,6 +27,7 @@ export async function runRollback(options: RollbackCommandOptions): Promise<void
     platform: options.platform,
     version: options.version,
     channel: options.channel ?? config.channel,
+    reason: options.reason,
   });
 
   succeed(spinner, `Rolled back ${options.platform} to v${options.version}`);
@@ -38,6 +40,7 @@ export function registerRollbackCommand(program: Command): void {
     .requiredOption("--platform <platform>", "Platform (android|ios)")
     .requiredOption("--version <version>", "Version to roll back to")
     .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
+    .option("--reason <reason>", "Why this rollback happened, shown in deployment history")
     .action(async (options: RollbackCommandOptions) => {
       try {
         await runRollback(options);

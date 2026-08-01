@@ -25,6 +25,9 @@ export async function uploadPackage(
   if (options.channel) {
     form.append("channel", options.channel);
   }
+  if (options.releaseNotes) {
+    form.append("releaseNotes", options.releaseNotes);
+  }
   form.append("file", createReadStream(options.zipPath), {
     filename: "ota-package.zip",
     contentType: "application/zip",

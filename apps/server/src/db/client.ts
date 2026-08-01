@@ -128,6 +128,11 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(prefix);
     CREATE INDEX IF NOT EXISTS idx_api_keys_project ON api_keys(project_id);
 
+    -- Deployment history log for the dashboard's Environments/Release-history UI. The active-
+    -- pointer file (see package/storage.service.ts) stays the actual source of truth for "what do
+    -- devices get" — this table is a queryable log of the same events, written alongside it, never
+    -- read by the check/download hot path. status: 'active' (currently pointed to) | 'inactive'
+    -- (superseded by a later release) | 'rolled_back' (was active, a rollback moved past it).
     CREATE TABLE IF NOT EXISTS releases (
       id              TEXT PRIMARY KEY,
       project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -144,6 +149,24 @@ export async function initDb(): Promise<void> {
       UNIQUE (project_id, platform, channel, version)
     );
     CREATE INDEX IF NOT EXISTS idx_releases_lookup ON releases(project_id, platform, channel, runtime_version, status);
+    ALTER TABLE releases ADD COLUMN IF NOT EXISTS release_notes TEXT;
+    ALTER TABLE releases ADD COLUMN IF NOT EXISTS rollback_reason TEXT;
+
+    -- Purely presentational metadata on top of the existing channel mechanism (see
+    -- package/storage.service.ts's per-(platform,channel) active-version pointer) — "Environment"
+    -- in the dashboard IS a channel; this table only adds a color/description/display name so the
+    -- UI has something nicer than a bare string. Never read by check/download/upload/rollback.
+    CREATE TABLE IF NOT EXISTS environments (
+      id          TEXT PRIMARY KEY,
+      project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      channel     TEXT NOT NULL,
+      name        TEXT NOT NULL,
+      color       TEXT NOT NULL DEFAULT 'blue',
+      description TEXT,
+      created_at  TEXT NOT NULL,
+      UNIQUE (project_id, channel)
+    );
+    CREATE INDEX IF NOT EXISTS idx_environments_project ON environments(project_id);
 
     -- One row per device per project: upserted on every check/download so this is a "last seen"
     -- registry (what the Devices dashboard page needs), not an unbounded event log. download_count

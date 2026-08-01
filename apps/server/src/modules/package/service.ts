@@ -6,6 +6,7 @@ import type { Logger } from "pino";
 import { ALLOWED_UPLOAD_MIME_TYPES, DEFAULT_CHANNEL } from "@openota/shared";
 
 import { env } from "../../config/env.js";
+import { releasesRepo } from "../../db/repositories.js";
 import {
   PackageAlreadyExistsError,
   PackageNotFoundError,
@@ -17,6 +18,11 @@ import { TtlCache } from "../../shared/ttlCache.js";
 import { buildManifest, buildMetadata } from "./manifest.service.js";
 import type { PackageRepository } from "./repository.js";
 import type { CheckUpdateResult, Manifest, PackageMetadata, Platform, UploadPackageInput } from "./types.js";
+
+interface ReleaseHistoryContext {
+  projectId: string;
+  apiKeyId?: string;
+}
 
 // Keyed by platform only — one cache per service instance, and each service instance is already
 // scoped to exactly one project (or the single flat/self-hosted namespace) via its repository, so
@@ -31,7 +37,7 @@ interface ActiveRelease {
   manifest: Manifest;
 }
 
-export function createPackageService(repository: PackageRepository, logger: Logger) {
+export function createPackageService(repository: PackageRepository, logger: Logger, projectId?: string) {
   const activeReleaseCache = new TtlCache<ActiveRelease | null>(ACTIVE_RELEASE_CACHE_TTL_MS);
 
   function cacheKey(platform: Platform, channel: string): string {
@@ -74,7 +80,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     return result;
   }
 
-  async function uploadPackage(input: UploadPackageInput): Promise<Manifest> {
+  async function uploadPackage(input: UploadPackageInput, createdBy?: string): Promise<Manifest> {
     const { platform, version, runtimeVersion, bundleName, sha256, size, assets, tempFilePath, mimeType } = input;
     const channel = input.channel ?? DEFAULT_CHANNEL;
     const startedAt = Date.now();
@@ -108,6 +114,22 @@ export function createPackageService(repository: PackageRepository, logger: Logg
       await repository.saveManifest(platform, version, manifest);
       await repository.setActiveVersion(platform, version, channel);
       activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
+
+      if (projectId) {
+        await releasesRepo.recordActivation({
+          projectId,
+          platform,
+          channel,
+          version,
+          runtimeVersion,
+          storageKey: repository.zipKey(platform, version),
+          checksum: sha256,
+          sizeBytes: size,
+          createdBy: createdBy ?? null,
+          releaseNotes: input.releaseNotes,
+          previousStatus: "inactive",
+        });
+      }
 
       logger.info(
         { platform, version, channel, size: stat.size, durationMs: Date.now() - startedAt },
@@ -198,6 +220,8 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     platform: Platform,
     version: string,
     channel: string = DEFAULT_CHANNEL,
+    createdBy?: string,
+    reason?: string,
   ): Promise<Manifest> {
     if (!(await repository.exists(platform, version))) {
       throw new PackageNotFoundError(platform, version);
@@ -208,6 +232,23 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     logger.info({ platform, version, channel }, "release rolled back");
 
     const manifest = await repository.findManifest(platform, version);
+
+    if (projectId) {
+      await releasesRepo.recordActivation({
+        projectId,
+        platform,
+        channel,
+        version,
+        runtimeVersion: manifest.runtimeVersion,
+        storageKey: repository.zipKey(platform, version),
+        checksum: manifest.sha256,
+        sizeBytes: manifest.size,
+        createdBy: createdBy ?? null,
+        rollbackReason: reason,
+        previousStatus: "rolled_back",
+      });
+    }
+
     const downloadUrl = await repository.getZipDownloadUrl(platform, version);
     return { ...manifest, downloadUrl };
   }

@@ -14,6 +14,7 @@ interface ReleaseCommandOptions {
   platform?: string;
   dev?: boolean;
   channel?: string;
+  releaseNotes?: string;
 }
 
 export async function runRelease(options: ReleaseCommandOptions): Promise<void> {
@@ -38,6 +39,7 @@ export async function runRelease(options: ReleaseCommandOptions): Promise<void> 
         sha256: result.manifest.sha256,
         size: result.manifest.size,
         channel: options.channel ?? config.channel,
+        releaseNotes: options.releaseNotes,
       },
       (percent) => {
         spinner.text = `Uploading ${result.platform} package (${percent}%)...`;
@@ -58,6 +60,7 @@ export function registerReleaseCommand(program: Command): void {
     .option("--platform <platform>", "Release a single platform (android|ios)")
     .option("--dev", "Build a development (unminified) bundle", false)
     .option("--channel <channel>", "Release channel (defaults to config's channel, or \"production\")")
+    .option("--release-notes <notes>", "Changelog for this release, shown on the dashboard")
     .action(async (options: ReleaseCommandOptions) => {
       try {
         await runRelease(options);
