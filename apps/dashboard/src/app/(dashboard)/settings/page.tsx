@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@openota/ui/card";
 
+import { SdkConfigCard } from "@/features/settings/sdk-config-card";
 import { ServerUrlForm } from "@/features/settings/server-url-form";
 
 export default function SettingsPage() {
@@ -11,6 +12,8 @@ export default function SettingsPage() {
       </div>
 
       <ServerUrlForm />
+
+      <SdkConfigCard />
 
       <Card>
         <CardHeader>
@@ -45,8 +48,8 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Not implemented server-side yet — see the Channels page for what exists today (a per-platform active-version
-            pointer, not named channels).
+            Named channels are managed on the Environments page — each environment (Production, Staging, …) maps to an
+            independent per-platform active-version pointer.
           </p>
         </CardContent>
       </Card>

@@ -31,6 +31,9 @@ function getServerUrl(): string {
   return url.replace(/\/+$/, "");
 }
 
+/** Same resolution as every API call this client makes — exposed so the Settings SDK snippet shows the real URL. */
+export const getEffectiveServerUrl = getServerUrl;
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Record<string, string | undefined>;

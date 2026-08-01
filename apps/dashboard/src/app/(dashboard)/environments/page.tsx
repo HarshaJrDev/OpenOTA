@@ -117,6 +117,15 @@ function EnvironmentCard({ projectId, environment }: { projectId: string; enviro
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
+                {active && (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 font-normal text-muted-foreground"
+                    title="Staged rollout is not yet supported — every release ships to 100% of devices immediately."
+                  >
+                    100% rollout
+                  </Badge>
+                )}
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="History" onClick={() => setHistoryPlatform(platform)}>
                   <ScrollText className="h-3.5 w-3.5" />
                 </Button>
