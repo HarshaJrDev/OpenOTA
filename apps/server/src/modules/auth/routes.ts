@@ -5,6 +5,7 @@ import { env } from "../../config/env.js";
 import { authRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
+import { getEmailTestMode } from "../admin/service.js";
 import { setSessionCookie, clearSessionCookie } from "./cookie.js";
 import * as authService from "./service.js";
 
@@ -48,13 +49,21 @@ authRouter.post("/logout", (_req, res) => {
   sendSuccess(res, { loggedOut: true });
 });
 
-authRouter.get("/me", requireSession, (req, res) => {
-  sendSuccess(res, {
-    userId: req.user!.id,
-    email: req.user!.email,
-    emailVerified: req.user!.email_verified,
-    isAdmin: env.adminEmails.has(req.user!.email.toLowerCase()),
-  });
+authRouter.get("/me", requireSession, async (req, res, next) => {
+  try {
+    sendSuccess(res, {
+      userId: req.user!.id,
+      email: req.user!.email,
+      emailVerified: req.user!.email_verified,
+      isAdmin: env.adminEmails.has(req.user!.email.toLowerCase()),
+      // Not sensitive (it's just "are real emails going out right now"), so every user gets it,
+      // not just admins — the dashboard uses it to hide the "verify your email" nag banner, since
+      // nagging someone to check an inbox that will never receive anything is actively confusing.
+      emailTestMode: await getEmailTestMode(),
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.post("/verify-email/resend", authRateLimiter, requireSession, async (req, res, next) => {

@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   emailVerified: boolean;
   isAdmin: boolean;
+  emailTestMode: boolean;
 }
 
 interface AuthResult {

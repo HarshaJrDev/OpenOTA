@@ -30,7 +30,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
-        {!user.emailVerified && <VerifyEmailBanner email={user.email} />}
+        {/* Test mode means no real email will ever arrive, so nagging to check an inbox that
+            can't receive anything would just be confusing — see the admin settings toggle. */}
+        {!user.emailVerified && !user.emailTestMode && <VerifyEmailBanner email={user.email} />}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
       <CommandPalette />
