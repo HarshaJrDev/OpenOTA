@@ -124,6 +124,12 @@ export async function initDb(): Promise<void> {
     ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS bundle_identifier TEXT;
     ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS min_supported_version TEXT;
     ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS updated_at TEXT;
+    -- Arbitrary JSON (stored as text, parsed by callers) an app can fetch at runtime independent
+    -- of which OTA bundle is active — e.g. a UI variant flag, a feature toggle. Deliberately a
+    -- single freeform blob rather than typed columns: this is meant for whatever a given app
+    -- needs to read remotely without shipping a new OTA release, not a fixed schema OpenOTA
+    -- itself understands or acts on.
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS remote_config TEXT;
     -- One row per (project, platform) is the actual model now (runtime_version is just a field on
     -- it). No DB-level UNIQUE constraint for this — PGlite doesn't support ADD CONSTRAINT IF NOT
     -- EXISTS (Postgres 15+ only) and dropping/recreating the old three-column constraint needs

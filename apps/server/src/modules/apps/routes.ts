@@ -4,6 +4,7 @@ import { z } from "zod";
 import { SUPPORTED_PLATFORMS } from "@openota/shared";
 
 import { appConfigsRepo } from "../../db/repositories.js";
+import { deviceRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "../project/service.js";
@@ -15,6 +16,11 @@ const upsertAppSchema = z.object({
   packageName: z.string().max(200).optional(),
   bundleIdentifier: z.string().max(200).optional(),
   minSupportedVersion: z.string().max(50).optional(),
+  // Arbitrary JSON the app can read back at runtime, independent of which OTA bundle is active —
+  // see db/client.ts's app_configs.remote_config column doc comment. Validated as an object (not
+  // a bare string/array) so /config always hands back something a client can safely spread into
+  // its own config shape.
+  remoteConfig: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -41,7 +47,41 @@ appsRouter.put("/:platform", requireSession, async (req, res, next) => {
     await projectService.getOwnedProject(req.user!.id, projectId);
     const parsedPlatform = platformSchema.parse(platform);
     const body = upsertAppSchema.parse(req.body);
-    sendSuccess(res, await appConfigsRepo.upsert(projectId, parsedPlatform, body));
+    const row = await appConfigsRepo.upsert(projectId, parsedPlatform, {
+      ...body,
+      remoteConfig: body.remoteConfig !== undefined ? JSON.stringify(body.remoteConfig) : undefined,
+    });
+    sendSuccess(res, row);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Public (no session, no API key) — mirrors check/download: a device is never expected to carry a
+ * dashboard credential. Rate-limited the same way. Devices poll this independently of OTA.sync(),
+ * so a value can change (e.g. which UI variant to render) without shipping a new OTA release at
+ * all. Deliberately returns `{}` rather than 404 when nothing's been configured yet, so a client
+ * doesn't need special-case error handling for the common "no config set" case.
+ */
+appsRouter.get("/:platform/config", deviceRateLimiter, async (req, res, next) => {
+  try {
+    const { projectId, platform } = req.params as unknown as { projectId: string; platform: string };
+    const parsedPlatform = platformSchema.parse(platform);
+    const row = await appConfigsRepo.findOne(projectId, parsedPlatform);
+
+    if (!row?.remote_config) {
+      sendSuccess(res, {});
+      return;
+    }
+
+    try {
+      sendSuccess(res, JSON.parse(row.remote_config));
+    } catch {
+      // Stored value somehow isn't valid JSON (shouldn't happen — it's validated on write) —
+      // fail soft rather than 500 a device over a config value it can't use anyway.
+      sendSuccess(res, {});
+    }
   } catch (error) {
     next(error);
   }

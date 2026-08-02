@@ -10,6 +10,7 @@ export interface AppConfig {
   package_name: string | null;
   bundle_identifier: string | null;
   min_supported_version: string | null;
+  remote_config: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -19,6 +20,7 @@ export interface UpsertAppConfigFields {
   packageName?: string;
   bundleIdentifier?: string;
   minSupportedVersion?: string;
+  remoteConfig?: Record<string, unknown>;
 }
 
 export function listAppConfigs(projectId: string): Promise<AppConfig[]> {

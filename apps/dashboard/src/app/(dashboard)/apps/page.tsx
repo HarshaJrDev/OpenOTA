@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Input } from "@openota/ui/input";
 import { Label } from "@openota/ui/label";
 import { Skeleton } from "@openota/ui/skeleton";
+import { Textarea } from "@openota/ui/textarea";
 
 import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
@@ -96,12 +97,16 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
   const [packageName, setPackageName] = React.useState(config?.package_name ?? "");
   const [bundleIdentifier, setBundleIdentifier] = React.useState(config?.bundle_identifier ?? "");
   const [minSupportedVersion, setMinSupportedVersion] = React.useState(config?.min_supported_version ?? "");
+  const [remoteConfigText, setRemoteConfigText] = React.useState(config?.remote_config ?? "");
+  const [remoteConfigError, setRemoteConfigError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setRuntimeVersion(config?.runtime_version ?? "");
     setPackageName(config?.package_name ?? "");
     setBundleIdentifier(config?.bundle_identifier ?? "");
     setMinSupportedVersion(config?.min_supported_version ?? "");
+    setRemoteConfigText(config?.remote_config ?? "");
+    setRemoteConfigError(null);
   }, [config]);
 
   const identifierLabel = platform === "android" ? "Package name" : "Bundle identifier";
@@ -113,6 +118,22 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
   const setIdentifierValue = platform === "android" ? setPackageName : setBundleIdentifier;
 
   function handleSave() {
+    let remoteConfig: Record<string, unknown> | undefined;
+    if (remoteConfigText.trim()) {
+      try {
+        const parsed: unknown = JSON.parse(remoteConfigText);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          setRemoteConfigError("Must be a JSON object, e.g. {\"uiVersion\": \"2.0.0\"}");
+          return;
+        }
+        remoteConfig = parsed as Record<string, unknown>;
+      } catch {
+        setRemoteConfigError("Not valid JSON");
+        return;
+      }
+    }
+    setRemoteConfigError(null);
+
     upsert.mutate({
       platform,
       fields: {
@@ -120,6 +141,7 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
         packageName: platform === "android" ? packageName || undefined : undefined,
         bundleIdentifier: platform === "ios" ? bundleIdentifier || undefined : undefined,
         minSupportedVersion: minSupportedVersion || undefined,
+        remoteConfig,
       },
     });
   }
@@ -190,6 +212,29 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
             value={minSupportedVersion}
             onChange={(e) => setMinSupportedVersion(e.target.value)}
           />
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`${platform}-remote-config`}>Remote config</Label>
+            <InfoTooltip>
+              Arbitrary JSON your app can fetch at runtime (GET .../apps/{platform}/config, no auth needed) —
+              independent of which OTA bundle is active. Change it here and the app sees the new value on its next
+              poll, with no new release required. OpenOTA doesn&apos;t read or act on this itself; it&apos;s entirely
+              up to your app what to do with it.
+            </InfoTooltip>
+          </div>
+          <Textarea
+            id={`${platform}-remote-config`}
+            placeholder={'{"uiVersion": "2.0.0"}'}
+            value={remoteConfigText}
+            onChange={(e) => {
+              setRemoteConfigText(e.target.value);
+              setRemoteConfigError(null);
+            }}
+            rows={3}
+            className="font-mono text-xs"
+          />
+          {remoteConfigError && <p className="text-xs text-destructive">{remoteConfigError}</p>}
         </div>
         <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>
           {upsert.isPending ? "Saving…" : "Save"}
