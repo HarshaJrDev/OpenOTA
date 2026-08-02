@@ -20,6 +20,7 @@ const NAV = [
   { href: "#cli", label: "CLI reference" },
   { href: "#sdk", label: "SDK config" },
   { href: "#native-deps", label: "Native dependencies" },
+  { href: "#remote-config", label: "Remote config" },
   { href: "#dashboard", label: "Dashboard features" },
   { href: "#env", label: "Environment variables" },
 ];
@@ -409,13 +410,39 @@ npx react-native run-ios   # or run-android`}</code>
           </p>
         </Section>
 
+        <Section id="remote-config" icon={Boxes} title="Remote config (optional)">
+          <p className="text-muted-foreground">
+            Separate from OTA bundles entirely — a per-(project, platform) JSON value your app can fetch at runtime
+            and react to however you like. Editable from the dashboard&apos;s Apps page, no new release required to
+            change it.
+          </p>
+          <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
+              <code>{`GET  /projects/:projectId/apps/:platform/config   # public, no auth — same as check/download
+PUT  /projects/:projectId/apps/:platform          # session-authed, dashboard/API only
+     body: { "remoteConfig": { "anyKey": "anyValue" } }`}</code>
+            </pre>
+          </Card>
+          <p className="text-sm text-muted-foreground">
+            OpenOTA never reads or acts on the value itself — what it means is entirely up to your app. Two things
+            worth knowing: the endpoint sends <code>Cache-Control: no-store</code>, and this is a plain{" "}
+            <code>fetch()</code> that does <em>not</em> inherit <code>OTA.configure()</code>&apos;s{" "}
+            <code>requestTimeout</code> — add your own <code>AbortController</code> timeout, or a slow/cold server
+            can hang the request far longer than expected.
+          </p>
+        </Section>
+
         <Section id="dashboard" icon={KeyRound} title="Dashboard features (Cloud)">
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { title: "Auth", desc: "Signup, login, email verification, forgot/reset password." },
               { title: "Projects", desc: "Create, rename, delete. Each isolates its own releases, keys, and devices." },
               { title: "API keys", desc: "Full key shown once on creation, stored server-side only as a hash." },
-              { title: "Environments", desc: "Production/Staging/Development per project, each with its own release, visual rollback, and deployment history." },
+              {
+                title: "Environments",
+                desc: "Production/Staging/Development per project, each with its own release, visual rollback, and deployment history. Rolling back only changes what an environment offers — a device already ahead of the rollback target won't downgrade (the check endpoint never silently downgrades a device); it applies to devices still behind it, same as any other update.",
+              },
+              { title: "Apps", desc: "Package name, bundle identifier, runtime version, min supported version, and remote config — per (project, platform)." },
               { title: "Devices", desc: "Real per-device last-seen registry, populated by the SDK automatically." },
               { title: "Analytics", desc: "Downloads, success rate, failures, rollbacks — all real, none fabricated." },
             ].map((f) => (

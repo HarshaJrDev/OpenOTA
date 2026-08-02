@@ -190,7 +190,37 @@ back out of immediately.
 In practice: ship a fix as a *new* version (`1.0.2`) rather than relying on rollback as your
 primary fix mechanism — rollback is for stopping the bleeding, not for shipping fixes.
 
-## 7. Negative paths (what happens when something's wrong)
+## 7. Remote config (optional)
+
+Separate from OTA bundles entirely: a per-(project, platform) JSON value your app can poll at
+runtime and react to however you like — no new release required to change it.
+
+```
+GET  /projects/:projectId/apps/:platform/config   # public, no auth — same as check/download
+PUT  /projects/:projectId/apps/:platform          # session-authed, dashboard/API only
+     body: { "remoteConfig": { "anyKey": "anyValue" } }
+```
+
+The dashboard's **Apps** page has a "Remote config" field (raw JSON) for this. OpenOTA itself
+never reads or acts on the value — it's entirely up to your app. A typical use: fetch it on app
+start and on resume-from-background, same pattern as checking for an OTA update:
+
+```ts
+async function fetchRemoteConfig(platform: 'android' | 'ios') {
+  const res = await fetch(`${SERVER_URL}/projects/${PROJECT_ID}/apps/${platform}/config`);
+  const { data } = await res.json(); // note the {success, data} envelope, like every OpenOTA response
+  return data;
+}
+```
+
+Two things worth knowing if you build on this:
+- The endpoint sends `Cache-Control: no-store` — but if you put anything in front of it (a CDN,
+  a proxy), make sure that setting is respected, or a stale value can get served indefinitely.
+- Add a fetch timeout. This is a plain `fetch()`, not the SDK's `OTA.sync()` — it doesn't inherit
+  `requestTimeout` from `OTA.configure()`, so without your own `AbortController` a slow/cold
+  server can hang the request far longer than expected.
+
+## 8. Negative paths (what happens when something's wrong)
 
 | Situation | What happens |
 |---|---|
@@ -207,6 +237,6 @@ cap). A rejected upload looks like:
 { "error": { "code": "PACKAGE_TOO_LARGE", "message": "...", "details": { "maxBytes": 52428800, "actualBytes": 61234000 } } }
 ```
 
-## 8. Full command and endpoint reference
+## 9. Full command and endpoint reference
 
 See [COMMANDS.md](./COMMANDS.md).

@@ -189,6 +189,20 @@ All `/auth/*` routes are rate-limited (10 requests / 15 min / IP).
 
 Both are populated entirely by what the SDK reports (§4) — there's no way to fabricate this data from the dashboard.
 
+### Apps & remote config — `/projects/:projectId/apps`
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `…/apps` | owner session | list — one row per `(project, platform)` |
+| PUT | `…/apps/:platform` | owner session | upsert `{ runtimeVersion?, packageName?, bundleIdentifier?, minSupportedVersion?, remoteConfig? }` |
+| GET | `…/apps/:platform/config` | **public** (device) | returns `remoteConfig` as-is (`{}` if unset). `Cache-Control: no-store`. Rate-limited: 120 req/min/IP. |
+
+`remoteConfig` is a freeform JSON object the dashboard can set at any time (Apps page → "Remote
+config") and a device can read at runtime independent of which OTA bundle is active — no new
+release needed to change it. OpenOTA doesn't interpret this value at all; what it means is
+entirely up to your app (a UI variant flag, a feature toggle, anything). See
+[GETTING_STARTED.md §7](./GETTING_STARTED.md#7-remote-config-optional) for the client-side pattern.
+
 ### Example
 
 ```sh
