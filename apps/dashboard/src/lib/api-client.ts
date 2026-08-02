@@ -95,7 +95,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   let rawBody: unknown;
   try {
     rawBody = await response.json();
-  } catch (error) {
+  } catch {
     throw new ApiError("NETWORK_ERROR", "Server response was not valid JSON");
   }
 
