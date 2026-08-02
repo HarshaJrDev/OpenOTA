@@ -3,10 +3,12 @@ import {
   Check,
   Cloud,
   Github,
+  Layers,
   Lock,
   Package,
   RotateCcw,
   ShieldCheck,
+  Smartphone,
   Terminal,
   X,
   Zap,
@@ -18,6 +20,14 @@ import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
 import { FadeIn } from "./components/fade-in";
+
+const STACK = ["React Native", "TypeScript", "Kotlin", "Swift", "PostgreSQL", "Express"];
+
+const ENVIRONMENTS_PREVIEW = [
+  { name: "Production", version: "1.4.2", status: "active", rollout: 100, devices: "12,204" },
+  { name: "Staging", version: "1.5.0-rc.2", status: "active", rollout: 40, devices: "318" },
+  { name: "Development", version: "1.5.0-dev.9", status: "active", rollout: 100, devices: "6" },
+];
 
 const FEATURES = [
   {
@@ -120,6 +130,8 @@ export default function Home() {
 
       <Nav />
       <Hero />
+      <Stack />
+      <ProductPreview />
       <Why />
       <Features />
       <Pipeline />
@@ -245,6 +257,68 @@ function Hero() {
               <span className="text-muted-foreground"># live on every device within seconds</span>
             </code>
           </pre>
+        </Card>
+      </FadeIn>
+    </section>
+  );
+}
+
+function Stack() {
+  return (
+    <section className="mx-auto max-w-4xl px-6 pb-20">
+      <FadeIn className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+        <span className="text-xs font-medium uppercase tracking-wider">Built on</span>
+        {STACK.map((name) => (
+          <span key={name} className="font-medium text-foreground/70">
+            {name}
+          </span>
+        ))}
+      </FadeIn>
+    </section>
+  );
+}
+
+function ProductPreview() {
+  return (
+    <section className="mx-auto max-w-5xl px-6 pb-24">
+      <FadeIn>
+        <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-2xl shadow-brand-from/10 backdrop-blur">
+          <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-brand-from" />
+              <span className="text-sm font-medium">Environments</span>
+              <Badge variant="secondary" className="text-xs">
+                your-app
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">Cloud dashboard — illustrative preview</span>
+          </div>
+          <div className="grid divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {ENVIRONMENTS_PREVIEW.map((env) => (
+              <div key={env.name} className="p-6">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{env.name}</span>
+                  <Badge variant={env.name === "Production" ? "default" : "secondary"} className="text-xs capitalize">
+                    {env.status}
+                  </Badge>
+                </div>
+                <div className="mt-3 font-mono text-sm text-muted-foreground">v{env.version}</div>
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Rollout</span>
+                    <span>{env.rollout}%</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full brand-gradient-bg" style={{ width: `${env.rollout}%` }} />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Smartphone className="h-3.5 w-3.5" />
+                  {env.devices} devices
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       </FadeIn>
     </section>
