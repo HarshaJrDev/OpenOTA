@@ -17,7 +17,9 @@ import {
 import { Input } from "@openota/ui/input";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
+import { NextStepCard } from "@/components/next-step-card";
 import type { Project } from "@/features/projects/api";
 import { useCurrentProject } from "@/features/projects/current-project-context";
 import { useCreateProject, useDeleteProject, useProjects, useRenameProject } from "@/features/projects/hooks";
@@ -101,7 +103,12 @@ export default function ProjectsPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openProject(project.id)}>
                 <CardTitle className="truncate text-base">{project.name}</CardTitle>
-                <p className="truncate font-mono text-xs text-muted-foreground">{project.id}</p>
+                <div className="flex items-center gap-1">
+                  <p className="truncate font-mono text-xs text-muted-foreground">{project.id}</p>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <CopyButton value={project.id} label="Project ID" className="h-5 w-5" />
+                  </span>
+                </div>
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -130,6 +137,15 @@ export default function ProjectsPage() {
           </Card>
         ))}
       </div>
+
+      {projects && projects.length > 0 && (
+        <NextStepCard
+          accomplished={projects.length === 1 ? "You've created your first project." : `You have ${projects.length} projects.`}
+          next="Open a project to get its Server URL, Project ID, and an API key."
+          actionLabel="Connect a project"
+          onAction={() => openProject(projects[0]!.id)}
+        />
+      )}
 
       <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
         <DialogContent>

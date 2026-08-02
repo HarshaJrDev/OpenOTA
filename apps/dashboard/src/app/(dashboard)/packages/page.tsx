@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CopyButton } from "@/components/copy-button";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { buildPackageColumns } from "@/features/packages/columns";
@@ -97,7 +98,13 @@ function ProjectPackages({ projectId }: { projectId: string }) {
         <EmptyState
           icon={Boxes}
           title="No packages uploaded yet"
-          description="Run `openota release --version 1.0.0 --platform android` from your React Native project to publish your first package."
+          description="Run this from your React Native project root to publish your first package:"
+          action={
+            <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
+              <code className="font-mono text-xs">npx openota release --version 1.0.0 --platform android</code>
+              <CopyButton value="npx openota release --version 1.0.0 --platform android" label="release command" />
+            </div>
+          }
         />
       ) : (
         <DataTable

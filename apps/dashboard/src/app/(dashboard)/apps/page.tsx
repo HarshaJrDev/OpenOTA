@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { Platform } from "@openota/shared";
-import { FolderKanban, Smartphone } from "lucide-react";
+import { CheckCircle2, FolderKanban, Smartphone } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@openota/ui/badge";
@@ -12,7 +12,10 @@ import { Input } from "@openota/ui/input";
 import { Label } from "@openota/ui/label";
 import { Skeleton } from "@openota/ui/skeleton";
 
+import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
+import { InfoTooltip } from "@/components/info-tooltip";
+import { NextStepCard } from "@/components/next-step-card";
 import type { AppConfig } from "@/features/apps/api";
 import { useAppConfigs, useUpsertAppConfig } from "@/features/apps/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
@@ -49,6 +52,8 @@ function ProjectApps({ projectId }: { projectId: string }) {
     return map;
   }, [configs]);
 
+  const anyConfigured = (configs?.length ?? 0) > 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -72,6 +77,15 @@ function ProjectApps({ projectId }: { projectId: string }) {
           ))}
         </div>
       )}
+
+      {anyConfigured && (
+        <NextStepCard
+          accomplished="You've configured at least one platform."
+          next="Ship your first OTA release from the CLI."
+          actionLabel="See release commands"
+          href="/api-keys"
+        />
+      )}
     </div>
   );
 }
@@ -91,6 +105,10 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
   }, [config]);
 
   const identifierLabel = platform === "android" ? "Package name" : "Bundle identifier";
+  const identifierHelp =
+    platform === "android"
+      ? "Your app's applicationId, e.g. com.yourcompany.yourapp — found in android/app/build.gradle."
+      : "Your app's Bundle Identifier, e.g. com.yourcompany.yourapp — found in Xcode under General → Identity, or ios/<App>.xcodeproj.";
   const identifierValue = platform === "android" ? packageName : bundleIdentifier;
   const setIdentifierValue = platform === "android" ? setPackageName : setBundleIdentifier;
 
@@ -112,7 +130,12 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
         <CardTitle className="flex items-center gap-2 text-base">
           <Smartphone className="h-4 w-4 text-muted-foreground" />
           {PLATFORM_LABEL[platform]}
-          {!config && (
+          {config ? (
+            <Badge variant="outline" className="ml-auto gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              Configured
+            </Badge>
+          ) : (
             <Badge variant="secondary" className="ml-auto text-xs">
               Not configured
             </Badge>
@@ -121,25 +144,46 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor={`${platform}-identifier`}>{identifierLabel}</Label>
-          <Input
-            id={`${platform}-identifier`}
-            placeholder={platform === "android" ? "com.example.app" : "com.example.app"}
-            value={identifierValue}
-            onChange={(e) => setIdentifierValue(e.target.value)}
-          />
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`${platform}-identifier`}>{identifierLabel}</Label>
+            <InfoTooltip>{identifierHelp}</InfoTooltip>
+          </div>
+          <div className="flex gap-1.5">
+            <Input
+              id={`${platform}-identifier`}
+              placeholder="com.example.app"
+              value={identifierValue}
+              onChange={(e) => setIdentifierValue(e.target.value)}
+            />
+            {identifierValue && <CopyButton value={identifierValue} label={identifierLabel} />}
+          </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${platform}-runtime`}>Runtime version</Label>
-          <Input
-            id={`${platform}-runtime`}
-            placeholder="1.0.0"
-            value={runtimeVersion}
-            onChange={(e) => setRuntimeVersion(e.target.value)}
-          />
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`${platform}-runtime`}>Runtime version</Label>
+            <InfoTooltip>
+              A compatibility fence, not a feature version. This must match the runtimeVersion your native app was
+              built with — a device only receives releases whose runtimeVersion matches its own exactly.
+            </InfoTooltip>
+          </div>
+          <div className="flex gap-1.5">
+            <Input
+              id={`${platform}-runtime`}
+              placeholder="1.0.0"
+              value={runtimeVersion}
+              onChange={(e) => setRuntimeVersion(e.target.value)}
+            />
+            {runtimeVersion && <CopyButton value={runtimeVersion} label="Runtime version" />}
+          </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${platform}-min-version`}>Min supported version</Label>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`${platform}-min-version`}>Min supported version</Label>
+            <InfoTooltip>
+              Optional. Display-only floor for the oldest app version you still want counted as supported — not
+              enforced by the OTA pipeline itself.
+            </InfoTooltip>
+          </div>
           <Input
             id={`${platform}-min-version`}
             placeholder="1.0.0"

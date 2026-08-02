@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Skeleton } from "@openota/ui/skeleton";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
 import { useCheckForUpdate, usePackages, useRollbackPackage } from "@/features/packages/hooks";
 import { useCurrentProject } from "@/features/projects/current-project-context";
@@ -61,7 +62,17 @@ function ProjectReleases({ projectId }: { projectId: string }) {
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (packages ?? []).length === 0 ? (
-        <EmptyState icon={Tags} title="No releases yet" description="Publish a package with the OpenOTA CLI to see it here." />
+        <EmptyState
+          icon={Tags}
+          title="No OTA releases yet"
+          description="There's no release button here on purpose — releases are pushed from your React Native project via the CLI, not from the dashboard. Run this from your project root:"
+          action={
+            <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
+              <code className="font-mono text-xs">npx openota release --version 1.0.0 --platform android</code>
+              <CopyButton value="npx openota release --version 1.0.0 --platform android" label="release command" />
+            </div>
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {(Object.keys(groups) as Platform[]).map((platform) => (
