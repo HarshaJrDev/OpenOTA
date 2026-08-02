@@ -68,6 +68,12 @@ appsRouter.get("/:platform/config", deviceRateLimiter, async (req, res, next) =>
   try {
     const { projectId, platform } = req.params as unknown as { projectId: string; platform: string };
     const parsedPlatform = platformSchema.parse(platform);
+    // The whole point of this endpoint is "the value can change without shipping a new release" —
+    // a cached stale response defeats that. No Cache-Control here left this to each HTTP client's
+    // own heuristics (Android's OkHttp layer under RN's fetch can and does cache GETs with an
+    // ETag but no explicit freshness info), so a device could poll this forever and never see an
+    // update. Force no caching, anywhere in the chain.
+    res.set("Cache-Control", "no-store");
     const row = await appConfigsRepo.findOne(projectId, parsedPlatform);
 
     if (!row?.remote_config) {
