@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Check,
   Cloud,
   Github,
   Lock,
@@ -7,6 +8,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Terminal,
+  X,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -56,6 +58,60 @@ const STEPS = [
   { step: "03", title: "Release from CI", code: "openota release --platform android" },
 ];
 
+const PIPELINE_STEPS = [
+  { num: "01", title: "Build", body: "Metro bundles JS + assets, hashes the output, writes a versioned manifest." },
+  { num: "02", title: "Check", body: "Device asks your server for the active version against its own runtime version." },
+  { num: "03", title: "Download", body: "Package streams to disk with live progress, resumable on flaky networks." },
+  { num: "04", title: "Verify", body: "SHA-256 of the extracted bundle is checked against the signed manifest before anything runs." },
+  { num: "05", title: "Activate", body: "Bundle swaps in on next launch; a boot-loop trips automatic rollback to the last good version." },
+];
+
+const WHY = [
+  {
+    title: "The App Store review queue is slow",
+    body: "A one-line copy fix or a critical bug patch can sit in review for days. OpenOTA ships the JS change directly to installed apps — no binary resubmission, no waiting on a reviewer.",
+  },
+  {
+    title: "But not every change should skip review",
+    body: "Native code, new permissions, and anything Apple/Google require review for still goes through the store as normal. OpenOTA only ever touches the JS bundle — that boundary is enforced by the runtime, not a policy you have to remember.",
+  },
+  {
+    title: "\"It worked in staging\" isn't good enough",
+    body: "Every device independently re-verifies the SHA-256 checksum of what it downloaded before running it — the server's word alone is never trusted. If a release is bad, rollback is a local pointer swap, not a re-deploy.",
+  },
+];
+
+const COMPARISON = [
+  { label: "Where your data lives", openota: "Your server (self-hosted) or your own OpenOTA Cloud project", others: "Vendor's servers, always" },
+  { label: "Vendor lock-in", openota: "None — plain REST API, open source, MIT licensed", others: "Tied to the vendor's platform and pricing" },
+  { label: "Rollback", openota: "Instant, on-device, no re-download", others: "Varies — often a new deploy" },
+  { label: "Bundle verification", openota: "SHA-256 re-checked on-device before running", others: "Varies by provider" },
+  { label: "Self-hosting", openota: "First-class — same server code as Cloud", others: "Usually not offered" },
+];
+
+const FAQ = [
+  {
+    q: "Is this the same idea as CodePush or Expo Updates?",
+    a: "Yes, same category — ship JS updates without an app store review. The differences: you own the server (self-host it or use OpenOTA Cloud, identical API either way), it's MIT-licensed and open source, and every device independently re-verifies a bundle's checksum before running it rather than trusting the server.",
+  },
+  {
+    q: "Can I use this to skip App Store / Play Store review entirely?",
+    a: "No — and neither can any OTA tool. Only JavaScript/asset changes can ship this way, by design and by platform policy. Native code changes, new permissions, and anything else that changes the compiled binary still require a normal store submission.",
+  },
+  {
+    q: "What happens if a bad update ships?",
+    a: "The native runtime tracks boot health — a bundle that crashes on launch triggers automatic rollback to the last known-good version, on-device, without waiting on you. You can also roll back manually from the CLI or the Cloud dashboard, which is a pointer change, not a new deploy.",
+  },
+  {
+    q: "Do I need OpenOTA Cloud, or can I run this myself?",
+    a: "Self-hosting is a first-class path, not an afterthought — docker compose up and you're running the exact same server code as Cloud. Use Cloud only if you'd rather not operate the infrastructure yourself.",
+  },
+  {
+    q: "What does my React Native app actually need to install?",
+    a: "The @openota/sdk package plus a handful of native modules it depends on (storage, filesystem, zip extraction, checksum verification) — see the full list and required native-rebuild steps on the docs page.",
+  },
+];
+
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -64,8 +120,13 @@ export default function Home() {
 
       <Nav />
       <Hero />
+      <Why />
       <Features />
+      <Pipeline />
+      <Manifest />
       <HowItWorks />
+      <Comparison />
+      <Faq />
       <Cta />
       <Footer />
     </div>
@@ -83,11 +144,17 @@ function Nav() {
           OpenOTA
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+          <a href="#why" className="transition-colors hover:text-foreground">
+            Why OpenOTA
+          </a>
           <a href="#features" className="transition-colors hover:text-foreground">
             Features
           </a>
           <a href="#how-it-works" className="transition-colors hover:text-foreground">
             How it works
+          </a>
+          <a href="#faq" className="transition-colors hover:text-foreground">
+            FAQ
           </a>
           <Link href="/docs" className="transition-colors hover:text-foreground">
             Docs
@@ -119,7 +186,7 @@ function Hero() {
     <section className="mx-auto flex max-w-4xl flex-col items-center px-6 pb-24 pt-28 text-center">
       <FadeIn>
         <Badge variant="secondary" className="border border-border/60 px-3 py-1 text-xs font-medium">
-          Now shipping OpenOTA Cloud (beta)
+          Open source · self-hosted or Cloud · MIT licensed
         </Badge>
       </FadeIn>
 
@@ -133,8 +200,9 @@ function Hero() {
 
       <FadeIn delay={0.16}>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground text-balance">
-          OpenOTA delivers JS bundle updates over the air — instantly, verified, and reversible. Self-host it
-          in ten minutes, or use OpenOTA Cloud and skip the infrastructure entirely.
+          OpenOTA delivers JS bundle updates over the air — instantly, verified, and reversible. Build a signed
+          bundle, push it to your own server, and let installed apps sync, verify, and roll back on their own.
+          Self-host it in ten minutes, or use OpenOTA Cloud and skip the infrastructure entirely.
         </p>
       </FadeIn>
 
@@ -147,6 +215,9 @@ function Hero() {
             </a>
           </Button>
           <Button size="lg" variant="outline" asChild>
+            <Link href="/docs">Read the docs</Link>
+          </Button>
+          <Button size="lg" variant="ghost" asChild>
             <a href="https://github.com/HarshaJrDev/OpenOTA">View on GitHub</a>
           </Button>
         </div>
@@ -180,6 +251,30 @@ function Hero() {
   );
 }
 
+function Why() {
+  return (
+    <section id="why" className="mx-auto max-w-4xl px-6 py-24">
+      <FadeIn className="text-center">
+        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Why OpenOTA exists</div>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          If you&apos;ve never shipped an OTA update before, start here.
+        </h2>
+      </FadeIn>
+
+      <div className="mt-14 space-y-6">
+        {WHY.map((item, i) => (
+          <FadeIn key={item.title} delay={i * 0.08}>
+            <Card className="border-border/60 bg-card/60 p-6">
+              <h3 className="font-medium">{item.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
+            </Card>
+          </FadeIn>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Features() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-6 py-24">
@@ -207,6 +302,92 @@ function Features() {
   );
 }
 
+function Pipeline() {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-24">
+      <FadeIn className="mx-auto max-w-2xl text-center">
+        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">The release pipeline</div>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Five steps, one command, no black box.</h2>
+        <p className="mt-4 text-muted-foreground">
+          <code>openota release</code> builds and uploads a versioned bundle; every installed app runs the same
+          five steps to adopt it.
+        </p>
+      </FadeIn>
+
+      <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {PIPELINE_STEPS.map((step, i) => (
+          <FadeIn key={step.num} delay={i * 0.07}>
+            <Card className="h-full border-border/60 bg-card/60 p-5">
+              <div className="text-2xl font-semibold text-muted-foreground/50">{step.num}</div>
+              <h3 className="mt-2 font-medium">{step.title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
+            </Card>
+          </FadeIn>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Manifest() {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-24">
+      <div className="grid items-center gap-10 lg:grid-cols-2">
+        <FadeIn>
+          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">The contract</div>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Every release is just a manifest.</h2>
+          <p className="mt-4 text-muted-foreground">
+            No proprietary format, no dashboard-only state. The manifest is the single source of truth the CLI
+            writes, the server stores, and the device verifies against — inspectable at every hop.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm">
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <span>Bundle hash verified after extraction, not before</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <span>Rollback moves a pointer — it never deletes a release</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <span>Runtime version gates compatibility, per platform</span>
+            </li>
+          </ul>
+        </FadeIn>
+        <FadeIn delay={0.1}>
+          <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-xl shadow-brand-from/10">
+            <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
+              <span className="ml-2 text-xs text-muted-foreground">manifest.json</span>
+            </div>
+            <pre className="overflow-x-auto px-5 py-5 font-mono text-sm leading-relaxed">
+              <code>
+                {"{\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;bundleVersion&quot;</span>: <span className="text-emerald-400">&quot;1.2.0&quot;</span>,{"\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;platform&quot;</span>: <span className="text-emerald-400">&quot;android&quot;</span>,{"\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;runtimeVersion&quot;</span>: <span className="text-emerald-400">&quot;0.1.0&quot;</span>,{"\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;sha256&quot;</span>: <span className="text-emerald-400">&quot;0d04b201e29d…8a&quot;</span>,{"\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;size&quot;</span>: <span className="text-muted-foreground">895873</span>,{"\n"}
+                {"  "}
+                <span className="text-brand-from">&quot;bundleName&quot;</span>: <span className="text-emerald-400">&quot;index.android.bundle&quot;</span>
+                {"\n}"}
+              </code>
+            </pre>
+          </Card>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorks() {
   return (
     <section id="how-it-works" className="mx-auto max-w-4xl px-6 py-24">
@@ -225,6 +406,67 @@ function HowItWorks() {
                 <h3 className="font-medium">{title}</h3>
               </div>
               <code className="w-full shrink-0 rounded-md bg-muted px-4 py-2 font-mono text-sm sm:w-auto">{code}</code>
+            </Card>
+          </FadeIn>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Comparison() {
+  return (
+    <section className="mx-auto max-w-4xl px-6 py-24">
+      <FadeIn className="text-center">
+        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">How it's different</div>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">OpenOTA vs. a hosted-only OTA vendor</h2>
+        <p className="mt-4 text-muted-foreground">
+          Same category as CodePush or Expo Updates — the difference is what you own.
+        </p>
+      </FadeIn>
+
+      <FadeIn delay={0.1} className="mt-12">
+        <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+          <div className="grid grid-cols-[1.2fr_1fr_1fr] border-b border-border/60 text-sm font-medium">
+            <div className="px-5 py-3 text-muted-foreground">&nbsp;</div>
+            <div className="flex items-center gap-2 border-l border-border/60 px-5 py-3">
+              <span className="flex h-5 w-5 items-center justify-center rounded brand-gradient-bg text-[10px] font-bold text-white">O</span>
+              OpenOTA
+            </div>
+            <div className="border-l border-border/60 px-5 py-3 text-muted-foreground">Typical hosted vendor</div>
+          </div>
+          {COMPARISON.map((row) => (
+            <div key={row.label} className="grid grid-cols-[1.2fr_1fr_1fr] border-b border-border/60 text-sm last:border-b-0">
+              <div className="px-5 py-4 font-medium">{row.label}</div>
+              <div className="flex items-start gap-2 border-l border-border/60 px-5 py-4 text-muted-foreground">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                {row.openota}
+              </div>
+              <div className="flex items-start gap-2 border-l border-border/60 px-5 py-4 text-muted-foreground">
+                <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive/70" />
+                {row.others}
+              </div>
+            </div>
+          ))}
+        </Card>
+      </FadeIn>
+    </section>
+  );
+}
+
+function Faq() {
+  return (
+    <section id="faq" className="mx-auto max-w-3xl px-6 py-24">
+      <FadeIn className="text-center">
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Frequently asked</h2>
+      </FadeIn>
+
+      <div className="mt-12 space-y-4">
+        {FAQ.map((item, i) => (
+          <FadeIn key={item.q} delay={i * 0.05}>
+            <Card className="border-border/60 bg-card/60 p-6">
+              <h3 className="font-medium">{item.q}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
             </Card>
           </FadeIn>
         ))}
@@ -267,7 +509,7 @@ function Footer() {
   return (
     <footer className="border-t border-border/60 py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
-        <span>© {new Date().getFullYear()} OpenOTA. MIT licensed.</span>
+        <span>© {new Date().getFullYear()} OpenOTA. Built by Harsha. MIT licensed.</span>
         <div className="flex items-center gap-6">
           <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
             GitHub
@@ -277,6 +519,9 @@ function Footer() {
           </Link>
           <a href="#features" className="transition-colors hover:text-foreground">
             Features
+          </a>
+          <a href="#faq" className="transition-colors hover:text-foreground">
+            FAQ
           </a>
         </div>
       </div>
