@@ -4,12 +4,13 @@ import { toast } from "sonner";
 
 import { ApiError } from "@/lib/api-client";
 
-import { getEnvironmentHistory, listEnvironments, updateEnvironment, updateRolloutPercentage } from "./api";
+import { getEnvironmentHistory, getLiveCount, listEnvironments, updateEnvironment, updateRolloutPercentage } from "./api";
 
 export const environmentKeys = {
   list: (projectId: string) => ["environments", projectId] as const,
   history: (projectId: string, channel: string, platform: Platform) =>
     ["environments", projectId, channel, "history", platform] as const,
+  liveCount: (projectId: string, channel: string) => ["environments", projectId, channel, "live-count"] as const,
 };
 
 export function useEnvironments(projectId: string | null | undefined) {
@@ -25,6 +26,16 @@ export function useEnvironmentHistory(projectId: string | undefined, channel: st
     queryKey: environmentKeys.history(projectId ?? "", channel, platform),
     queryFn: () => getEnvironmentHistory(projectId!, channel, platform),
     enabled: enabled && Boolean(projectId),
+  });
+}
+
+export function useLiveCount(projectId: string | undefined, channel: string) {
+  return useQuery({
+    queryKey: environmentKeys.liveCount(projectId ?? "", channel),
+    queryFn: () => getLiveCount(projectId!, channel),
+    enabled: Boolean(projectId),
+    // Cheap in-memory Set lookup server-side — fine to poll frequently for a "live" feel.
+    refetchInterval: 15_000,
   });
 }
 

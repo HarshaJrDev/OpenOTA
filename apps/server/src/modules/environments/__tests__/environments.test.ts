@@ -270,4 +270,48 @@ describe("environments", () => {
     expect(rolloutEvents).toHaveLength(1);
     expect(rolloutEvents[0]).toMatchObject({ rollout_percentage: 25, previous_rollout_percentage: 100 });
   });
+
+  it("a release, a rollback, and a rollout change each broadcast a live 'check now' nudge to connected devices on that channel", async () => {
+    const { liveRegistry, keyFor } = await import("../../live/registry.js");
+
+    const cookie = await signup("env-owner-i@example.test");
+    const projectId = await createProject(cookie, "Env Project I");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    const key = keyFor(projectId, "android", "production");
+    const received: string[] = [];
+    const fakeSocket = {
+      readyState: 1,
+      OPEN: 1,
+      send: (payload: string) => received.push(payload),
+    } as unknown as import("ws").WebSocket;
+    liveRegistry.add(key, fakeSocket);
+
+    await upload(projectId, apiKey, "1.0.0");
+    expect(received).toHaveLength(1);
+    expect(JSON.parse(received[0]!)).toEqual({ type: "release-changed" });
+
+    await upload(projectId, apiKey, "2.0.0");
+    expect(received).toHaveLength(2);
+
+    await request(app)
+      .post(`/api/v1/projects/${projectId}/packages/rollback`)
+      .set("Authorization", `Bearer ${apiKey}`)
+      .send({ platform: "android", version: "1.0.0" });
+    expect(received).toHaveLength(3);
+
+    await request(app)
+      .patch(`/api/v1/projects/${projectId}/environments/production/rollout`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ platform: "android", percentage: 50 });
+    expect(received).toHaveLength(4);
+
+    // Never leaks manifest/version data — a device must always re-check to find out what's new.
+    for (const raw of received) {
+      expect(JSON.parse(raw)).toEqual({ type: "release-changed" });
+    }
+
+    liveRegistry.remove(key, fakeSocket);
+  });
 });

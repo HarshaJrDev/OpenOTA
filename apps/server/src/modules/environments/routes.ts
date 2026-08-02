@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { DEFAULT_ENVIRONMENTS } from "../project/service.js";
 import { deploymentEventsRepo, environmentsRepo, releasesRepo } from "../../db/repositories.js";
+import { keyFor, liveRegistry } from "../live/registry.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "../project/service.js";
@@ -54,6 +55,26 @@ environmentsRouter.get("/", requireSession, async (req, res, next) => {
     );
 
     sendSuccess(res, withActive);
+  } catch (error) {
+    next(error);
+  }
+});
+
+environmentsRouter.get("/:channel/live-count", requireSession, async (req, res, next) => {
+  try {
+    const { projectId, channel } = req.params as unknown as { projectId: string; channel: string };
+    await projectService.getOwnedProject(req.user!.id, projectId);
+
+    const platform = typeof req.query.platform === "string" ? req.query.platform : undefined;
+
+    if (platform) {
+      sendSuccess(res, { count: liveRegistry.countFor(keyFor(projectId, platform, channel)) });
+      return;
+    }
+
+    const android = liveRegistry.countFor(keyFor(projectId, "android", channel));
+    const ios = liveRegistry.countFor(keyFor(projectId, "ios", channel));
+    sendSuccess(res, { count: android + ios, android, ios });
   } catch (error) {
     next(error);
   }
@@ -146,6 +167,7 @@ environmentsRouter.patch("/:channel/rollout", requireSession, async (req, res, n
 
     const { platform, percentage } = updateRolloutSchema.parse(req.body);
     const updated = await releasesRepo.setRolloutPercentage(projectId, platform, channel, percentage, req.user!.id);
+    liveRegistry.broadcast(keyFor(projectId, platform, channel));
     sendSuccess(res, updated ?? null);
   } catch (error) {
     next(error);

@@ -4,6 +4,7 @@ import { logger } from "./config/logger.js";
 import { captureException, initSentry } from "./config/sentry.js";
 import { initDb } from "./db/client.js";
 import { seedDemoAccountIfEnabled } from "./db/seed.js";
+import { attachLiveWebSocketServer } from "./modules/live/server.js";
 
 // No-op unless SENTRY_DSN is set — see config/sentry.ts.
 initSentry();
@@ -63,11 +64,14 @@ initDb()
       logger.info(`🚀 OpenOTA running on http://localhost:${env.port}`);
     });
 
+    const live = attachLiveWebSocketServer(server);
+
     // Render (and most PaaS) send SIGTERM before killing a dyno on redeploy/scale-down. Without
     // this, in-flight requests get dropped mid-response instead of finishing — closing the server
     // stops accepting new connections but lets active ones complete first.
     function shutdown(signal: string) {
       logger.info({ signal }, "shutting down");
+      live.close();
       server.close(() => process.exit(0));
       // Belt-and-suspenders: if something (a stuck connection) prevents close() from ever firing
       // its callback, don't hang forever and get force-killed without a clean exit code.

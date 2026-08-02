@@ -66,3 +66,13 @@ export function updateRolloutPercentage(
     body: { platform, percentage },
   });
 }
+
+export interface LiveCount {
+  count: number;
+  android?: number;
+  ios?: number;
+}
+
+export function getLiveCount(projectId: string, channel: string): Promise<LiveCount> {
+  return apiRequest<LiveCount>(`/projects/${projectId}/environments/${channel}/live-count`);
+}

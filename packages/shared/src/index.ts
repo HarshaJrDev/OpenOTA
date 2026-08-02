@@ -2,6 +2,7 @@ export * from "./types/platform.js";
 export * from "./types/version.js";
 export * from "./types/channel.js";
 export * from "./types/state.js";
+export * from "./types/live.js";
 
 export * from "./constants/filesystem.js";
 export * from "./constants/runtime.js";

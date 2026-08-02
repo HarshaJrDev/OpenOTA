@@ -14,7 +14,7 @@ import { Skeleton } from "@openota/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import type { Environment, EnvironmentRelease } from "@/features/environments/api";
 import { HistoryDialog } from "@/features/environments/history-dialog";
-import { useEnvironments, useUpdateRolloutPercentage } from "@/features/environments/hooks";
+import { useEnvironments, useLiveCount, useUpdateRolloutPercentage } from "@/features/environments/hooks";
 import { RollbackDialog } from "@/features/environments/rollback-dialog";
 import { useCurrentProject } from "@/features/projects/current-project-context";
 
@@ -81,6 +81,19 @@ function ProjectEnvironments({ projectId }: { projectId: string }) {
   );
 }
 
+function LiveCountBadge({ projectId, channel }: { projectId: string; channel: string }) {
+  const { data } = useLiveCount(projectId, channel);
+  if (!data || data.count === 0) {
+    return null;
+  }
+  return (
+    <Badge variant="outline" className="gap-1.5 font-normal">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      {data.count} live
+    </Badge>
+  );
+}
+
 function EnvironmentCard({ projectId, environment }: { projectId: string; environment: Environment }) {
   const [rollbackPlatform, setRollbackPlatform] = React.useState<Platform | null>(null);
   const [historyPlatform, setHistoryPlatform] = React.useState<Platform | null>(null);
@@ -91,6 +104,7 @@ function EnvironmentCard({ projectId, environment }: { projectId: string; enviro
         <CardTitle className="flex items-center gap-2 text-base">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT_COLOR[environment.color] ?? "bg-gray-400"}`} />
           {environment.name}
+          <LiveCountBadge projectId={projectId} channel={environment.channel} />
         </CardTitle>
         {environment.description && <p className="text-xs text-muted-foreground">{environment.description}</p>}
       </CardHeader>

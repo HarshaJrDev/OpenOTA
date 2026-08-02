@@ -8,6 +8,7 @@ import { checkForUpdate } from "./services/check.service.js";
 import { downloadPackage } from "./services/download.service.js";
 import { extractPackage } from "./services/extract.service.js";
 import { installPackage } from "./services/install.service.js";
+import { connectLive, type LiveConnection } from "./services/live.service.js";
 import { rollbackPackage } from "./services/rollback.service.js";
 import { syncPackage } from "./services/sync.service.js";
 import { verifyPackage } from "./services/verify.service.js";
@@ -38,6 +39,7 @@ function currentPlatform(): "android" | "ios" {
 // in-flight sync at a time, shared by every caller, removes the race entirely rather than asking
 // every integrator to build their own dedup.
 let inFlightSync: Promise<SyncResult> | null = null;
+let liveConnection: LiveConnection | null = null;
 
 export const OTA = {
   configure(input: OtaConfigInput): OtaConfig {
@@ -86,6 +88,26 @@ export const OTA = {
 
   async rollback(): Promise<InstallResult> {
     return rollbackPackage();
+  },
+
+  /**
+   * Opens a live connection: the server nudges it the instant a release/rollback/rollout-percentage
+   * change happens on this device's channel, instead of waiting for the next explicit check()/
+   * sync() call. No-op if already connected — idempotent, same spirit as inFlightSync's dedup.
+   * `onReleaseChanged` defaults to firing OTA.sync() itself; pass your own wrapper (as ResumeIn's
+   * useOTA.ts does) if the app needs to react to the update (update UI state, log history, etc.)
+   * rather than only relying on the SDK's own silent sync.
+   */
+  connectLive(onReleaseChanged: () => void = () => void OTA.sync()): void {
+    if (liveConnection) {
+      return;
+    }
+    liveConnection = connectLive(currentPlatform(), onReleaseChanged);
+  },
+
+  disconnectLive(): void {
+    liveConnection?.disconnect();
+    liveConnection = null;
   },
 
   getCurrentVersion(): CurrentVersionInfo {

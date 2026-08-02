@@ -40,10 +40,12 @@
     "pg": "^8.22.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "ws": "^8.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.5.13",
     "eslint": "^9.39.1",
     "nodemon": "^3.1.14",
     "pino-pretty": "^13.1.3",
