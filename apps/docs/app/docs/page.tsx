@@ -372,7 +372,7 @@ npx openota release --version 1.0.1 --platform android`}</code>
               <TableHeader>
                 <TableRow>
                   <TableHead>Package</TableHead>
-                  <TableHead>What it's for</TableHead>
+                  <TableHead>What it&apos;s for</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

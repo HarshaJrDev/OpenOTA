@@ -9,6 +9,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Smartphone,
+  Star,
   Terminal,
   X,
   Zap,
@@ -122,20 +123,38 @@ const FAQ = [
   },
 ];
 
-export default function Home() {
+/** Real signal, not fabricated social proof — public endpoint, no auth needed. Cached for an hour
+ * so this never adds meaningful latency or gets rate-limited by normal traffic. Silently omitted
+ * (not a fake/zero badge) if GitHub is unreachable at build/request time. */
+async function getGithubStars(): Promise<number | null> {
+  try {
+    const res = await fetch("https://api.github.com/repos/HarshaJrDev/OpenOTA", {
+      headers: { Accept: "application/vnd.github+json" },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { stargazers_count?: number };
+    return typeof data.stargazers_count === "number" ? data.stargazers_count : null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Home() {
+  const stars = await getGithubStars();
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[640px] grid-fade" />
       <div className="pointer-events-none absolute left-1/2 top-[-120px] -z-10 h-[520px] w-[820px] -translate-x-1/2 animate-glow-pulse rounded-full bg-gradient-to-br from-brand-from/40 via-brand-to/30 to-transparent blur-[120px]" />
 
-      <Nav />
+      <Nav stars={stars} />
       <Hero />
       <Stack />
       <ProductPreview />
       <Why />
       <Features />
       <Pipeline />
-      <Manifest />
       <HowItWorks />
       <Comparison />
       <Faq />
@@ -145,7 +164,7 @@ export default function Home() {
   );
 }
 
-function Nav() {
+function Nav({ stars }: { stars: number | null }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -177,8 +196,14 @@ function Nav() {
         </nav>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
-            <a href="https://github.com/HarshaJrDev/OpenOTA">
+            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5">
               <Github />
+              {stars !== null && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Star className="h-3 w-3 fill-current" />
+                  {stars.toLocaleString()}
+                </span>
+              )}
             </a>
           </Button>
           <Button size="sm" asChild>
@@ -266,10 +291,13 @@ function Hero() {
 function Stack() {
   return (
     <section className="mx-auto max-w-4xl px-6 pb-20">
-      <FadeIn className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
-        <span className="text-xs font-medium uppercase tracking-wider">Built on</span>
+      <FadeIn className="flex flex-wrap items-center justify-center gap-2">
+        <span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Built on</span>
         {STACK.map((name) => (
-          <span key={name} className="font-medium text-foreground/70">
+          <span
+            key={name}
+            className="rounded-full border border-border/60 bg-secondary/60 px-3 py-1 text-xs font-medium text-foreground/80"
+          >
             {name}
           </span>
         ))}
@@ -399,65 +427,23 @@ function Pipeline() {
           </FadeIn>
         ))}
       </div>
-    </section>
-  );
-}
 
-function Manifest() {
-  return (
-    <section className="mx-auto max-w-6xl px-6 py-24">
-      <div className="grid items-center gap-10 lg:grid-cols-2">
-        <FadeIn>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">The contract</div>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Every release is just a manifest.</h2>
-          <p className="mt-4 text-muted-foreground">
-            No proprietary format, no dashboard-only state. The manifest is the single source of truth the CLI
-            writes, the server stores, and the device verifies against — inspectable at every hop.
-          </p>
-          <ul className="mt-6 space-y-3 text-sm">
-            <li className="flex items-start gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Bundle hash verified after extraction, not before</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Rollback moves a pointer — it never deletes a release</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-              <span>Runtime version gates compatibility, per platform</span>
-            </li>
-          </ul>
-        </FadeIn>
-        <FadeIn delay={0.1}>
-          <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-xl shadow-brand-from/10">
-            <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
-              <span className="ml-2 text-xs text-muted-foreground">manifest.json</span>
-            </div>
-            <pre className="overflow-x-auto px-5 py-5 font-mono text-sm leading-relaxed">
-              <code>
-                {"{\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;bundleVersion&quot;</span>: <span className="text-emerald-400">&quot;1.2.0&quot;</span>,{"\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;platform&quot;</span>: <span className="text-emerald-400">&quot;android&quot;</span>,{"\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;runtimeVersion&quot;</span>: <span className="text-emerald-400">&quot;0.1.0&quot;</span>,{"\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;sha256&quot;</span>: <span className="text-emerald-400">&quot;0d04b201e29d…8a&quot;</span>,{"\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;size&quot;</span>: <span className="text-muted-foreground">895873</span>,{"\n"}
-                {"  "}
-                <span className="text-brand-from">&quot;bundleName&quot;</span>: <span className="text-emerald-400">&quot;index.android.bundle&quot;</span>
-                {"\n}"}
-              </code>
-            </pre>
-          </Card>
-        </FadeIn>
-      </div>
+      <FadeIn delay={0.1} className="mt-6">
+        <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 sm:flex-nowrap">
+            <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              No black box — it&apos;s all just this
+            </span>
+            <code className="overflow-x-auto whitespace-nowrap font-mono text-xs text-muted-foreground">
+              {"{ "}
+              <span className="text-brand-from">bundleVersion</span>: <span className="text-emerald-400">&quot;1.2.0&quot;</span>,{" "}
+              <span className="text-brand-from">platform</span>: <span className="text-emerald-400">&quot;android&quot;</span>,{" "}
+              <span className="text-brand-from">sha256</span>: <span className="text-emerald-400">&quot;0d04b2…8a&quot;</span>
+              {" }"}
+            </code>
+          </div>
+        </Card>
+      </FadeIn>
     </section>
   );
 }
@@ -492,7 +478,7 @@ function Comparison() {
   return (
     <section className="mx-auto max-w-4xl px-6 py-24">
       <FadeIn className="text-center">
-        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">How it's different</div>
+        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">How it&apos;s different</div>
         <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">OpenOTA vs. a hosted-only OTA vendor</h2>
         <p className="mt-4 text-muted-foreground">
           Same category as CodePush or Expo Updates — the difference is what you own.
