@@ -60,8 +60,9 @@ export function RollbackDialog({
         <DialogHeader>
           <DialogTitle>Roll back {environmentName}</DialogTitle>
           <DialogDescription>
-            {platform === "android" ? "Android" : "iOS"} devices on this environment will receive the target version on
-            their next check.
+            Changes what this environment serves to <em>new</em> checks — devices whose installed version is already
+            newer than the target won&apos;t downgrade (the check endpoint never silently downgrades a device, by
+            design). Devices behind the target pick it up on their next check as normal.
           </DialogDescription>
         </DialogHeader>
 
