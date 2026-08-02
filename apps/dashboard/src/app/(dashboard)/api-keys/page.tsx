@@ -6,7 +6,7 @@ import { KeyRound, RefreshCw } from "lucide-react";
 
 import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@openota/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@openota/ui/dialog";
 import { Input } from "@openota/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@openota/ui/table";
 
@@ -190,13 +190,16 @@ function ProjectApiKeys({ projectId }: { projectId: string }) {
           </DialogHeader>
           <div className="flex items-center gap-2 rounded-md bg-muted p-3">
             <code className="block flex-1 break-all text-sm">{justCreated?.fullKey}</code>
+            {justCreated && <CopyButton value={justCreated.fullKey} label="API key" />}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Use it with: <code className="font-mono">npx openota login --api-key {justCreated?.fullKey.slice(0, 12)}...</code>
-          </p>
-          <DialogFooter>
-            {justCreated && <CopyButton value={justCreated.fullKey} label="API key" size="sm" />}
-          </DialogFooter>
+          {justCreated && (
+            <div className="flex items-center gap-2 rounded-md bg-muted p-3">
+              <code className="block flex-1 break-all font-mono text-xs text-muted-foreground">
+                npx openota login --api-key {justCreated.fullKey}
+              </code>
+              <CopyButton value={`npx openota login --api-key ${justCreated.fullKey}`} label="command" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
