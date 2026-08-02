@@ -50,6 +50,59 @@ async function checkIos(root: string): Promise<DoctorCheckResult> {
   };
 }
 
+const SDK_NATIVE_DEPS = ["react-native-mmkv", "react-native-fs", "react-native-zip-archive", "react-native-quick-crypto"];
+
+/**
+ * @openota/sdk depends on a handful of native modules (see docs "Native dependencies"). Being in
+ * package.json is necessary but not sufficient — iOS also needs `pod install` to have actually
+ * run against the current lockfile, or the JS-visible package exists while the native binary
+ * doesn't have it linked. That gap is what produces the classic "Cannot read property 'otaStorage'
+ * of undefined" crash the moment OTA.configure()/sync() runs, since it looks like a normal JS
+ * error with no hint that the fix is a native rebuild, not a code change.
+ */
+async function checkNativeDeps(root: string): Promise<DoctorCheckResult> {
+  const pkgJsonPath = path.join(root, "package.json");
+  let pkgJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+  try {
+    pkgJson = await fse.readJson(pkgJsonPath);
+  } catch {
+    return { name: "SDK Native Dependencies", ok: false, message: "could not read package.json" };
+  }
+
+  const declared = { ...pkgJson.dependencies, ...pkgJson.devDependencies };
+  const missing = SDK_NATIVE_DEPS.filter((dep) => !declared[dep]);
+  if (missing.length > 0) {
+    return {
+      name: "SDK Native Dependencies",
+      ok: false,
+      message: `missing from package.json: ${missing.join(", ")} (npm install ${missing.join(" ")})`,
+    };
+  }
+
+  const podfileLockPath = path.join(root, "ios", "Podfile.lock");
+  if (await fse.pathExists(path.join(root, "ios"))) {
+    if (!(await fse.pathExists(podfileLockPath))) {
+      return {
+        name: "SDK Native Dependencies",
+        ok: false,
+        message: "declared in package.json, but ios/Podfile.lock doesn't exist — run `cd ios && pod install`",
+      };
+    }
+
+    const podfileLock = await fse.readFile(podfileLockPath, "utf-8");
+    const notLinked = SDK_NATIVE_DEPS.filter((dep) => !podfileLock.includes(dep));
+    if (notLinked.length > 0) {
+      return {
+        name: "SDK Native Dependencies",
+        ok: false,
+        message: `declared in package.json but not in ios/Podfile.lock (stale pods): ${notLinked.join(", ")} — run \`cd ios && pod install\``,
+      };
+    }
+  }
+
+  return { name: "SDK Native Dependencies", ok: true, message: "all present and linked" };
+}
+
 async function checkMetro(root: string): Promise<DoctorCheckResult> {
   try {
     await execa("npx", ["react-native", "--version"], { cwd: root, timeout: 15_000 });
@@ -153,6 +206,7 @@ export async function runDoctorChecks(root: string = getProjectRoot()): Promise<
     await checkReactNative(root),
     await checkAndroid(root),
     await checkIos(root),
+    await checkNativeDeps(root),
     await checkMetro(root),
     await checkConfig(root),
     await checkAuthentication(root),

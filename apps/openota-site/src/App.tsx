@@ -3,6 +3,7 @@ import { SyncTerminal } from "./SyncTerminal";
 import { GitHubIcon, LinkedInIcon } from "./icons";
 
 const GITHUB_URL = "https://github.com/HarshaJrDev";
+const DOCS_URL = "https://open-ota-docs.vercel.app/docs";
 const LINKEDIN_URL =
   "https://www.linkedin.com/public-profile/settings/?trk=d_flagship3_profile_self_view_public_profile&lipi=urn%3Ali%3Apage%3Ad_flagship3_profile_view_base%3BKf5aXnzhTpWtfPX7SUcujg%3D%3D";
 
@@ -78,12 +79,13 @@ export default function App() {
             <a href="#pipeline">How it works</a>
             <a href="#features">Features</a>
             <a href="#manifest">Manifest</a>
+            <a href={DOCS_URL}>Docs</a>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
               GitHub
             </a>
           </div>
-          <a className="btn btn-primary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-            Star on GitHub
+          <a className="btn btn-primary" href={DOCS_URL}>
+            Read the docs
           </a>
         </div>
       </nav>
@@ -111,7 +113,10 @@ export default function App() {
             </Reveal>
             <Reveal delay={240}>
               <div className="hero-ctas">
-                <a className="btn btn-primary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+                <a className="btn btn-primary" href={DOCS_URL}>
+                  Read the docs
+                </a>
+                <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
                   View on GitHub
                 </a>
                 <a className="btn btn-ghost" href="#pipeline">

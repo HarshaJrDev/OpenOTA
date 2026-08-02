@@ -19,6 +19,7 @@ const NAV = [
   { href: "#self-hosted-vs-cloud", label: "Self-hosted vs. Cloud" },
   { href: "#cli", label: "CLI reference" },
   { href: "#sdk", label: "SDK config" },
+  { href: "#native-deps", label: "Native dependencies" },
   { href: "#dashboard", label: "Dashboard features" },
   { href: "#env", label: "Environment variables" },
 ];
@@ -91,6 +92,14 @@ const SDK_OPTIONS = [
   { key: "requestTimeout", type: "number", required: false, desc: "Milliseconds before a check/download request aborts. Default 15000." },
   { key: "headers", type: "Record<string,string>", required: false, desc: "Extra headers sent on every request." },
   { key: "projectId", type: "string", required: false, desc: "OpenOTA Cloud only — targets the project-scoped routes and enables device tracking + install-result reporting. Omit for self-hosted." },
+];
+
+const NATIVE_DEPS = [
+  { pkg: "react-native-mmkv", why: "Fast on-device key/value cache for the current version, bundle path, manifest, and anonymous device ID." },
+  { pkg: "react-native-nitro-modules", why: "Required by react-native-mmkv v4+ (Nitro-based). Skip only if you pin mmkv to v2/v3." },
+  { pkg: "react-native-fs", why: "Filesystem access for downloading and staging the update bundle." },
+  { pkg: "react-native-zip-archive", why: "Extracts the downloaded .zip bundle before it's verified and installed." },
+  { pkg: "react-native-quick-crypto", why: "Computes the SHA-256 checksum used to verify every bundle before it runs." },
 ];
 
 const ENV_VARS = [
@@ -349,6 +358,52 @@ npx openota release --version 1.0.1 --platform android`}</code>
             also makes the SDK send an anonymous, auto-generated
             device ID on every check/download, and report install/rollback outcomes automatically —
             that&apos;s what populates the dashboard&apos;s Devices and Analytics pages. Nothing extra to wire up.
+          </p>
+        </Section>
+
+        <Section id="native-deps" icon={Boxes} title="Native dependencies">
+          <p className="text-muted-foreground">
+            <code>@openota/sdk</code> is a thin JS layer over a few native modules — installing it with npm/yarn is
+            not enough on its own. Every package below needs a real native rebuild before the SDK will work, not
+            just a JS reload.
+          </p>
+          <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Package</TableHead>
+                  <TableHead>What it's for</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {NATIVE_DEPS.map((row) => (
+                  <TableRow key={row.pkg}>
+                    <TableCell className="whitespace-nowrap font-mono text-xs">{row.pkg}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{row.why}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+          <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
+              <code>{`npm install react-native-mmkv react-native-nitro-modules \\
+  react-native-fs react-native-zip-archive react-native-quick-crypto
+
+# iOS — required after installing or upgrading any of the above
+cd ios && bundle exec pod install && cd ..
+
+# Android — autolinking picks these up automatically, but only on a full rebuild
+cd android && ./gradlew clean && cd ..
+
+npx react-native run-ios   # or run-android`}</code>
+            </pre>
+          </Card>
+          <p className="text-sm text-muted-foreground">
+            Forgetting the native rebuild is the single most common integration mistake — it surfaces as a vague JS
+            error like <code>Cannot read property &apos;otaStorage&apos; of undefined</code> the moment{" "}
+            <code>OTA.configure()</code> or <code>OTA.sync()</code> runs, since the native module the SDK depends on
+            was never linked into the app binary. <code>npx openota doctor</code> checks for this.
           </p>
         </Section>
 
