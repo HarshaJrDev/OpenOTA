@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CopyButton } from "@/components/copy-button";
 import { CopyField } from "@/components/copy-field";
 import { EmptyState } from "@/components/empty-state";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { NextStepCard } from "@/components/next-step-card";
 import { QuickStartCard } from "@/components/quick-start-card";
 import type { ApiKey, CreatedApiKey } from "@/features/api-keys/api";
@@ -138,8 +139,15 @@ function ProjectApiKeys({ projectId }: { projectId: string }) {
                   <TableRow key={key.id}>
                     <TableCell>{key.name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {key.prefix}
-                      {"•".repeat(20)}
+                      <span className="inline-flex items-center gap-1.5">
+                        {key.prefix}
+                        {"•".repeat(20)}
+                        <InfoTooltip>
+                          This is only a prefix, for identifying the key at a glance — the full key was shown once at
+                          creation and can&apos;t be recovered or copied from here. Lost it? Use Regenerate to issue a
+                          new one (this immediately revokes the old key).
+                        </InfoTooltip>
+                      </span>
                     </TableCell>
                     <TableCell>{new Date(key.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>{key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "Never"}</TableCell>
