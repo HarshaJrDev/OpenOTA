@@ -96,10 +96,11 @@ const SDK_OPTIONS = [
 
 const NATIVE_DEPS = [
   { pkg: "react-native-mmkv", why: "Fast on-device key/value cache for the current version, bundle path, manifest, and anonymous device ID." },
-  { pkg: "react-native-nitro-modules", why: "Required by react-native-mmkv v4+ (Nitro-based). Skip only if you pin mmkv to v2/v3." },
+  { pkg: "react-native-nitro-modules", why: "Required by the Nitro-based versions of mmkv and quick-crypto. A peer dependency of both, but never auto-installed — see below." },
   { pkg: "react-native-fs", why: "Filesystem access for downloading and staging the update bundle." },
   { pkg: "react-native-zip-archive", why: "Extracts the downloaded .zip bundle before it's verified and installed." },
   { pkg: "react-native-quick-crypto", why: "Computes the SHA-256 checksum used to verify every bundle before it runs." },
+  { pkg: "react-native-quick-base64", why: "A peer dependency of quick-crypto itself — easy to miss since npm hoists it without you ever installing it directly." },
 ];
 
 const ENV_VARS = [
@@ -388,7 +389,8 @@ npx openota release --version 1.0.1 --platform android`}</code>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
             <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
               <code>{`npm install react-native-mmkv react-native-nitro-modules \\
-  react-native-fs react-native-zip-archive react-native-quick-crypto
+  react-native-fs react-native-zip-archive \\
+  react-native-quick-crypto react-native-quick-base64
 
 # iOS — required after installing or upgrading any of the above
 cd ios && bundle exec pod install && cd ..

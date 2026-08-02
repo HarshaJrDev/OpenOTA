@@ -50,7 +50,20 @@ async function checkIos(root: string): Promise<DoctorCheckResult> {
   };
 }
 
-const SDK_NATIVE_DEPS = ["react-native-mmkv", "react-native-fs", "react-native-zip-archive", "react-native-quick-crypto"];
+// react-native-quick-base64 and react-native-nitro-modules are transitive *peer* dependencies of
+// react-native-quick-crypto/react-native-mmkv (Nitro-based versions) — npm/yarn happily hoists
+// them into node_modules without them ever landing in the app's own package.json, and RN's
+// autolinking only considers packages the app's package.json actually declares. Left undeclared,
+// autolinking silently skips them, producing a runtime "TurboModuleRegistry.getEnforcing(...):
+// 'QuickBase64' could not be found" crash that looks nothing like a missing-dependency problem.
+const SDK_NATIVE_DEPS = [
+  "react-native-mmkv",
+  "react-native-fs",
+  "react-native-zip-archive",
+  "react-native-quick-crypto",
+  "react-native-quick-base64",
+  "react-native-nitro-modules",
+];
 
 /**
  * @openota/sdk depends on a handful of native modules (see docs "Native dependencies"). Being in

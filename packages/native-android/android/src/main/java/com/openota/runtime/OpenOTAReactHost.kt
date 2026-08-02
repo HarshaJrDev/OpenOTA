@@ -82,6 +82,18 @@ object OpenOTAReactHost {
         useDevSupport: Boolean = ReactBuildConfig.DEBUG,
         exceptionHandler: (Exception) -> Unit = { throw it },
     ): ReactHost {
+        // Seed BundleManager's singleton with the correct runtimeVersion right now, eagerly —
+        // not lazily via jsBundleLoader's getter below. In dev builds (useDevSupport = true),
+        // Metro serves the initial JS bundle directly and jsBundleLoader is never consulted on
+        // cold boot, so without this call OpenOTAModule's own lazy BundleManager.getInstance()
+        // (no runtimeVersion) would win the race the first time JS calls a native OpenOTA method
+        // — silently falling back to the APK's versionName and rejecting every real OTA bundle
+        // with a bogus runtimeVersion mismatch. Deliberately BundleManager.getInstance(), not
+        // BundleLoader.getJSBundleFile() — the latter also calls recordBootAttempt(), and this
+        // must not double-count a boot attempt when jsBundleLoader's getter runs its own
+        // (legitimate, single) call to that same method right after.
+        BundleManager.getInstance(context.applicationContext, runtimeVersion)
+
         val turboModuleManagerDelegateBuilder = DefaultTurboModuleManagerDelegate.Builder()
 
         val delegate =
