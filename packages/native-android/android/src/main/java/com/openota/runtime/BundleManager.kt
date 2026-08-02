@@ -109,7 +109,19 @@ class BundleManager private constructor(context: Context, private val runtimeVer
     fun rollbackBundle(): RuntimeInfo {
         stateHolder.transition(RuntimeState.ROLLBACK)
 
-        val restored = rollback.restore()
+        // rollback.restore() throws NoRollbackAvailableException when there's nothing to restore
+        // (e.g. only one generation has ever been activated). Without this catch, that failure
+        // left the state machine stuck in ROLLBACK — which per the transition table can only go
+        // to ACTIVATED or EMBEDDED, never back to DOWNLOADED — permanently blocking every future
+        // OTA install on the device until it was reinstalled. FAILED is the correct recovery
+        // state here, same as every other failure path in this file (see installBundle above).
+        val restored =
+            try {
+                rollback.restore()
+            } catch (error: Exception) {
+                stateHolder.transition(RuntimeState.FAILED)
+                throw error
+            }
         stateHolder.transition(RuntimeState.ACTIVATED)
 
         val manifest = RuntimeManifest(

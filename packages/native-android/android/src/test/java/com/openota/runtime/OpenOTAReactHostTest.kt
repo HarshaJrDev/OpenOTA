@@ -7,6 +7,7 @@ import java.io.File
 import java.security.MessageDigest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -139,5 +140,26 @@ class OpenOTAReactHostTest {
         manager.rollbackBundle()
 
         assertEquals(pathA, resolvedFilePath())
+    }
+
+    /**
+     * Regression test for a real bug found while manually testing a fresh install: rollbackBundle()
+     * transitioned the state machine to ROLLBACK *before* checking whether a rollback bundle
+     * exists. A device with only one activation ever (nothing to roll back to) threw
+     * NoRollbackAvailableException from that call — but the state machine was left stuck at
+     * ROLLBACK, which per the transition table can only go to ACTIVATED or EMBEDDED, never back to
+     * DOWNLOADED. Every subsequent OTA install failed with "Illegal OpenOTA runtime transition:
+     * ROLLBACK -> DOWNLOADED" until the app was reinstalled.
+     */
+    @Test
+    fun `a failed rollback with nothing to restore does not block the next activation`() {
+        activate("1.0.1")
+        val manager = BundleManager.getInstance(context, RUNTIME_VERSION)
+
+        assertThrows(NoRollbackAvailableException::class.java) { manager.rollbackBundle() }
+
+        // Must not throw IllegalStateTransitionException (ROLLBACK -> DOWNLOADED) here.
+        val pathB = activate("1.0.2")
+        assertEquals(pathB, resolvedFilePath())
     }
 }
