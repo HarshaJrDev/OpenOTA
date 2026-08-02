@@ -1,6 +1,6 @@
 {
   "name": "@openota/cli",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Official CLI for OpenOTA — build, upload and release OTA packages for React Native apps",
   "type": "module",
   "license": "MIT",

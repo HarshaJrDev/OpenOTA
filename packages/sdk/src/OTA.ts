@@ -29,6 +29,16 @@ function currentPlatform(): "android" | "ios" {
   return Platform.OS === "android" ? "android" : "ios";
 }
 
+// download/extract/verify/install all write to fixed, version-keyed paths (not per-call temp
+// names), so two concurrent OTA.sync() calls for the same update race on the same files —
+// whichever finishes extracting/cleaning up first can delete or move a file the other is still
+// mid-read on, surfacing as a spurious ENOENT that has nothing to do with the actual update. This
+// is easy to trigger from app code that isn't even doing anything wrong: e.g. an AppState listener
+// firing once for the initial mount's own transition alongside a useEffect's own sync() call. One
+// in-flight sync at a time, shared by every caller, removes the race entirely rather than asking
+// every integrator to build their own dedup.
+let inFlightSync: Promise<SyncResult> | null = null;
+
 export const OTA = {
   configure(input: OtaConfigInput): OtaConfig {
     return configureInternal(input);
@@ -63,7 +73,15 @@ export const OTA = {
   },
 
   async sync(onProgress?: SyncProgressListener): Promise<SyncResult> {
-    return syncPackage(currentPlatform(), onProgress);
+    if (inFlightSync) {
+      return inFlightSync;
+    }
+
+    inFlightSync = syncPackage(currentPlatform(), onProgress).finally(() => {
+      inFlightSync = null;
+    });
+
+    return inFlightSync;
   },
 
   async rollback(): Promise<InstallResult> {
