@@ -131,12 +131,13 @@ describe("environments", () => {
       .set("Cookie", cookie)
       .set("X-Requested-With", "XMLHttpRequest");
 
-    const byVersion = Object.fromEntries(
-      (historyRes.body.data as Array<{ version: string; status: string; rollback_reason: string | null }>).map((r) => [r.version, r]),
-    );
-    expect(byVersion["1.0.0"].status).toBe("active");
-    expect(byVersion["1.0.0"].rollback_reason).toBe("2.0.0 crashed on launch");
-    expect(byVersion["2.0.0"].status).toBe("rolled_back");
+    // Full-fidelity timeline: 3 distinct actions happened (release 1.0.0, release 2.0.0, rollback
+    // to 1.0.0), so 3 entries — not one collapsed entry per version.
+    const entries = historyRes.body.data as Array<{ version: string; event_type: string; reason: string | null }>;
+    expect(entries).toHaveLength(3);
+    expect(entries[0]).toMatchObject({ version: "1.0.0", event_type: "rollback", reason: "2.0.0 crashed on launch" });
+    expect(entries.some((e) => e.version === "2.0.0" && e.event_type === "release")).toBe(true);
+    expect(entries.some((e) => e.version === "1.0.0" && e.event_type === "release")).toBe(true);
   });
 
   it("channels stay isolated: a release on staging never appears in production's history", async () => {
@@ -233,5 +234,40 @@ describe("environments", () => {
       .get(`/api/v1/projects/${projectId}/packages/check`)
       .query({ platform: "android", currentVersion: "0.0.1", deviceId: "device-a" });
     expect(fullyRolledOut.body.data.available).toBe(true);
+  });
+
+  it("rollout percentage changes appear in history (previously left no trace at all)", async () => {
+    const cookie = await signup("env-owner-h@example.test");
+    const projectId = await createProject(cookie, "Env Project H");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "1.0.0");
+
+    await request(app)
+      .patch(`/api/v1/projects/${projectId}/environments/production/rollout`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ platform: "android", percentage: 25 });
+
+    // Setting the same percentage again shouldn't create a duplicate/no-op event.
+    await request(app)
+      .patch(`/api/v1/projects/${projectId}/environments/production/rollout`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ platform: "android", percentage: 25 });
+
+    const historyRes = await request(app)
+      .get(`/api/v1/projects/${projectId}/environments/production/history?platform=android`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest");
+
+    const entries = historyRes.body.data as Array<{
+      event_type: string;
+      rollout_percentage: number | null;
+      previous_rollout_percentage: number | null;
+    }>;
+    const rolloutEvents = entries.filter((e) => e.event_type === "rollout_change");
+    expect(rolloutEvents).toHaveLength(1);
+    expect(rolloutEvents[0]).toMatchObject({ rollout_percentage: 25, previous_rollout_percentage: 100 });
   });
 });

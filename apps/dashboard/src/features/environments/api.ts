@@ -13,6 +13,18 @@ export interface EnvironmentRelease {
   created_at: string;
 }
 
+export interface DeploymentEvent {
+  id: string;
+  event_type: "release" | "rollback" | "rollout_change";
+  version: string;
+  runtime_version: string | null;
+  rollout_percentage: number | null;
+  previous_rollout_percentage: number | null;
+  release_notes: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
 export interface Environment {
   id: string;
   channel: string;
@@ -37,8 +49,8 @@ export function updateEnvironment(
   return apiRequest<Environment>(`/projects/${projectId}/environments/${channel}`, { method: "PATCH", body: fields });
 }
 
-export function getEnvironmentHistory(projectId: string, channel: string, platform: Platform): Promise<EnvironmentRelease[]> {
-  return apiRequest<EnvironmentRelease[]>(`/projects/${projectId}/environments/${channel}/history`, {
+export function getEnvironmentHistory(projectId: string, channel: string, platform: Platform): Promise<DeploymentEvent[]> {
+  return apiRequest<DeploymentEvent[]>(`/projects/${projectId}/environments/${channel}/history`, {
     query: { platform },
   });
 }

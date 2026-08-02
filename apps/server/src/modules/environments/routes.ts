@@ -2,7 +2,7 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { DEFAULT_ENVIRONMENTS } from "../project/service.js";
-import { environmentsRepo, releasesRepo } from "../../db/repositories.js";
+import { deploymentEventsRepo, environmentsRepo, releasesRepo } from "../../db/repositories.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "../project/service.js";
@@ -65,7 +65,75 @@ environmentsRouter.get("/:channel/history", requireSession, async (req, res, nex
     await projectService.getOwnedProject(req.user!.id, projectId);
 
     const platform = typeof req.query.platform === "string" ? req.query.platform : undefined;
-    sendSuccess(res, await releasesRepo.listByProject(projectId, platform, channel));
+    const releases = await releasesRepo.listByProject(projectId, platform, channel);
+    const releaseNotesByVersion = new Map(releases.map((release) => [release.version, release.release_notes]));
+
+    type Entry = {
+      id: string;
+      event_type: "release" | "rollback" | "rollout_change";
+      version: string;
+      runtime_version: string | null;
+      rollout_percentage: number | null;
+      previous_rollout_percentage: number | null;
+      release_notes: string | null;
+      reason: string | null;
+      created_at: string;
+    };
+
+    let entries: Entry[];
+
+    if (platform) {
+      // deployment_events is the authoritative, full-fidelity timeline (one entry per action, not
+      // per version — a version rolled back to twice shows as two entries here) but only exists
+      // going forward from when this table was added. releases-table rows fill in for whatever
+      // predates that: any version with at least one real event is fully represented by its
+      // events, so only versions with *no* events fall back to a single releases-row-derived entry.
+      const events = await deploymentEventsRepo.listByChannel(projectId, platform, channel);
+      const versionsWithEvents = new Set(events.map((event) => event.version));
+
+      const eventEntries: Entry[] = events.map((event) => ({
+        id: event.id,
+        event_type: event.event_type,
+        version: event.version,
+        runtime_version: event.runtime_version,
+        rollout_percentage: event.rollout_percentage,
+        previous_rollout_percentage: event.previous_rollout_percentage,
+        release_notes: event.event_type === "rollout_change" ? null : (releaseNotesByVersion.get(event.version) ?? null),
+        reason: event.reason,
+        created_at: event.created_at,
+      }));
+
+      const legacyEntries: Entry[] = releases
+        .filter((release) => !versionsWithEvents.has(release.version))
+        .map((release) => ({
+          id: release.id,
+          event_type: release.status === "rolled_back" ? "rollback" : "release",
+          version: release.version,
+          runtime_version: release.runtime_version,
+          rollout_percentage: null,
+          previous_rollout_percentage: null,
+          release_notes: release.release_notes,
+          reason: release.rollback_reason,
+          created_at: release.created_at,
+        }));
+
+      entries = [...eventEntries, ...legacyEntries];
+    } else {
+      entries = releases.map((release) => ({
+        id: release.id,
+        event_type: release.status === "rolled_back" ? "rollback" : "release",
+        version: release.version,
+        runtime_version: release.runtime_version,
+        rollout_percentage: null,
+        previous_rollout_percentage: null,
+        release_notes: release.release_notes,
+        reason: release.rollback_reason,
+        created_at: release.created_at,
+      }));
+    }
+
+    entries.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    sendSuccess(res, entries);
   } catch (error) {
     next(error);
   }
@@ -77,7 +145,7 @@ environmentsRouter.patch("/:channel/rollout", requireSession, async (req, res, n
     await projectService.getOwnedProject(req.user!.id, projectId);
 
     const { platform, percentage } = updateRolloutSchema.parse(req.body);
-    const updated = await releasesRepo.setRolloutPercentage(projectId, platform, channel, percentage);
+    const updated = await releasesRepo.setRolloutPercentage(projectId, platform, channel, percentage, req.user!.id);
     sendSuccess(res, updated ?? null);
   } catch (error) {
     next(error);

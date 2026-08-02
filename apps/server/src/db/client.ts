@@ -226,6 +226,31 @@ export async function initDb(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_install_results_project ON install_results(project_id, status);
 
+    -- Append-only deployment timeline: releases/rollbacks already leave a trace in the releases
+    -- table (a row per version, status flipped in place), but that's current-state, not history —
+    -- a rollback to an already-uploaded version updates that row's status without moving its
+    -- created_at, so it can't be placed correctly on a timeline. Rollout-percentage changes leave
+    -- no trace at all (setRolloutPercentage overwrites in place). This table exists so the
+    -- dashboard's history view has one real, correctly-ordered timeline instead of inferring one
+    -- from mutable current-state rows. Written from releasesRepo.recordActivation/setRolloutPercentage
+    -- only — never read by check/download/upload/rollback.
+    CREATE TABLE IF NOT EXISTS deployment_events (
+      id                           TEXT PRIMARY KEY,
+      project_id                   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      platform                     TEXT NOT NULL,
+      channel                      TEXT NOT NULL,
+      event_type                   TEXT NOT NULL, -- "release" | "rollback" | "rollout_change"
+      version                      TEXT NOT NULL,
+      runtime_version              TEXT,
+      rollout_percentage           INTEGER,
+      previous_rollout_percentage  INTEGER,
+      reason                       TEXT,
+      actor_type                   TEXT NOT NULL, -- "api_key" | "user" | "system"
+      actor_id                     TEXT,
+      created_at                   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_deployment_events_channel ON deployment_events(project_id, platform, channel, created_at DESC);
+
     -- Runtime-configurable global settings, editable by an admin from the dashboard without a
     -- redeploy — deliberately a plain key/value table (one row per setting) rather than a
     -- dedicated column per setting, since this is expected to grow ad hoc. First (and currently

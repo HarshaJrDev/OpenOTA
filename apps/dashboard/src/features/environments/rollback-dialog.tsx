@@ -12,7 +12,7 @@ import { Textarea } from "@openota/ui/textarea";
 
 import { useRollbackPackage } from "@/features/packages/hooks";
 
-import type { EnvironmentRelease } from "./api";
+import type { DeploymentEvent } from "./api";
 import { useEnvironmentHistory } from "./hooks";
 
 export function RollbackDialog({
@@ -39,7 +39,18 @@ export function RollbackDialog({
 
   // Anything except the currently-active version is a valid rollback target — including a version
   // that's already `rolled_back`, since rollback is just "move the pointer," never destructive.
-  const candidates = (history ?? []).filter((r) => r.version !== currentVersion);
+  // rollout_change entries aren't versions and history (newest first) can list the same version
+  // more than once (e.g. released, then later rolled back to again) — keep only the newest entry
+  // per version, so this doesn't offer stale duplicate options.
+  const seenVersions = new Set<string>();
+  const candidates: DeploymentEvent[] = [];
+  for (const event of history ?? []) {
+    if (event.event_type === "rollout_change" || event.version === currentVersion || seenVersions.has(event.version)) {
+      continue;
+    }
+    seenVersions.add(event.version);
+    candidates.push(event);
+  }
 
   React.useEffect(() => {
     if (open) {
@@ -91,9 +102,9 @@ export function RollbackDialog({
                     No other releases in this environment yet
                   </SelectItem>
                 ) : (
-                  candidates.map((release: EnvironmentRelease) => (
-                    <SelectItem key={release.id} value={release.version}>
-                      v{release.version} · {new Date(release.created_at).toLocaleDateString()}
+                  candidates.map((event) => (
+                    <SelectItem key={event.id} value={event.version}>
+                      v{event.version} · {new Date(event.created_at).toLocaleDateString()}
                     </SelectItem>
                   ))
                 )}

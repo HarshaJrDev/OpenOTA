@@ -46,9 +46,10 @@ export function useUpdateRolloutPercentage(projectId: string) {
   return useMutation({
     mutationFn: ({ channel, platform, percentage }: { channel: string; platform: Platform; percentage: number }) =>
       updateRolloutPercentage(projectId, channel, platform, percentage),
-    onSuccess: () => {
+    onSuccess: (_data, { channel, platform }) => {
       toast.success("Rollout updated");
       void queryClient.invalidateQueries({ queryKey: environmentKeys.list(projectId) });
+      void queryClient.invalidateQueries({ queryKey: environmentKeys.history(projectId, channel, platform) });
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update rollout"),
   });

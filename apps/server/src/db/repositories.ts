@@ -98,6 +98,25 @@ export interface ReleaseRow {
   rollout_percentage: number;
 }
 
+export type DeploymentEventType = "release" | "rollback" | "rollout_change";
+export type DeploymentEventActorType = "api_key" | "user" | "system";
+
+export interface DeploymentEventRow {
+  id: string;
+  project_id: string;
+  platform: string;
+  channel: string;
+  event_type: DeploymentEventType;
+  version: string;
+  runtime_version: string | null;
+  rollout_percentage: number | null;
+  previous_rollout_percentage: number | null;
+  reason: string | null;
+  actor_type: DeploymentEventActorType;
+  actor_id: string | null;
+  created_at: string;
+}
+
 export interface EnvironmentRow {
   id: string;
   project_id: string;
@@ -422,12 +441,58 @@ export const appConfigsRepo = {
   },
 };
 
+export const deploymentEventsRepo = {
+  async record(params: {
+    projectId: string;
+    platform: string;
+    channel: string;
+    eventType: DeploymentEventType;
+    version: string;
+    runtimeVersion?: string | null;
+    rolloutPercentage?: number | null;
+    previousRolloutPercentage?: number | null;
+    reason?: string | null;
+    actorType: DeploymentEventActorType;
+    actorId?: string | null;
+  }): Promise<void> {
+    await query(
+      `INSERT INTO deployment_events
+         (id, project_id, platform, channel, event_type, version, runtime_version, rollout_percentage, previous_rollout_percentage, reason, actor_type, actor_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        randomUUID(),
+        params.projectId,
+        params.platform,
+        params.channel,
+        params.eventType,
+        params.version,
+        params.runtimeVersion ?? null,
+        params.rolloutPercentage ?? null,
+        params.previousRolloutPercentage ?? null,
+        params.reason ?? null,
+        params.actorType,
+        params.actorId ?? null,
+        new Date().toISOString(),
+      ],
+    );
+  },
+
+  async listByChannel(projectId: string, platform: string, channel: string): Promise<DeploymentEventRow[]> {
+    return query<DeploymentEventRow>(
+      "SELECT * FROM deployment_events WHERE project_id = $1 AND platform = $2 AND channel = $3 ORDER BY created_at DESC",
+      [projectId, platform, channel],
+    );
+  },
+};
+
 export const releasesRepo = {
   /**
    * One call per upload/rollback event — see package/service.ts. Marks whatever was previously
    * `active` for this (project, platform, channel) as `newStatus` (superseded on a fresh upload,
    * rolled_back on a rollback), then either flips an existing row for `version` back to `active`
    * (the rollback-to-a-prior-version case) or inserts a brand new one (a genuinely new upload).
+   * Also appends a deployment_events row — see that table's doc comment for why the releases
+   * table alone can't serve as a correctly-ordered history.
    */
   async recordActivation(params: {
     projectId: string;
@@ -460,28 +525,39 @@ export const releasesRepo = {
         "UPDATE releases SET status = 'active', rollback_reason = COALESCE($1, rollback_reason) WHERE id = $2",
         [params.rollbackReason ?? null, existing[0]!.id],
       );
-      return;
+    } else {
+      await query(
+        `INSERT INTO releases (id, project_id, platform, channel, version, runtime_version, storage_key, checksum, size_bytes, status, created_at, created_by, release_notes, rollback_reason)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $13)`,
+        [
+          randomUUID(),
+          params.projectId,
+          params.platform,
+          params.channel,
+          params.version,
+          params.runtimeVersion,
+          params.storageKey,
+          params.checksum,
+          params.sizeBytes,
+          now,
+          params.createdBy,
+          params.releaseNotes ?? null,
+          params.rollbackReason ?? null,
+        ],
+      );
     }
 
-    await query(
-      `INSERT INTO releases (id, project_id, platform, channel, version, runtime_version, storage_key, checksum, size_bytes, status, created_at, created_by, release_notes, rollback_reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $13)`,
-      [
-        randomUUID(),
-        params.projectId,
-        params.platform,
-        params.channel,
-        params.version,
-        params.runtimeVersion,
-        params.storageKey,
-        params.checksum,
-        params.sizeBytes,
-        now,
-        params.createdBy,
-        params.releaseNotes ?? null,
-        params.rollbackReason ?? null,
-      ],
-    );
+    await deploymentEventsRepo.record({
+      projectId: params.projectId,
+      platform: params.platform,
+      channel: params.channel,
+      eventType: params.previousStatus === "rolled_back" ? "rollback" : "release",
+      version: params.version,
+      runtimeVersion: params.runtimeVersion,
+      reason: params.rollbackReason ?? null,
+      actorType: params.createdBy ? "api_key" : "system",
+      actorId: params.createdBy,
+    });
   },
 
   async listByProject(projectId: string, platform?: string, channel?: string): Promise<ReleaseRow[]> {
@@ -520,17 +596,42 @@ export const releasesRepo = {
     );
   },
 
-  /** Adjusts exposure on the currently-active release only — a no-op (returns undefined) if there's no active release yet. */
+  /**
+   * Adjusts exposure on the currently-active release only — a no-op (returns undefined) if
+   * there's no active release yet. Also appends a "rollout_change" deployment_events row, since
+   * this column is overwritten in place and would otherwise leave no trace of prior values.
+   */
   async setRolloutPercentage(
     projectId: string,
     platform: string,
     channel: string,
     percentage: number,
+    actorUserId?: string,
   ): Promise<ReleaseRow | undefined> {
+    const before = await this.findActive(projectId, platform, channel);
+    if (!before) {
+      return undefined;
+    }
+
     await query(
       "UPDATE releases SET rollout_percentage = $1 WHERE project_id = $2 AND platform = $3 AND channel = $4 AND status = 'active'",
       [percentage, projectId, platform, channel],
     );
+
+    if (before.rollout_percentage !== percentage) {
+      await deploymentEventsRepo.record({
+        projectId,
+        platform,
+        channel,
+        eventType: "rollout_change",
+        version: before.version,
+        rolloutPercentage: percentage,
+        previousRolloutPercentage: before.rollout_percentage,
+        actorType: actorUserId ? "user" : "system",
+        actorId: actorUserId ?? null,
+      });
+    }
+
     return this.findActive(projectId, platform, channel);
   },
 };
