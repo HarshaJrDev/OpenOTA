@@ -47,7 +47,7 @@ export default function ProjectsPage() {
 
   function openProject(projectId: string) {
     setCurrentProjectId(projectId);
-    router.push("/api-keys");
+    router.push("/");
   }
 
   async function handleRename() {
