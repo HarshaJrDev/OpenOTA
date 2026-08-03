@@ -166,6 +166,34 @@ If the *new* bundle itself crashes on boot (a real bug you shipped), the native 
 boot-attempt counter trips and it automatically falls back to the last known-good bundle on the
 next launch — no server round-trip needed, no user intervention.
 
+### Real-time delivery (optional)
+
+By default a device only finds out about a release the next time *your app* calls `OTA.sync()` —
+OpenOTA never polls on its own. If you want a release to reach an already-open app instantly
+instead of waiting for the next launch/resume, open a live connection:
+
+```ts
+OTA.connectLive(); // call once, e.g. right after OTA.configure()
+// ...later, e.g. on unmount:
+OTA.disconnectLive();
+```
+
+The server pushes a lightweight "check now" nudge over WebSocket the moment you release, roll
+back, or change a rollout percentage on that device's channel — `connectLive` then calls
+`OTA.sync()` for you. Pass your own callback if you want to react to it yourself (update UI state,
+log it, etc.) instead of relying on the default silent sync:
+
+```ts
+OTA.connectLive(() => {
+  console.log('a release just went out — re-checking now');
+  OTA.sync();
+});
+```
+
+This only works while the app is open or backgrounded-but-still-alive — a fully closed app won't
+be woken up (that would need push notifications, which OpenOTA doesn't do yet). No native setup
+needed; it's pure JS, using React Native's built-in WebSocket.
+
 ## 6. Roll back
 
 Two independent rollback mechanisms exist, and it's important to know which one you need:

@@ -80,7 +80,7 @@ Sign up ─► Create Project ─► Generate API Key ─► openota login ─�
 
 | Step | Where | Notes |
 |---|---|---|
-| **Sign up / Log in** | `/login` | Email + password (min 8 chars). Session persists 30 days. |
+| **Sign up / Log in** | `/login` | Email + password (min 8 chars), or "Continue with Google". Session persists 30 days. |
 | **Create Project** | `/projects` | Enter a name → get a Project ID (`proj`-style UUID) + URL slug. |
 | **Rename / Delete Project** | `/projects` (⋮ menu per card) | Rename edits the display name (slug stays stable). Delete is permanent — removes the project + all its API keys and releases (confirmation required). |
 | **Generate API Key** | `/api-keys` (select project first) | Full key shown **once** in a copy-to-clipboard modal. Copy it now — it is never retrievable again. |
@@ -95,6 +95,21 @@ Sign up ─► Create Project ─► Generate API Key ─► openota login ─�
 **Not implemented today (do not expect these):**
 - **"Create App" as a separate entity** — an "app" is simply a project's platform (`android`/`ios`). There is no distinct App resource or App-settings screen. `runtimeVersion` is configured in the React Native project's `openota.config.json` + `MainApplication.kt`, **not** in the dashboard.
 - **Logs page** — still a placeholder; no request/audit log store exists yet.
+
+### 3.1a Google sign-in
+
+"Continue with Google" on `/login` is a second way into the same account system — not a separate
+one. Clicking it does a real browser redirect to Google, then back to the dashboard already signed
+in with the same session mechanism as email/password login.
+
+- If the Google account's email matches an **existing** password account, Google sign-in links
+  onto that account (and marks it email-verified) rather than creating a duplicate — one account,
+  two ways in.
+- If not, a brand-new account is created with no password set — you can still add one later via
+  "Forgot password" if you ever want an email/password fallback for that account.
+- Only enabled if the server operator has configured `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
+  `GOOGLE_REDIRECT_URI` (see §5) — self-hosted deployments that don't set these just don't show a
+  working button (it redirects back with a clear "not configured" message instead of erroring).
 
 ### 3.2 CLI (from a clean machine)
 
@@ -141,6 +156,8 @@ Base URL: `https://YOUR-SERVER/api/v1`. All responses use the envelope `{ "succe
 | POST | `/auth/verify-email/confirm` | none | `{ token }` | `200` `{ verified: true }`; `400` if invalid/expired/already used |
 | POST | `/auth/forgot-password` | none | `{ email }` | `200` `{ sent: true }` always — never reveals whether the email is registered |
 | POST | `/auth/reset-password` | none | `{ token, password }` (password ≥ 8) | `200` `{ reset: true }`; `400` if invalid/expired/already used |
+| GET | `/auth/google` | none | — | `302` to Google's real sign-in page. Redirects to `{DASHBOARD_URL}/login?error=google_not_configured` instead if the server has no Google credentials configured. |
+| GET | `/auth/google/callback` | none (Google redirects here) | — | `302` to `{DASHBOARD_URL}/auth/callback#token=…` on success (see §3.1a), or `{DASHBOARD_URL}/login?error=google_auth_failed` on any failure. Never returns JSON — this is a browser redirect target, not an API call your own code should hit directly. |
 
 All `/auth/*` routes are rate-limited (10 requests / 15 min / IP).
 
@@ -203,6 +220,20 @@ release needed to change it. OpenOTA doesn't interpret this value at all; what i
 entirely up to your app (a UI variant flag, a feature toggle, anything). See
 [GETTING_STARTED.md §7](./GETTING_STARTED.md#7-remote-config-optional) for the client-side pattern.
 
+### Real-time updates — `/projects/:projectId/packages/live` (WebSocket) and `/environments/:channel/live-count`
+
+Devices don't have to wait for their next `OTA.sync()` call — see
+[GETTING_STARTED.md's "Real-time delivery"](./GETTING_STARTED.md#real-time-delivery-optional) for
+the SDK side (`OTA.connectLive()`). Server side, this is:
+
+| | Path | Auth | Notes |
+|---|---|---|---|
+| WS | `…/packages/live?platform=&channel=&deviceId=` | **public** (device) | Upgrades to a WebSocket. The server pushes a content-free `{"type":"release-changed"}` nudge whenever a release, rollback, or rollout-percentage change happens on that exact `(project, platform, channel)` — never manifest data, so the real `check` endpoint (with its staged-rollout gate) stays the single source of truth for what a device is actually eligible for. In-memory only, per server instance (see §8's single-instance note) — a connection only sees broadcasts from the instance it's connected to. |
+| GET | `/projects/:projectId/environments/:channel/live-count?platform=` | owner session | `200` `{ count, android?, ios? }` — how many devices are currently connected live on this channel. Shown as a pulsing "N live" badge on the dashboard's Environments page. |
+
+This only reaches a device while its app is open or backgrounded-but-still-alive — a fully closed
+app isn't woken up (that would need push notifications, which OpenOTA doesn't do yet).
+
 ### Example
 
 ```sh
@@ -239,6 +270,8 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | `SENTRY_DSN` | no | — | Sends unexpected errors (500s, crashes) to [Sentry](https://sentry.io). Unset = no-op, same graceful degradation as `RESEND_API_KEY` — structured pino logs still capture everything either way. |
 | `REQUIRE_EMAIL_VERIFICATION` | no | `false` | **DEV MODE default is off.** Signup has always logged the user in immediately and login has never checked `email_verified` — that's unchanged. Set to `true` to make `login` reject unverified accounts (a verification email is always sent regardless of this flag; this only controls whether login enforces it). |
 | `SEED_DEMO_ACCOUNT` | no | `false` | **DEV MODE ONLY** — hard-guarded to never run when `NODE_ENV=production`, regardless of this flag. Seeds `demo@openota.dev` (pre-verified) on boot if it doesn't exist yet; idempotent. Password is in source at `db/seed.ts` (deliberately not logged). |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | no | — | Enables "Continue with Google" (see §3.1a). All three or none — set together from a Google Cloud OAuth 2.0 Client ID (Web application type). `GOOGLE_REDIRECT_URI` must exactly match a URI registered on that client, e.g. `https://YOUR-SERVER/api/v1/auth/google/callback`. |
+| `ADMIN_EMAILS` | no | — | Comma-separated allowlist. Any account (password **or** Google) signed in under one of these emails gets admin access (currently: the runtime settings toggle at `/admin`). Not a roles/permissions system — just a trusted-humans list. |
 
 ---
 

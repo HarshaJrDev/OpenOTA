@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Boxes, Cloud, Database, HardDrive, KeyRound, Layers, Package, Server, Settings, Smartphone, Sparkles, Terminal } from "lucide-react";
+import { Boxes, Cloud, Database, HardDrive, KeyRound, Layers, Package, Server, Settings, Smartphone, Sparkles, Terminal, Wifi } from "lucide-react";
 
 import { Badge } from "@openota/ui/badge";
 import { Card } from "@openota/ui/card";
@@ -21,6 +21,7 @@ const NAV = [
   { href: "#sdk", label: "SDK config" },
   { href: "#native-deps", label: "Native dependencies" },
   { href: "#remote-config", label: "Remote config" },
+  { href: "#realtime", label: "Real-time updates" },
   { href: "#dashboard", label: "Dashboard features" },
   { href: "#env", label: "Environment variables" },
 ];
@@ -110,8 +111,9 @@ const ENV_VARS = [
   { name: "CORS_ALLOWED_ORIGINS", required: "yes for cross-site dashboard", desc: "Comma-separated allowlist for the dashboard's credentialed requests." },
   { name: "STORAGE_PROVIDER", required: "no", desc: '"local" or "supabase". Default local.' },
   { name: "RESEND_API_KEY", required: "no", desc: "Sends verification/reset emails. Unset = link is logged to the server console instead." },
-  { name: "DASHBOARD_URL", required: "no", desc: "Base URL used to build verification/reset links." },
+  { name: "DASHBOARD_URL", required: "no", desc: "Base URL used to build verification/reset and Google sign-in redirect links." },
   { name: "OPENOTA_API_KEY", required: "no", desc: "Legacy single-tenant shared secret for self-hosted flat routes." },
+  { name: "GOOGLE_CLIENT_ID / _SECRET / _REDIRECT_URI", required: "no, all three or none", desc: 'Enables "Continue with Google" on the dashboard login page.' },
 ];
 
 function Section({ id, icon: Icon, title, children }: { id: string; icon: React.ElementType; title: string; children: React.ReactNode }) {
@@ -432,10 +434,42 @@ PUT  /projects/:projectId/apps/:platform          # session-authed, dashboard/AP
           </p>
         </Section>
 
+        <Section id="realtime" icon={Wifi} title="Real-time updates (optional)">
+          <p className="text-muted-foreground">
+            By default a device only learns about a release the next time your app calls{" "}
+            <code>OTA.sync()</code> — OpenOTA never polls on its own. To have the server nudge an
+            already-open app instantly instead of waiting for the next launch or resume, open a
+            live connection once:
+          </p>
+          <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
+              <code>{`OTA.connectLive(); // e.g. right after OTA.configure()
+// ...
+OTA.disconnectLive(); // e.g. on unmount
+
+// or react to it yourself instead of the default silent OTA.sync():
+OTA.connectLive(() => {
+  console.log('a release just went out — re-checking now');
+  OTA.sync();
+});`}</code>
+            </pre>
+          </Card>
+          <p className="text-sm text-muted-foreground">
+            Pure JS — React Native&apos;s built-in <code>WebSocket</code>, no native setup, no extra
+            dependency. The server pushes a content-free &quot;check now&quot; nudge whenever a
+            release, rollback, or rollout-percentage change happens on that device&apos;s channel;
+            the real <code>check</code> endpoint (with its staged-rollout gate) stays the single
+            source of truth for what a device is actually eligible for — nothing is pushed except
+            the nudge itself. Reconnects automatically with backoff. Only reaches the app while
+            it&apos;s open or backgrounded-but-alive — a fully closed app isn&apos;t woken up (that
+            would need push notifications, which OpenOTA doesn&apos;t do yet).
+          </p>
+        </Section>
+
         <Section id="dashboard" icon={KeyRound} title="Dashboard features (Cloud)">
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              { title: "Auth", desc: "Signup, login, email verification, forgot/reset password." },
+              { title: "Auth", desc: "Email/password or Google sign-in, email verification, forgot/reset password. Google links onto an existing account by matching email rather than duplicating it." },
               { title: "Projects", desc: "Create, rename, delete. Each isolates its own releases, keys, and devices." },
               { title: "API keys", desc: "Full key shown once on creation, stored server-side only as a hash." },
               {

@@ -5,12 +5,14 @@ import {
   Github,
   Layers,
   Lock,
+  LogIn,
   Package,
   RotateCcw,
   ShieldCheck,
   Smartphone,
   Star,
   Terminal,
+  Wifi,
   X,
   Zap,
 } from "lucide-react";
@@ -60,6 +62,16 @@ const FEATURES = [
     icon: Cloud,
     title: "Self-host or Cloud",
     description: "Run it on your own infrastructure today, or use OpenOTA Cloud when you don't want to.",
+  },
+  {
+    icon: Wifi,
+    title: "Real-time delivery",
+    description: "A release reaches an already-open app over a live connection — no waiting for the next launch.",
+  },
+  {
+    icon: LogIn,
+    title: "Sign in with Google",
+    description: "One click on the dashboard — links to your existing account if the email already matches.",
   },
 ];
 

@@ -31,6 +31,30 @@ if (check.available && check.manifest) {
 
 See the exported types (`RuntimeInfo`, `OTAError` and its subclasses, `LogHandler`) for the full public API surface.
 
+## Real-time updates (optional)
+
+By default a device only learns about a new release the next time your app calls `OTA.sync()`.
+To have the server nudge an already-open app instantly instead:
+
+```ts
+OTA.connectLive(); // e.g. right after OTA.configure()
+// ...
+OTA.disconnectLive(); // e.g. on unmount
+```
+
+Pass your own callback to react to it yourself instead of the default silent `OTA.sync()`:
+
+```ts
+OTA.connectLive(() => {
+  // a release, rollback, or rollout-percentage change just happened on this channel
+  OTA.sync();
+});
+```
+
+Pure JS (React Native's built-in `WebSocket`), no native setup required. Reconnects automatically
+with backoff. Only reaches the app while it's open or backgrounded-but-alive — a fully closed app
+isn't woken up.
+
 ## License
 
 MIT
