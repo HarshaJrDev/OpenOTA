@@ -81,6 +81,15 @@ const envSchema = z
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     GOOGLE_REDIRECT_URI: z.string().url().optional(),
+    // Firebase Cloud Messaging — pushes a killed-app-reachable notification when a release/
+    // rollback/rollout-percentage change happens (see modules/push/fcm.ts); the existing WS live
+    // connection (see modules/live/) already covers the app-open/backgrounded-but-alive case.
+    // Optional: unset means push is silently disabled, same graceful-degradation posture as
+    // RESEND_API_KEY. Value is the *entire* JSON contents of a Firebase service-account key
+    // (Console -> Project Settings -> Service Accounts -> Generate new private key) as one
+    // string — exactly the file the operator downloads, no reformatting needed. Parsed lazily in
+    // push/fcm.ts, not at the schema level, matching every other secret here.
+    FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.STORAGE_PROVIDER === "supabase") {
@@ -165,4 +174,6 @@ export const env = {
   // Never log this value — server-only secret.
   googleClientSecret: parsed.data.GOOGLE_CLIENT_SECRET,
   googleRedirectUri: parsed.data.GOOGLE_REDIRECT_URI,
+  // Never log this value — contains a private key.
+  firebaseServiceAccountJson: parsed.data.FIREBASE_SERVICE_ACCOUNT_JSON,
 };

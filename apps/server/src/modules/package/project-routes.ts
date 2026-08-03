@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { deviceCheckinsRepo, installResultsRepo } from "../../db/repositories.js";
+import { deviceCheckinsRepo, deviceTokensRepo, installResultsRepo } from "../../db/repositories.js";
 import { requireApiKey, requireProjectMatch } from "../../middleware/apiKey.middleware.js";
 import { deviceRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
@@ -22,6 +22,13 @@ const reportInstallResultSchema = z.object({
   version: z.string().min(1),
   runtimeVersion: z.string().min(1),
   status: z.enum(["success", "failure", "rollback"]),
+});
+
+const registerFcmTokenSchema = z.object({
+  deviceId: z.string().min(1).max(200),
+  platform: z.string().min(1),
+  channel: z.string().min(1).max(100),
+  fcmToken: z.string().min(1).max(4096),
 });
 
 /**
@@ -148,6 +155,23 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
         status: body.status,
       });
       sendSuccess(res, { recorded: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Device-facing, open (same posture as /report — no secret, isolation comes from :projectId
+  // itself). Registers this device's FCM token so a killed-app release/rollback/rollout-change
+  // still reaches it — see modules/push/fcm.ts. Called from OTA.registerPush(); a no-op (never an
+  // error) if the server has no Firebase credentials configured — the row is stored either way so
+  // it's ready the moment push is turned on.
+  router.post("/fcm-token", deviceRateLimiter, async (req, res, next) => {
+    try {
+      const { projectId } = req.params as unknown as { projectId: string };
+      assertSafePathSegment(projectId);
+      const body = registerFcmTokenSchema.parse(req.body);
+      await deviceTokensRepo.upsert({ projectId, ...body });
+      sendSuccess(res, { registered: true });
     } catch (error) {
       next(error);
     }

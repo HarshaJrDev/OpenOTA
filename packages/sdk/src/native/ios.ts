@@ -2,7 +2,9 @@ import {
   nativeActivateBundle,
   nativeClearBundle,
   nativeGetBundlePath,
+  nativeGetFcmToken,
   nativeGetRuntimeInfo,
+  nativeRegisterForPushNotifications,
   nativeRestart,
   nativeRollback,
   nativeSetBundlePath,
@@ -40,5 +42,13 @@ export const iosBridge = {
 
   async getRuntimeInfo(): Promise<RuntimeInfo> {
     return nativeGetRuntimeInfo();
+  },
+
+  async getFcmToken(): Promise<string | null> {
+    return nativeGetFcmToken();
+  },
+
+  async registerForPushNotifications(): Promise<void> {
+    return nativeRegisterForPushNotifications();
   },
 };

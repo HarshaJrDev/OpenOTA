@@ -138,6 +138,11 @@ export async function initDb(): Promise<void> {
     -- needs to read remotely without shipping a new OTA release, not a fixed schema OpenOTA
     -- itself understands or acts on.
     ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS remote_config TEXT;
+    -- The "custom alert" shown on a killed-app FCM push (see modules/push/fcm.ts) — set once per
+    -- (project, platform) from the dashboard's Apps page. NULL means "use the built-in default
+    -- text," not "no push" (push is gated entirely by whether FIREBASE_SERVICE_ACCOUNT_JSON is set).
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS push_title TEXT;
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS push_body TEXT;
     -- One row per (project, platform) is the actual model now (runtime_version is just a field on
     -- it). No DB-level UNIQUE constraint for this — PGlite doesn't support ADD CONSTRAINT IF NOT
     -- EXISTS (Postgres 15+ only) and dropping/recreating the old three-column constraint needs
@@ -218,6 +223,22 @@ export async function initDb(): Promise<void> {
       UNIQUE (project_id, device_id)
     );
     CREATE INDEX IF NOT EXISTS idx_device_checkins_project ON device_checkins(project_id, last_seen_at);
+
+    -- A device's FCM registration for killed-app push delivery (see modules/push/fcm.ts) —
+    -- separate from device_checkins because that table has no channel column and a push fan-out
+    -- needs (project, platform, channel), not just (project, device). One row per device, upserted
+    -- on every OTA.registerPush() call and on token refresh; the old token is simply overwritten.
+    CREATE TABLE IF NOT EXISTS device_tokens (
+      id          TEXT PRIMARY KEY,
+      project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      device_id   TEXT NOT NULL,
+      platform    TEXT NOT NULL,
+      channel     TEXT NOT NULL,
+      fcm_token   TEXT NOT NULL,
+      updated_at  TEXT NOT NULL,
+      UNIQUE (project_id, device_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_device_tokens_lookup ON device_tokens(project_id, platform, channel);
 
     -- Unlike device_checkins (a "last seen" registry), this IS an event log: every install
     -- attempt outcome is its own row, since Analytics needs counts over time, not just the latest

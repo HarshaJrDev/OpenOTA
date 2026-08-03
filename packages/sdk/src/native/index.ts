@@ -14,6 +14,8 @@ export interface NativeBridge {
   restart(): Promise<void>;
   clearBundle(): Promise<void>;
   getRuntimeInfo(): Promise<RuntimeInfo>;
+  getFcmToken(): Promise<string | null>;
+  registerForPushNotifications(): Promise<void>;
 }
 
 export const nativeBridge: NativeBridge = Platform.OS === "android" ? androidBridge : iosBridge;

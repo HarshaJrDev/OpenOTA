@@ -7,7 +7,7 @@ import { ALLOWED_UPLOAD_MIME_TYPES, DEFAULT_CHANNEL } from "@openota/shared";
 
 import { env } from "../../config/env.js";
 import { releasesRepo } from "../../db/repositories.js";
-import { keyFor, liveRegistry } from "../live/registry.js";
+import { notifyReleaseChange } from "../live/registry.js";
 import {
   PackageAlreadyExistsError,
   PackageNotFoundError,
@@ -115,7 +115,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
       await repository.saveManifest(platform, version, manifest);
       await repository.setActiveVersion(platform, version, channel);
       activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
-      liveRegistry.broadcast(keyFor(projectId, platform, channel));
+      await notifyReleaseChange(projectId, platform, channel);
 
       if (projectId) {
         await releasesRepo.recordActivation({
@@ -246,7 +246,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
 
     await repository.setActiveVersion(platform, version, channel);
     activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
-    liveRegistry.broadcast(keyFor(projectId, platform, channel));
+    await notifyReleaseChange(projectId, platform, channel);
     logger.info({ platform, version, channel }, "release rolled back");
 
     const manifest = await repository.findManifest(platform, version);

@@ -21,6 +21,10 @@ const upsertAppSchema = z.object({
   // a bare string/array) so /config always hands back something a client can safely spread into
   // its own config shape.
   remoteConfig: z.record(z.string(), z.unknown()).optional(),
+  // The "custom alert" shown on a killed-app FCM push (see db/client.ts's app_configs.push_title
+  // doc comment, modules/push/fcm.ts) — plain text, defaults apply server-side if left unset.
+  pushTitle: z.string().max(200).optional(),
+  pushBody: z.string().max(500).optional(),
 });
 
 /**

@@ -75,6 +75,13 @@ dependencies {
     implementation "com.facebook.react:react-android"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "androidx.annotation:annotation:1.9.1"
+    // Push notifications for killed-app OTA delivery (see OpenOTAFirebaseMessagingService) — a
+    // library module never applies the Google Services *plugin* itself (that's app-level only,
+    // via the consuming app's own google-services.json), it just consumes the BoM like any other
+    // dependency. No-op at runtime for an app that never adds google-services.json: Firebase's own
+    // SDK degrades to "not configured" rather than crashing.
+    implementation platform("com.google.firebase:firebase-bom:33.5.1")
+    implementation "com.google.firebase:firebase-messaging"
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"

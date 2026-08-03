@@ -2,6 +2,10 @@ import type { WebSocket } from "ws";
 
 import type { LiveMessage } from "@openota/shared";
 
+import { logger } from "../../config/logger.js";
+import { appConfigsRepo } from "../../db/repositories.js";
+import { notifyDevicesOfReleaseChange } from "../push/fcm.js";
+
 /**
  * `${projectId ?? "self-hosted"}:${platform}:${channel}` — the same identity a device's poll-path
  * check request is already scoped by (see package/service.ts's checkForUpdate cacheKey), just
@@ -88,3 +92,33 @@ export type LiveRegistry = ReturnType<typeof createLiveRegistry>;
  * server.ts.
  */
 export const liveRegistry: LiveRegistry = createLiveRegistry();
+
+const DEFAULT_PUSH_TITLE = "App update available";
+const DEFAULT_PUSH_BODY = "A new version is ready.";
+
+/**
+ * The single "something changed for this (project, platform, channel)" chokepoint — fans out over
+ * WebSocket (broadcast(), unchanged, still the exact Phase 1 behavior) and, if the operator has
+ * configured Firebase, also over FCM push for devices whose app is fully closed. Call sites just
+ * await this once instead of remembering two separate notifications.
+ */
+export async function notifyReleaseChange(projectId: string | undefined, platform: string, channel: string): Promise<void> {
+  liveRegistry.broadcast(keyFor(projectId, platform, channel));
+
+  if (!projectId) {
+    return;
+  }
+
+  try {
+    const config = await appConfigsRepo.findOne(projectId, platform);
+    await notifyDevicesOfReleaseChange({
+      projectId,
+      platform,
+      channel,
+      title: config?.push_title ?? DEFAULT_PUSH_TITLE,
+      body: config?.push_body ?? DEFAULT_PUSH_BODY,
+    });
+  } catch (error) {
+    logger.warn({ error, projectId, platform, channel }, "notifyReleaseChange: FCM push failed");
+  }
+}

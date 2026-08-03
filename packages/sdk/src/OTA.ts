@@ -9,6 +9,7 @@ import { downloadPackage } from "./services/download.service.js";
 import { extractPackage } from "./services/extract.service.js";
 import { installPackage } from "./services/install.service.js";
 import { connectLive, type LiveConnection } from "./services/live.service.js";
+import { registerPush } from "./services/push.service.js";
 import { rollbackPackage } from "./services/rollback.service.js";
 import { syncPackage } from "./services/sync.service.js";
 import { verifyPackage } from "./services/verify.service.js";
@@ -40,6 +41,7 @@ function currentPlatform(): "android" | "ios" {
 // every integrator to build their own dedup.
 let inFlightSync: Promise<SyncResult> | null = null;
 let liveConnection: LiveConnection | null = null;
+let pushRegistered = false;
 
 export const OTA = {
   configure(input: OtaConfigInput): OtaConfig {
@@ -108,6 +110,28 @@ export const OTA = {
   disconnectLive(): void {
     liveConnection?.disconnect();
     liveConnection = null;
+  },
+
+  /**
+   * Registers this device for FCM push — reaches the app even fully killed, complementary to
+   * connectLive() (which only covers open/backgrounded-but-alive). No-op if already registered
+   * this session. Deliberately does not add any foreground FCM-message handling: while the app is
+   * alive, connectLive()'s WebSocket is what's live, so the push arriving in that state is simply
+   * inert — avoids reacting twice to the same release change. Requires Firebase to be configured
+   * both on-device (google-services.json) and on the server (FIREBASE_SERVICE_ACCOUNT_JSON) — see
+   * docs/GETTING_STARTED.md; silently does nothing if either side isn't set up.
+   */
+  async registerPush(): Promise<void> {
+    if (pushRegistered) {
+      return;
+    }
+    pushRegistered = true;
+    try {
+      await registerPush(currentPlatform());
+    } catch (error) {
+      pushRegistered = false;
+      throw error;
+    }
   },
 
   getCurrentVersion(): CurrentVersionInfo {

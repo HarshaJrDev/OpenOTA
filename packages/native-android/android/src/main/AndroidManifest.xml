@@ -1,1 +1,16 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 13+ requires this at runtime for any notification to actually show — see
+         OpenOTAModule.registerForPushNotifications(). Declaring it here is required for the
+         runtime request to even be legal; it does not grant the permission by itself. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <service
+            android:name="com.openota.runtime.OpenOTAFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
