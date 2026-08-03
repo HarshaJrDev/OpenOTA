@@ -5,9 +5,10 @@ import { query } from "./client.js";
 export interface UserRow {
   id: string;
   email: string;
-  password_hash: string;
+  password_hash: string | null;
   email_verified: boolean;
   created_at: string;
+  google_id: string | null;
 }
 
 export interface AuthTokenRow {
@@ -139,6 +140,7 @@ export const usersRepo = {
       password_hash: passwordHash,
       email_verified: false,
       created_at: new Date().toISOString(),
+      google_id: null,
     };
     await query(
       "INSERT INTO users (id, email, password_hash, email_verified, created_at) VALUES ($1, $2, $3, $4, $5)",
@@ -152,11 +154,36 @@ export const usersRepo = {
   async findById(id: string): Promise<UserRow | undefined> {
     return one(await query<UserRow>("SELECT * FROM users WHERE id = $1", [id]));
   },
+  async findByGoogleId(googleId: string): Promise<UserRow | undefined> {
+    return one(await query<UserRow>("SELECT * FROM users WHERE google_id = $1", [googleId]));
+  },
   async markEmailVerified(id: string): Promise<void> {
     await query("UPDATE users SET email_verified = TRUE WHERE id = $1", [id]);
   },
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, id]);
+  },
+  /** A brand-new Google-only account — no password, email pre-verified since Google's userinfo
+   * endpoint only ever returns emails it has itself confirmed ownership of. */
+  async createFromGoogle(email: string, googleId: string): Promise<UserRow> {
+    const row: UserRow = {
+      id: randomUUID(),
+      email,
+      password_hash: null,
+      email_verified: true,
+      created_at: new Date().toISOString(),
+      google_id: googleId,
+    };
+    await query(
+      "INSERT INTO users (id, email, password_hash, email_verified, created_at, google_id) VALUES ($1, $2, $3, $4, $5, $6)",
+      [row.id, row.email, row.password_hash, row.email_verified, row.created_at, row.google_id],
+    );
+    return row;
+  },
+  /** Links a Google identity onto an existing password-created account (matched by email) rather
+   * than creating a duplicate — also marks the email verified, since Google just proved it. */
+  async linkGoogleId(id: string, googleId: string): Promise<void> {
+    await query("UPDATE users SET google_id = $1, email_verified = TRUE WHERE id = $2", [googleId, id]);
   },
 };
 

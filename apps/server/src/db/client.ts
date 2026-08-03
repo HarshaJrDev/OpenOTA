@@ -73,7 +73,7 @@ export async function initDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS users (
       id              TEXT PRIMARY KEY,
       email           TEXT NOT NULL UNIQUE,
-      password_hash   TEXT NOT NULL,
+      password_hash   TEXT,
       email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
       created_at      TEXT NOT NULL
     );
@@ -82,6 +82,14 @@ export async function initDb(): Promise<void> {
     -- column added to an existing table after its initial release needs its own idempotent
     -- ALTER TABLE here, since there is no separate migration runner.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+    -- A Google-only account has no password — nullable so auth/google.ts's createFromGoogle can
+    -- insert without one. Every password-path write (signup, reset-password) still always sets a
+    -- real hash; only Google-created rows ever have NULL here.
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+    -- NULL for password-only accounts; set (and unique) once an account signs in with Google —
+    -- either a fresh Google signup or linked onto an existing password account by matching email
+    -- (see auth/google.ts's account-linking rule).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
 
     -- Single-use, expiring tokens for both email verification and password reset. One table
     -- (distinguished by "purpose") rather than two -- same shape, same lifecycle, same repo methods.

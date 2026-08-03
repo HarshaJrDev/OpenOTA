@@ -73,25 +73,41 @@ const envSchema = z
       .string()
       .optional()
       .transform((v) => v === "true"),
+    // Google OAuth sign-in — additive to email/password, never required. All three or none: see
+    // the superRefine below. GOOGLE_REDIRECT_URI must exactly match a URI registered on the
+    // Google Cloud OAuth client (there's no "server public URL" env var to derive this from, so
+    // it's explicit rather than guessed from request headers, which can't be trusted behind a
+    // proxy). See auth/google.ts.
+    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    GOOGLE_REDIRECT_URI: z.string().url().optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.STORAGE_PROVIDER !== "supabase") {
-      return;
+    if (value.STORAGE_PROVIDER === "supabase") {
+      if (!value.SUPABASE_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SUPABASE_URL"],
+          message: "SUPABASE_URL is required when STORAGE_PROVIDER=supabase",
+        });
+      }
+
+      if (!value.SUPABASE_SERVICE_ROLE_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SUPABASE_SERVICE_ROLE_KEY"],
+          message: "SUPABASE_SERVICE_ROLE_KEY is required when STORAGE_PROVIDER=supabase",
+        });
+      }
     }
 
-    if (!value.SUPABASE_URL) {
+    const googleFields = [value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, value.GOOGLE_REDIRECT_URI];
+    const googleFieldsSet = googleFields.filter((field) => field !== undefined).length;
+    if (googleFieldsSet !== 0 && googleFieldsSet !== googleFields.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["SUPABASE_URL"],
-        message: "SUPABASE_URL is required when STORAGE_PROVIDER=supabase",
-      });
-    }
-
-    if (!value.SUPABASE_SERVICE_ROLE_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["SUPABASE_SERVICE_ROLE_KEY"],
-        message: "SUPABASE_SERVICE_ROLE_KEY is required when STORAGE_PROVIDER=supabase",
+        path: ["GOOGLE_CLIENT_ID"],
+        message: "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI must all be set together, or none of them",
       });
     }
   });
@@ -145,4 +161,8 @@ export const env = {
   sentryDsn: parsed.data.SENTRY_DSN,
   requireEmailVerification: parsed.data.REQUIRE_EMAIL_VERIFICATION,
   seedDemoAccount: parsed.data.SEED_DEMO_ACCOUNT,
+  googleClientId: parsed.data.GOOGLE_CLIENT_ID,
+  // Never log this value — server-only secret.
+  googleClientSecret: parsed.data.GOOGLE_CLIENT_SECRET,
+  googleRedirectUri: parsed.data.GOOGLE_REDIRECT_URI,
 };

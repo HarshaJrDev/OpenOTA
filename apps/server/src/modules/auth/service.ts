@@ -3,6 +3,7 @@ import { query } from "../../db/client.js";
 import { authTokensRepo, usersRepo } from "../../db/repositories.js";
 import { NotFoundError, ValidationError } from "../../shared/errors.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email.service.js";
+import type { GoogleProfile } from "./google.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { createSessionToken } from "./session.js";
 import { generateRawToken, hashToken } from "./token.js";
@@ -54,9 +55,33 @@ export async function signup(email: string, password: string): Promise<{ userId:
   return { userId: user.id, token: createSessionToken(user.id) };
 }
 
+/**
+ * Find-by-google_id, else link onto an existing password account matching the same email
+ * (safe: Google's userinfo endpoint only ever returns emails it has itself verified), else
+ * create a brand-new Google-only account. Always ends by minting the same session token every
+ * other auth path uses — Google sign-in is just another way to reach an existing session.
+ */
+export async function signInWithGoogle(profile: GoogleProfile): Promise<{ userId: string; token: string }> {
+  let user = await usersRepo.findByGoogleId(profile.googleId);
+
+  if (!user) {
+    const existingByEmail = await usersRepo.findByEmail(profile.email);
+    if (existingByEmail) {
+      await usersRepo.linkGoogleId(existingByEmail.id, profile.googleId);
+      user = { ...existingByEmail, google_id: profile.googleId, email_verified: true };
+    } else {
+      user = await usersRepo.createFromGoogle(profile.email, profile.googleId);
+    }
+  }
+
+  return { userId: user.id, token: createSessionToken(user.id) };
+}
+
 export async function login(email: string, password: string): Promise<{ userId: string; token: string }> {
   const user = await usersRepo.findByEmail(email);
-  if (!user || !verifyPassword(password, user.password_hash)) {
+  // A Google-only account has no password_hash — same InvalidCredentialsError as a wrong password,
+  // never a distinct "use Google instead" message (that would leak which accounts are Google-only).
+  if (!user || !user.password_hash || !verifyPassword(password, user.password_hash)) {
     throw new InvalidCredentialsError();
   }
 

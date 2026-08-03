@@ -7,6 +7,7 @@ import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import { getEmailTestMode } from "../admin/service.js";
 import { setSessionCookie, clearSessionCookie } from "./cookie.js";
+import { buildAuthorizationUrl, exchangeCodeForProfile, verifyState } from "./google.js";
 import * as authService from "./service.js";
 
 const credentialsSchema = z.object({
@@ -41,6 +42,34 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     sendSuccess(res, { userId, token }); // token for cross-domain Bearer auth (see signup)
   } catch (error) {
     next(error);
+  }
+});
+
+// GET, not POST — this must be a real browser navigation (Google's own login page has to load in
+// the top-level window), never a fetch() call like every other route above.
+authRouter.get("/google", authRateLimiter, (_req, res) => {
+  try {
+    res.redirect(buildAuthorizationUrl());
+  } catch {
+    res.redirect(`${env.dashboardUrl}/login?error=google_not_configured`);
+  }
+});
+
+authRouter.get("/google/callback", authRateLimiter, async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    if (typeof code !== "string" || !verifyState(typeof state === "string" ? state : undefined)) {
+      throw new Error("invalid code or state");
+    }
+
+    const profile = await exchangeCodeForProfile(code);
+    const { token } = await authService.signInWithGoogle(profile);
+    // Fragment, not a query string: never sent to any server (including the dashboard's own
+    // Next.js server) or logged anywhere — only client-side JS on that page can read it. See
+    // apps/dashboard/src/app/auth/callback/page.tsx.
+    res.redirect(`${env.dashboardUrl}/auth/callback#token=${encodeURIComponent(token)}`);
+  } catch {
+    res.redirect(`${env.dashboardUrl}/login?error=google_auth_failed`);
   }
 });
 

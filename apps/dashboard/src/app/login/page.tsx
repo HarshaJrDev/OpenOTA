@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@openota/ui/card";
@@ -10,9 +10,24 @@ import { Input } from "@openota/ui/input";
 import { Label } from "@openota/ui/label";
 
 import { authErrorMessage, useLogin, useSignup } from "@/features/auth/hooks";
+import { getEffectiveServerUrl } from "@/lib/api-client";
+
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+  google_not_configured: "Google sign-in isn't set up on this server yet.",
+  google_auth_failed: "Google sign-in didn't complete. Please try again.",
+};
 
 export default function LoginPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <LoginForm />
+    </React.Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const googleError = useSearchParams().get("error");
   const [mode, setMode] = React.useState<"login" | "signup">("login");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -53,6 +68,29 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {googleError && (
+            <p className="mb-4 text-sm text-destructive">
+              {GOOGLE_ERROR_MESSAGES[googleError] ?? "Something went wrong signing in with Google."}
+            </p>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              window.location.href = `${getEffectiveServerUrl()}/auth/google`;
+            }}
+          >
+            Continue with Google
+          </Button>
+
+          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            or
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
