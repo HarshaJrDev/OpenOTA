@@ -32,7 +32,7 @@ named Docker volume (`openota_storage`), so they survive `docker compose down` a
 recreation; they do **not** survive `docker compose down -v` (which deletes volumes) or a fresh
 `git clone` on a different machine.
 
-To use your own Supabase project instead, edit `.env` before starting (see
+To use your own Supabase project instead, either edit `.env` by hand (see
 [STORAGE.md](./STORAGE.md)):
 ```
 STORAGE_PROVIDER=supabase
@@ -40,6 +40,18 @@ SUPABASE_URL=https://<your-project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<your service_role key>
 SUPABASE_STORAGE_BUCKET=openota-releases
 ```
+or let the CLI validate the credentials for you before writing anything — connects, checks the
+bucket exists, and does a real upload/delete test, only touching `.env`'s storage keys:
+```sh
+npx openota storage setup --provider supabase \
+  --supabase-url https://<your-project-ref>.supabase.co \
+  --supabase-key <your service_role key> \
+  --supabase-bucket openota-releases
+```
+Run this from the same directory as the `.env` you want written to (the `apps/server` checkout,
+or wherever you keep your self-hosted server's `.env`). `npx openota storage validate` runs the
+same checks without writing anything — useful after rotating a key or just to confirm the current
+setup still works.
 
 ### Option B — run it directly (no Docker)
 
@@ -101,14 +113,24 @@ doesn't build that itself.
 
 ```sh
 curl http://localhost:3900/health
-# {"success":true,"data":{"status":"ok"}}
+# {"success":true,"data":{"status":"ok","version":"1.0.0","database":"connected","storage":"connected","storageProvider":"local"}}
 
 npx openota doctor   # from inside your React Native project, after `openota init`
 ```
 
+`/health` runs a real check, not just "the process is up" — `database` and `storage` reflect an
+actual connectivity probe each time you call it. If either shows `"unreachable"`, `status` flips
+to `"degraded"` even though the HTTP response itself is still `200`.
+
 Then follow [GETTING_STARTED.md](./GETTING_STARTED.md) sections 3 onward for a real release.
 
-## 5. What this repo does NOT include for self-hosting
+## 5. Back up your data
+
+Two things to back up periodically: the database (Cloud-mode metadata) and storage (release
+bundles) — see [BACKUPS.md](./BACKUPS.md) for exact commands, restore steps, and how to migrate
+between storage providers.
+
+## 6. What this repo does NOT include for self-hosting
 
 Out of scope, on purpose (see the codebase's own scope notes on the dashboard):
 billing/subscriptions, multi-tenant organizations, per-user accounts/RBAC, advanced analytics. If

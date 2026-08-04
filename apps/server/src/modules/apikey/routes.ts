@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { getOwnedProject } from "../project/service.js";
 import { sendSuccess } from "../../shared/responses.js";
@@ -13,7 +14,7 @@ const createKeySchema = z.object({ name: z.string().min(1).max(100) });
 // logged-in user can never list/create/revoke another user's project's keys by guessing an id.
 export const apiKeyRouter: ExpressRouter = Router({ mergeParams: true });
 
-apiKeyRouter.use(requireSession);
+apiKeyRouter.use(sessionRateLimiter, requireSession);
 
 apiKeyRouter.post("/", async (req, res, next) => {
   try {

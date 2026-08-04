@@ -16,6 +16,7 @@ import {
 } from "../../shared/errors.js";
 import { compareSemver, rolloutBucket } from "../../shared/utils.js";
 import { TtlCache } from "../../shared/ttlCache.js";
+import { verifyBundleChecksum } from "./hash.service.js";
 import { buildManifest, buildMetadata } from "./manifest.service.js";
 import type { PackageRepository } from "./repository.js";
 import type { CheckUpdateResult, Manifest, PackageMetadata, Platform, UploadPackageInput } from "./types.js";
@@ -101,6 +102,16 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     if (await repository.exists(platform, version)) {
       await fse.remove(tempFilePath).catch(() => undefined);
       throw new PackageAlreadyExistsError(platform, version);
+    }
+
+    // Re-derive the hash from the actual uploaded bytes rather than trusting the claimed value —
+    // see verifyBundleChecksum's doc comment. Deliberately before anything is persisted, so a
+    // mismatch never gets as far as being written to storage/manifest/active-pointer.
+    try {
+      verifyBundleChecksum(tempFilePath, bundleName, sha256);
+    } catch (error) {
+      await fse.remove(tempFilePath).catch(() => undefined);
+      throw error;
     }
 
     try {

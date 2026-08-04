@@ -5,6 +5,8 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { createTestBundleZip } from "../../../test-utils/bundle-fixture.js";
+
 import type { Express } from "express";
 
 let app: Express;
@@ -53,6 +55,7 @@ async function createApiKey(cookie: string, projectId: string) {
 }
 
 function upload(projectId: string, apiKey: string, version: string, opts: { channel?: string; releaseNotes?: string } = {}) {
+  const bundle = createTestBundleZip("index.android.bundle", `console.log('${version}');`);
   const req = request(app)
     .post(`/api/v1/projects/${projectId}/packages`)
     .set("Authorization", `Bearer ${apiKey}`)
@@ -60,11 +63,11 @@ function upload(projectId: string, apiKey: string, version: string, opts: { chan
     .field("version", version)
     .field("runtimeVersion", "1.0.0")
     .field("bundleName", "index.android.bundle")
-    .field("sha256", "a".repeat(64))
-    .field("size", "18");
+    .field("sha256", bundle.sha256)
+    .field("size", String(bundle.size));
   if (opts.channel) req.field("channel", opts.channel);
   if (opts.releaseNotes) req.field("releaseNotes", opts.releaseNotes);
-  return req.attach("file", Buffer.from("x"), { filename: "bundle.zip", contentType: "application/zip" });
+  return req.attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 }
 
 describe("environments", () => {

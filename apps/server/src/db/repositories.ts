@@ -587,6 +587,23 @@ export const releasesRepo = {
     });
   },
 
+  /**
+   * One row per distinct `storage_key` — a version's zip is one physical object shared across
+   * every channel it's active on, so summing `size_bytes` over every `releases` row would
+   * overcount storage actually used whenever a version is (or was) active on more than one
+   * channel. `DISTINCT ON` collapses that back to real, physical bytes.
+   */
+  async storageSummary(projectId: string): Promise<{ packageCount: number; bytesUsed: number }> {
+    const rows = await query<{ storage_key: string; size_bytes: number }>(
+      "SELECT DISTINCT ON (storage_key) storage_key, size_bytes FROM releases WHERE project_id = $1 ORDER BY storage_key",
+      [projectId],
+    );
+    return {
+      packageCount: rows.length,
+      bytesUsed: rows.reduce((sum, row) => sum + Number(row.size_bytes), 0),
+    };
+  },
+
   async listByProject(projectId: string, platform?: string, channel?: string): Promise<ReleaseRow[]> {
     const conditions = ["project_id = $1"];
     const params: unknown[] = [projectId];

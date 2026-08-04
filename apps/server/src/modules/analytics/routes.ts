@@ -2,6 +2,7 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { deviceCheckinsRepo, installResultsRepo, releasesRepo } from "../../db/repositories.js";
+import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "../project/service.js";
@@ -13,6 +14,8 @@ const releaseStatsParamsSchema = z.object({
 
 /** Dashboard-only aggregate counts — same ownership-check pattern as devices/routes.ts. */
 export const analyticsRouter: ExpressRouter = Router({ mergeParams: true });
+
+analyticsRouter.use(sessionRateLimiter);
 
 analyticsRouter.get("/install-results", requireSession, async (req, res, next) => {
   try {

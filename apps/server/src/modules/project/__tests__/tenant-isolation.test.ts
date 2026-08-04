@@ -5,6 +5,8 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { createTestBundleZip } from "../../../test-utils/bundle-fixture.js";
+
 import type { Express } from "express";
 
 let app: Express;
@@ -52,6 +54,7 @@ async function createApiKey(cookie: string, projectId: string) {
 }
 
 async function uploadPackage(projectId: string, apiKey: string) {
+  const bundle = createTestBundleZip();
   return request(app)
     .post(`/api/v1/projects/${projectId}/packages`)
     .set("Authorization", `Bearer ${apiKey}`)
@@ -59,9 +62,9 @@ async function uploadPackage(projectId: string, apiKey: string) {
     .field("version", "1.0.0")
     .field("runtimeVersion", "1.0.0")
     .field("bundleName", "index.android.bundle")
-    .field("sha256", "a".repeat(64))
-    .field("size", "18")
-    .attach("file", Buffer.from("fake zip contents"), { filename: "bundle.zip", contentType: "application/zip" });
+    .field("sha256", bundle.sha256)
+    .field("size", String(bundle.size))
+    .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 }
 
 describe("multi-tenant isolation", () => {
@@ -182,15 +185,16 @@ describe("multi-tenant isolation", () => {
   it("legacy flat routes and OPENOTA_API_KEY behavior are unaffected by project-scoped keys", async () => {
     // No Authorization header at all, and no project involved — the pre-existing open-by-default
     // flat-route behavior (see apiKey.middleware.ts) must still work exactly as before.
+    const bundle = createTestBundleZip("main.jsbundle");
     const res = await request(app)
       .post("/api/v1/packages")
       .field("platform", "ios")
       .field("version", "9.9.9")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "main.jsbundle")
-      .field("sha256", "b".repeat(64))
-      .field("size", "3")
-      .attach("file", Buffer.from("abc"), { filename: "bundle.zip", contentType: "application/zip" });
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 
     expect(res.status).toBe(201);
   });
@@ -201,6 +205,7 @@ describe("multi-tenant isolation", () => {
 
     // X-Requested-With is required on every cookie-only, project-scoped request — see the CSRF
     // regression test below for why. This is what the real dashboard's api-client.ts sends.
+    const bundle = createTestBundleZip();
     const upload = await request(app)
       .post(`/api/v1/projects/${projectId}/packages`)
       .set("Cookie", cookie)
@@ -209,9 +214,9 @@ describe("multi-tenant isolation", () => {
       .field("version", "1.0.0")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "index.android.bundle")
-      .field("sha256", "c".repeat(64))
-      .field("size", "9")
-      .attach("file", Buffer.from("session-auth"), { filename: "bundle.zip", contentType: "application/zip" });
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
     expect(upload.status).toBe(201);
 
     const list = await request(app)

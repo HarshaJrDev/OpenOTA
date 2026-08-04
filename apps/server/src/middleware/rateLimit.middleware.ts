@@ -45,3 +45,23 @@ export const deviceRateLimiter = rateLimit({
     next(new TooManyRequestsError("Too many requests. Please slow down and try again shortly."));
   },
 });
+
+/**
+ * Defense-in-depth for the session/API-key-authenticated dashboard surface (admin, projects,
+ * api-keys, environments, devices, analytics, storage) — previously none of these had any
+ * throttle at all. Auth is the real gate here, not this limiter; the point is bounding the blast
+ * radius if a session or bearer token is ever stolen (or a logged-in-but-malicious user scripts
+ * abuse), not protecting a secret-guessing surface the way authRateLimiter does. Generous budget
+ * (a real dashboard page load can legitimately fire a handful of parallel requests) and a short
+ * window, per IP.
+ */
+export const sessionRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
+  handler: (_req, _res, next) => {
+    next(new TooManyRequestsError("Too many requests. Please slow down and try again shortly."));
+  },
+});

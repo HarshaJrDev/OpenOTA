@@ -2,6 +2,7 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { requireApiKey } from "../../middleware/apiKey.middleware.js";
+import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { createStorageProvider } from "../../providers/storage/index.js";
 import { UnauthorizedError } from "../../shared/errors.js";
@@ -23,7 +24,7 @@ export const projectRouter: ExpressRouter = Router();
 // those requests too (and reject them, since they carry a project API key, not a session cookie)
 // before Express ever got to try the sibling routers. Applying requireSession per-route instead
 // keeps this router's auth scoped to only the routes it actually defines.
-projectRouter.post("/", requireSession, async (req, res, next) => {
+projectRouter.post("/", sessionRateLimiter, requireSession, async (req, res, next) => {
   try {
     const { name } = projectNameSchema.parse(req.body);
     // req.user is guaranteed by requireSession above.
@@ -34,7 +35,7 @@ projectRouter.post("/", requireSession, async (req, res, next) => {
   }
 });
 
-projectRouter.get("/", requireSession, async (req, res, next) => {
+projectRouter.get("/", sessionRateLimiter, requireSession, async (req, res, next) => {
   try {
     sendSuccess(res, await projectService.listProjects(req.user!.id));
   } catch (error) {
@@ -60,7 +61,7 @@ projectRouter.get("/me", requireApiKey, (req, res, next) => {
   }
 });
 
-projectRouter.get("/:projectId", requireSession, async (req, res, next) => {
+projectRouter.get("/:projectId", sessionRateLimiter, requireSession, async (req, res, next) => {
   try {
     sendSuccess(res, await projectService.getOwnedProject(req.user!.id, (req.params as unknown as { projectId: string }).projectId));
   } catch (error) {
@@ -68,7 +69,7 @@ projectRouter.get("/:projectId", requireSession, async (req, res, next) => {
   }
 });
 
-projectRouter.patch("/:projectId", requireSession, async (req, res, next) => {
+projectRouter.patch("/:projectId", sessionRateLimiter, requireSession, async (req, res, next) => {
   try {
     const { name } = projectNameSchema.parse(req.body);
     const { projectId } = req.params as unknown as { projectId: string };
@@ -78,7 +79,7 @@ projectRouter.patch("/:projectId", requireSession, async (req, res, next) => {
   }
 });
 
-projectRouter.delete("/:projectId", requireSession, async (req, res, next) => {
+projectRouter.delete("/:projectId", sessionRateLimiter, requireSession, async (req, res, next) => {
   try {
     const { projectId } = req.params as unknown as { projectId: string };
     await projectService.deleteProject(req.user!.id, projectId, storage);

@@ -5,6 +5,8 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { createTestBundleZip } from "../../test-utils/bundle-fixture.js";
+
 import type { Express } from "express";
 
 let app: Express;
@@ -56,6 +58,7 @@ describe("API key protection on mutating routes", () => {
   });
 
   it("accepts an upload with the correct key", async () => {
+    const bundle = createTestBundleZip();
     const res = await request(app)
       .post("/api/v1/packages")
       .set("Authorization", "Bearer test-shared-secret")
@@ -63,9 +66,9 @@ describe("API key protection on mutating routes", () => {
       .field("version", "1.0.0")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "index.android.bundle")
-      .field("sha256", "a".repeat(64))
-      .field("size", "18")
-      .attach("file", Buffer.from("fake zip contents"), { filename: "bundle.zip", contentType: "application/zip" });
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 
     expect(res.status).toBe(201);
   });

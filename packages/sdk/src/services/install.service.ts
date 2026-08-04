@@ -3,6 +3,7 @@ import { InstallError } from "../errors.js";
 import { nativeBridge } from "../native/index.js";
 import { otaStorage } from "../storage.js";
 import type { ExtractResult, InstallResult } from "../types.js";
+import { pruneOldBundleVersions } from "./cleanup.service.js";
 import { reportInstallResult } from "./report.service.js";
 
 /**
@@ -23,6 +24,9 @@ export async function installPackage(extracted: ExtractResult): Promise<InstallR
     otaStorage.setCurrentVersion(manifest.bundleVersion);
     otaStorage.setCurrentBundlePath(bundlePath);
     otaStorage.setCurrentManifest(manifest);
+
+    // Best-effort — a cleanup failure must never fail an install that already succeeded.
+    pruneOldBundleVersions(manifest.platform, manifest.bundleVersion).catch(() => undefined);
 
     const config = getConfig();
 

@@ -8,6 +8,7 @@ import { registerLoginCommand } from "./commands/login.js";
 import { registerLogoutCommand } from "./commands/logout.js";
 import { registerReleaseCommand } from "./commands/release.js";
 import { registerRollbackCommand } from "./commands/rollback.js";
+import { registerStorageCommand } from "./commands/storage.js";
 import { registerUploadCommand } from "./commands/upload.js";
 import { getCliVersion } from "./utils/version.js";
 
@@ -26,6 +27,7 @@ registerReleaseCommand(program);
 registerRollbackCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
+registerStorageCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   // eslint-disable-next-line no-console

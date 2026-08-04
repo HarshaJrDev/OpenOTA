@@ -18,10 +18,19 @@ services:
       STORAGE_ROOT: /data/storage
       OPENOTA_MAX_PACKAGE_SIZE_MB: ${OPENOTA_MAX_PACKAGE_SIZE_MB:-200}
     volumes:
-      # Named volume, not a bind mount, so releases survive `docker compose down` / container
-      # recreation. Only relevant when STORAGE_PROVIDER=local — irrelevant (but harmless) in
-      # Supabase mode, where nothing is ever written here.
+      # Named volumes, not bind mounts, so data survives `docker compose down` / container
+      # recreation.
+      #   openota_storage: release bundles. Only relevant when STORAGE_PROVIDER=local —
+      #     irrelevant (but harmless) in Supabase mode, where nothing is ever written here.
+      #   openota_pgdata: the embedded PGlite database (Cloud-mode metadata — users, projects,
+      #     API keys, releases). Only relevant when DATABASE_URL is unset (the default); irrelevant
+      #     (but harmless) if you point DATABASE_URL at a real Postgres/Supabase instead. Without
+      #     this volume the path `db/client.ts` writes PGlite to (apps/server/data/pgdata, relative
+      #     to the container's WORKDIR) lives in the container's writable layer and is silently
+      #     wiped on every recreation — this volume is what makes that data durable.
       - openota_storage:/data/storage
+      - openota_pgdata:/repo/apps/server/data/pgdata
 
 volumes:
   openota_storage:
+  openota_pgdata:

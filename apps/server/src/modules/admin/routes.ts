@@ -2,6 +2,7 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { requireAdmin } from "../../middleware/admin.middleware.js";
+import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as adminService from "./service.js";
@@ -10,7 +11,7 @@ const updateSettingsSchema = z.object({ emailTestMode: z.boolean() });
 
 export const adminRouter: ExpressRouter = Router();
 
-adminRouter.use(requireSession, requireAdmin);
+adminRouter.use(sessionRateLimiter, requireSession, requireAdmin);
 
 adminRouter.get("/settings", async (_req, res, next) => {
   try {

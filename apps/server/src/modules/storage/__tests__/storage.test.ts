@@ -13,7 +13,7 @@ let app: Express;
 let storageRoot: string;
 
 beforeAll(async () => {
-  storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openota-analytics-test-"));
+  storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openota-storage-test-"));
   process.env.NODE_ENV = "test";
   process.env.STORAGE_ROOT = storageRoot;
   delete process.env.OPENOTA_API_KEY;
@@ -54,8 +54,8 @@ async function createApiKey(cookie: string, projectId: string) {
   return res.body.data.fullKey as string;
 }
 
-function upload(projectId: string, apiKey: string, version: string) {
-  const bundle = createTestBundleZip("index.android.bundle", `console.log('${version}');`);
+function upload(projectId: string, apiKey: string, version: string, size: number) {
+  const bundle = createTestBundleZip("index.android.bundle", "x".repeat(size));
   return request(app)
     .post(`/api/v1/projects/${projectId}/packages`)
     .set("Authorization", `Bearer ${apiKey}`)
@@ -68,42 +68,57 @@ function upload(projectId: string, apiKey: string, version: string) {
     .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 }
 
-describe("release stats", () => {
-  it("aggregates install outcomes, live device count, and channel activation for a release", async () => {
-    const cookie = await signup("analytics-owner-a@example.test");
-    const projectId = await createProject(cookie, "Analytics Project A");
+describe("storage", () => {
+  it("reports the local provider, healthy status, and real byte usage across distinct packages", async () => {
+    const cookie = await signup("storage-owner-a@example.test");
+    const projectId = await createProject(cookie, "Storage Project A");
     const apiKey = await createApiKey(cookie, projectId);
 
-    await upload(projectId, apiKey, "1.0.0");
-
-    // A device checks in on this version (drives devicesOnVersion), then reports a successful install.
-    await request(app)
-      .get(`/api/v1/projects/${projectId}/packages/check`)
-      .query({ platform: "android", currentVersion: "1.0.0", deviceId: "device-1" });
-    await request(app)
-      .post(`/api/v1/projects/${projectId}/packages/report`)
-      .send({ deviceId: "device-1", platform: "android", version: "1.0.0", runtimeVersion: "1.0.0", status: "success" });
+    await upload(projectId, apiKey, "1.0.0", 10);
+    await upload(projectId, apiKey, "1.1.0", 20);
 
     const res = await request(app)
-      .get(`/api/v1/projects/${projectId}/analytics/releases/android/1.0.0`)
+      .get(`/api/v1/projects/${projectId}/storage`)
       .set("Cookie", cookie)
       .set("X-Requested-With", "XMLHttpRequest");
 
     expect(res.status).toBe(200);
-    expect(res.body.data.installCounts.success).toBe(1);
-    expect(res.body.data.devicesOnVersion).toBe(1);
-    expect(res.body.data.channels).toHaveLength(1);
-    expect(res.body.data.channels[0].channel).toBe("production");
-    expect(res.body.data.channels[0].status).toBe("active");
+    expect(res.body.data.provider).toBe("local");
+    expect(res.body.data.bucket).toBeNull();
+    expect(res.body.data.healthy).toBe(true);
+    expect(res.body.data.packageCount).toBe(2);
+    expect(res.body.data.bytesUsed).toBe(30);
   });
 
-  it("another user cannot read release stats for a project they don't own", async () => {
-    const ownerCookie = await signup("analytics-owner-b@example.test");
-    const projectId = await createProject(ownerCookie, "Analytics Project B");
-    const attackerCookie = await signup("analytics-attacker-b@example.test");
+  it("does not double-count bytes when a version is rolled back to (same physical package, same storage_key)", async () => {
+    const cookie = await signup("storage-owner-b@example.test");
+    const projectId = await createProject(cookie, "Storage Project B");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "1.0.0", 10);
+    await upload(projectId, apiKey, "1.1.0", 20);
+    await request(app)
+      .post(`/api/v1/projects/${projectId}/packages/rollback`)
+      .set("Authorization", `Bearer ${apiKey}`)
+      .send({ platform: "android", version: "1.0.0" });
 
     const res = await request(app)
-      .get(`/api/v1/projects/${projectId}/analytics/releases/android/1.0.0`)
+      .get(`/api/v1/projects/${projectId}/storage`)
+      .set("Cookie", cookie)
+      .set("X-Requested-With", "XMLHttpRequest");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.packageCount).toBe(2);
+    expect(res.body.data.bytesUsed).toBe(30);
+  });
+
+  it("another user cannot read storage info for a project they don't own", async () => {
+    const ownerCookie = await signup("storage-owner-c@example.test");
+    const projectId = await createProject(ownerCookie, "Storage Project C");
+    const attackerCookie = await signup("storage-attacker-c@example.test");
+
+    const res = await request(app)
+      .get(`/api/v1/projects/${projectId}/storage`)
       .set("Cookie", attackerCookie)
       .set("X-Requested-With", "XMLHttpRequest");
     expect(res.status).toBe(404);

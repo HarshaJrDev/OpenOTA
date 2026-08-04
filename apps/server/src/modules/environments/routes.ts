@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DEFAULT_ENVIRONMENTS } from "../project/service.js";
 import { deploymentEventsRepo, environmentsRepo, releasesRepo } from "../../db/repositories.js";
 import { keyFor, liveRegistry } from "../live/registry.js";
+import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import * as projectService from "../project/service.js";
@@ -26,6 +27,8 @@ const updateRolloutSchema = z.object({
  * check/download/upload/rollback, only reads/edits the label.
  */
 export const environmentsRouter: ExpressRouter = Router({ mergeParams: true });
+
+environmentsRouter.use(sessionRateLimiter);
 
 environmentsRouter.get("/", requireSession, async (req, res, next) => {
   try {

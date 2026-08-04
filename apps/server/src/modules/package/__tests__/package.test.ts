@@ -5,6 +5,8 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { createTestBundleZip } from "../../../test-utils/bundle-fixture.js";
+
 import type { Express } from "express";
 
 let app: Express;
@@ -16,6 +18,8 @@ beforeAll(async () => {
   process.env.STORAGE_ROOT = storageRoot;
 
   ({ app } = await import("../../../app.js"));
+  const { initDb } = await import("../../../db/client.js");
+  await initDb();
 });
 
 afterAll(async () => {
@@ -26,19 +30,20 @@ describe("package module", () => {
   it("returns healthy status", async () => {
     const res = await request(app).get("/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, data: { status: "ok" } });
+    expect(res.body.data.status).toBe("ok");
   });
 
   it("uploads a package and lists it", async () => {
+    const bundle = createTestBundleZip();
     const uploadRes = await request(app)
       .post("/api/v1/packages")
       .field("platform", "android")
       .field("version", "1.0.0")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "index.android.bundle")
-      .field("sha256", "a".repeat(64))
-      .field("size", "18")
-      .attach("file", Buffer.from("fake zip contents"), {
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, {
         filename: "bundle.zip",
         contentType: "application/zip",
       });
@@ -46,23 +51,45 @@ describe("package module", () => {
     expect(uploadRes.status).toBe(201);
     expect(uploadRes.body.success).toBe(true);
     expect(uploadRes.body.data.bundleVersion).toBe("1.0.0");
-    expect(uploadRes.body.data.sha256).toBe("a".repeat(64));
+    expect(uploadRes.body.data.sha256).toBe(bundle.sha256);
 
     const listRes = await request(app).get("/api/v1/packages");
     expect(listRes.status).toBe(200);
     expect(listRes.body.data).toHaveLength(1);
   });
 
+  it("rejects an upload whose claimed sha256 doesn't match the actual bundle bytes", async () => {
+    const bundle = createTestBundleZip();
+    const res = await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "9.8.7")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "f".repeat(64)) // wrong on purpose — doesn't match the real bundle content
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("UPLOAD_FAILED");
+    expect(res.body.error.details.expected).toBe("f".repeat(64));
+
+    // And the mismatched version was never actually persisted.
+    const getRes = await request(app).get("/api/v1/packages/android/9.8.7");
+    expect(getRes.status).toBe(404);
+  });
+
   it("rejects duplicate uploads", async () => {
+    const bundle = createTestBundleZip();
     const res = await request(app)
       .post("/api/v1/packages")
       .field("platform", "android")
       .field("version", "1.0.0")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "index.android.bundle")
-      .field("sha256", "a".repeat(64))
-      .field("size", "18")
-      .attach("file", Buffer.from("fake zip contents"), {
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, {
         filename: "bundle.zip",
         contentType: "application/zip",
       });
@@ -112,15 +139,16 @@ describe("package module", () => {
   });
 
   it("rolls back the active version to an already-uploaded release", async () => {
+    const bundle = createTestBundleZip("index.android.bundle", "console.log('v2');");
     const uploadRes = await request(app)
       .post("/api/v1/packages")
       .field("platform", "android")
       .field("version", "2.0.0")
       .field("runtimeVersion", "1.0.0")
       .field("bundleName", "index.android.bundle")
-      .field("sha256", "b".repeat(64))
-      .field("size", "21")
-      .attach("file", Buffer.from("fake zip contents v2"), {
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, {
         filename: "bundle.zip",
         contentType: "application/zip",
       });

@@ -41,6 +41,16 @@ export class UploadError extends AppError {
   }
 }
 
+/** The uploader-claimed sha256 didn't match the actual bundle bytes inside the zip — see the doc comment on `verifyBundleChecksum` in hash.service.ts for why this must be checked server-side, not just trusted. */
+export class ChecksumMismatchError extends AppError {
+  constructor(expected: string, actual: string) {
+    super("UPLOAD_FAILED", `Bundle checksum mismatch: expected ${expected}, computed ${actual} from the uploaded file.`, 400, {
+      expected,
+      actual,
+    });
+  }
+}
+
 export class PackageTooLargeError extends AppError {
   constructor(maxBytes: number, actualBytes?: number) {
     super(

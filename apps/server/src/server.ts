@@ -34,6 +34,16 @@ function warnAboutScalingRisks(): void {
         "anything beyond a single throwaway instance.",
     );
   }
+
+  if (!env.corsAllowedOrigins) {
+    logger.warn(
+      "CORS_ALLOWED_ORIGINS unset in production: the session cookie will not be sent on cross-origin " +
+        "requests (see app.ts), so the dashboard won't stay logged in unless it's served from the same " +
+        "origin as this API. The CLI/device surface (Bearer-token or unauthenticated) is unaffected. Set " +
+        "CORS_ALLOWED_ORIGINS to your dashboard's exact origin if you're using the cookie-authenticated " +
+        "dashboard cross-origin.",
+    );
+  }
 }
 
 warnAboutScalingRisks();
