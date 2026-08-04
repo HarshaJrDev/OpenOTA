@@ -5,6 +5,8 @@ import { Badge } from "@openota/ui/badge";
 import { Card } from "@openota/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@openota/ui/table";
 
+import { CodeBlock } from "../components/code-block";
+
 export const metadata: Metadata = {
   title: "Docs — OpenOTA",
   description: "How to install, configure, and run OpenOTA — self-hosted or Cloud.",
@@ -178,13 +180,15 @@ export default function DocsPage() {
         <section id="how-it-works" className="scroll-mt-24 space-y-4">
           <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-6">
-            <pre className="overflow-x-auto font-mono text-xs leading-relaxed text-muted-foreground sm:text-sm">
-{`Your RN app (SDK)   ──check/download──▶   OpenOTA Server
+            <CodeBlock
+              label="architecture diagram"
+              preClassName="text-xs leading-relaxed text-muted-foreground sm:text-sm p-0 pr-8"
+              code={`Your RN app (SDK)   ──check/download──▶   OpenOTA Server
       ▲                                        │
       │ verify + apply                         ├──▶ Postgres  (metadata)
       │                                        └──▶ Storage   (bundle .zip)
  openota CLI  ─────────release────────────────▶`}
-            </pre>
+            />
           </Card>
           <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground marker:text-foreground">
             <li>
@@ -260,13 +264,14 @@ export default function DocsPage() {
 
         <Section id="quickstart" icon={Terminal} title="Quickstart">
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`npm install -D @openota/cli
+            <CodeBlock
+              label="quickstart commands"
+              code={`npm install -D @openota/cli
 
 npx openota init --server-url https://YOUR-SERVER/api/v1 --runtime-version 1.0.0
 npx openota doctor
-npx openota release --version 1.0.1 --platform android`}</code>
-            </pre>
+npx openota release --version 1.0.1 --platform android`}
+            />
           </Card>
           <p className="text-sm text-muted-foreground">
             <code>openota init</code> detects your package manager (npm, yarn, or pnpm) and automatically installs{" "}
@@ -395,8 +400,9 @@ npx openota release --version 1.0.1 --platform android`}</code>
             </Table>
           </Card>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`# Already installed for you by \`openota init\` — only needed if you're adding these manually
+            <CodeBlock
+              label="native dependency commands"
+              code={`# Already installed for you by \`openota init\` — only needed if you're adding these manually
 npm install react-native-mmkv react-native-nitro-modules \\
   react-native-fs react-native-zip-archive \\
   react-native-quick-crypto react-native-quick-base64
@@ -407,8 +413,8 @@ cd ios && bundle exec pod install && cd ..
 # Android — autolinking picks these up automatically, but only on a full rebuild
 cd android && ./gradlew clean && cd ..
 
-npx react-native run-ios   # or run-android`}</code>
-            </pre>
+npx react-native run-ios   # or run-android`}
+            />
           </Card>
           <p className="text-sm text-muted-foreground">
             Forgetting the native rebuild is the single most common integration mistake — it surfaces as a vague JS
@@ -425,11 +431,12 @@ npx react-native run-ios   # or run-android`}</code>
             change it.
           </p>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`GET  /projects/:projectId/apps/:platform/config   # public, no auth — same as check/download
+            <CodeBlock
+              label="remote config API"
+              code={`GET  /projects/:projectId/apps/:platform/config   # public, no auth — same as check/download
 PUT  /projects/:projectId/apps/:platform          # session-authed, dashboard/API only
-     body: { "remoteConfig": { "anyKey": "anyValue" } }`}</code>
-            </pre>
+     body: { "remoteConfig": { "anyKey": "anyValue" } }`}
+            />
           </Card>
           <p className="text-sm text-muted-foreground">
             OpenOTA never reads or acts on the value itself — what it means is entirely up to your app. Two things
@@ -448,8 +455,9 @@ PUT  /projects/:projectId/apps/:platform          # session-authed, dashboard/AP
             live connection once:
           </p>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-            <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`OTA.connectLive(); // e.g. right after OTA.configure()
+            <CodeBlock
+              label="real-time updates example"
+              code={`OTA.connectLive(); // e.g. right after OTA.configure()
 // ...
 OTA.disconnectLive(); // e.g. on unmount
 
@@ -457,8 +465,8 @@ OTA.disconnectLive(); // e.g. on unmount
 OTA.connectLive(() => {
   console.log('a release just went out — re-checking now');
   OTA.sync();
-});`}</code>
-            </pre>
+});`}
+            />
           </Card>
           <p className="text-sm text-muted-foreground">
             Pure JS — React Native&apos;s built-in <code>WebSocket</code>, no native setup, no extra

@@ -18,7 +18,7 @@ export default async function ContactPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] grid-fade" />
-      <SiteNav stars={null} activePath="/contact" />
+      <SiteNav stars={null} />
 
       <section className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center">
         <FadeIn>

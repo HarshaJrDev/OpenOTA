@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
+import { CodeBlock } from "../components/code-block";
 import { FadeIn } from "../components/fade-in";
 import { SiteFooter, SiteNav } from "../components/site-nav";
 
@@ -41,7 +42,7 @@ export default async function DownloadPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] grid-fade" />
-      <SiteNav stars={null} activePath="/download" />
+      <SiteNav stars={null} />
 
       <section className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center">
         <FadeIn>
@@ -65,9 +66,12 @@ export default async function DownloadPage() {
                 <Icon className="h-6 w-6 text-brand-from" />
                 <h2 className="text-lg font-semibold">{name}</h2>
                 <p className="text-sm text-muted-foreground">{description}</p>
-                <pre className="mt-auto overflow-x-auto rounded-lg border border-border/60 bg-black/40 px-3 py-2 text-xs">
-                  <code>{install}</code>
-                </pre>
+                <CodeBlock
+                  code={install}
+                  label={`${name} install command`}
+                  className="mt-auto"
+                  preClassName="rounded-lg border border-border/60 bg-black/40 px-3 py-2 pr-9 text-xs"
+                />
               </Card>
             </FadeIn>
           ))}

@@ -3,16 +3,8 @@ import Link from "next/link";
 
 import { Button } from "@openota/ui/button";
 
-/**
- * Shared across every page (landing, /docs, /pricing, /download, /contact) so nav/footer stay in
- * sync in one place instead of four copies drifting apart. Section-anchor links (#features etc.)
- * only resolve correctly on the landing page itself — elsewhere they're prefixed with "/" so they
- * still navigate there first (Next.js follows the hash after the route loads).
- */
-export function SiteNav({ stars, activePath }: { stars: number | null; activePath?: string }) {
-  const onLanding = !activePath || activePath === "/";
-  const featuresHref = onLanding ? "#features" : "/#features";
-
+/** Shared across every page so nav/footer stay in sync in one place instead of copies drifting apart. */
+export function SiteNav({ stars }: { stars: number | null }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -26,9 +18,9 @@ export function SiteNav({ stars, activePath }: { stars: number | null; activePat
           <Link href="/" className="transition-colors hover:text-foreground">
             Landing Page
           </Link>
-          <a href={featuresHref} className="transition-colors hover:text-foreground">
+          <Link href="/features" className="transition-colors hover:text-foreground">
             Features
-          </a>
+          </Link>
           <Link href="/pricing" className="transition-colors hover:text-foreground">
             Pricing
           </Link>

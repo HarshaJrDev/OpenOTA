@@ -20,6 +20,7 @@ import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
+import { CopyButton } from "./components/copy-button";
 import { FadeIn } from "./components/fade-in";
 import { SiteFooter, SiteNav } from "./components/site-nav";
 
@@ -225,20 +226,27 @@ function Hero() {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
             <span className="ml-2 text-xs text-muted-foreground">terminal</span>
           </div>
-          <pre className="overflow-x-auto px-5 py-5 font-mono text-sm leading-relaxed">
-            <code>
-              <span className="text-muted-foreground">$ </span>
-              <span className="text-foreground">openota release --platform android</span>
-              {"\n"}
-              <span className="text-emerald-400">✔</span> Bundle created
-              {"\n"}
-              <span className="text-emerald-400">✔</span> Manifest generated · SHA256 verified
-              {"\n"}
-              <span className="text-emerald-400">✔</span> Uploaded to project-scoped storage
-              {"\n"}
-              <span className="text-muted-foreground"># live on every device within seconds</span>
-            </code>
-          </pre>
+          <div className="group relative">
+            <pre className="overflow-x-auto px-5 py-5 pr-12 font-mono text-sm leading-relaxed">
+              <code>
+                <span className="text-muted-foreground">$ </span>
+                <span className="text-foreground">openota release --platform android</span>
+                {"\n"}
+                <span className="text-emerald-400">✔</span> Bundle created
+                {"\n"}
+                <span className="text-emerald-400">✔</span> Manifest generated · SHA256 verified
+                {"\n"}
+                <span className="text-emerald-400">✔</span> Uploaded to project-scoped storage
+                {"\n"}
+                <span className="text-muted-foreground"># live on every device within seconds</span>
+              </code>
+            </pre>
+            <CopyButton
+              value="openota release --platform android"
+              label="release command"
+              className="absolute right-2 top-2"
+            />
+          </div>
         </Card>
       </FadeIn>
     </section>
