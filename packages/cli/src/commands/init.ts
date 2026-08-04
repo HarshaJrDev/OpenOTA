@@ -1,14 +1,40 @@
 import { Command } from "commander";
 
+import { SDK_NATIVE_DEPS } from "../constants/index.js";
 import { buildDefaultConfig, RUNTIME_VERSION_PATTERN, writeConfig } from "../services/config.service.js";
-import { log } from "../utils/logger.js";
+import { getMissingDeps, installDependencies } from "../services/dependencies.service.js";
+import { log, startSpinner, succeed, fail } from "../utils/logger.js";
 import { configExists, getProjectRoot, isReactNativeProject } from "../utils/paths.js";
+import { detectPackageManager } from "../utils/package-manager.js";
 import { detectAndroidVersionName } from "../utils/version.js";
+
+// The two packages a project actually imports from (@openota/sdk in JS, @openota/native-android
+// via autolinking) — distinct from SDK_NATIVE_DEPS, which are @openota/sdk's own native peer deps.
+// Both groups need to land in package.json for the app to work, so init installs both in one pass.
+const OPENOTA_PACKAGES = ["@openota/sdk", "@openota/native-android"];
 
 interface InitOptions {
   serverUrl: string;
   runtimeVersion?: string;
   projectId?: string;
+  skipInstall?: boolean;
+}
+
+async function installMissingDependencies(root: string): Promise<void> {
+  const missing = await getMissingDeps(root, [...OPENOTA_PACKAGES, ...SDK_NATIVE_DEPS]);
+  if (missing.length === 0) {
+    return;
+  }
+
+  const pm = detectPackageManager(root);
+  const spinner = startSpinner(`Installing dependencies with ${pm} (${missing.join(", ")})...`);
+  try {
+    await installDependencies(root, missing);
+    succeed(spinner, `Installed: ${missing.join(", ")}`);
+  } catch (error) {
+    fail(spinner, `Could not install dependencies automatically (${error instanceof Error ? error.message : "unknown error"})`);
+    log.info(`Install them yourself: ${pm} ${pm === "npm" ? "install" : "add"} ${missing.join(" ")}`);
+  }
 }
 
 async function runInit(options: InitOptions): Promise<void> {
@@ -69,6 +95,10 @@ async function runInit(options: InitOptions): Promise<void> {
   }
   await writeConfig(root, config);
 
+  if (!options.skipInstall) {
+    await installMissingDependencies(root);
+  }
+
   log.success("Created openota.config.json");
   log.info(`Server URL: ${config.serverUrl}`);
   log.info(`Platforms: ${config.platforms.join(", ")}`);
@@ -89,6 +119,11 @@ async function runInit(options: InitOptions): Promise<void> {
         "MainApplication.kt integration this value must match.",
     );
   }
+
+  log.title("Next steps");
+  log.info("1. openota login --api-key <key>   (OpenOTA Cloud) or skip for self-hosted");
+  log.info("2. openota doctor                  verify native wiring (Android/iOS)");
+  log.info("3. openota release --version <x.y.z> --platform android");
 }
 
 export function registerInitCommand(program: Command): void {
@@ -104,6 +139,7 @@ export function registerInitCommand(program: Command): void {
       "--project-id <id>",
       "OpenOTA Cloud project ID (omit for self-hosted; `openota login` fills this in automatically)",
     )
+    .option("--skip-install", "Don't auto-install missing @openota/sdk native dependencies", false)
     .action(async (options: InitOptions) => {
       await runInit(options);
     });

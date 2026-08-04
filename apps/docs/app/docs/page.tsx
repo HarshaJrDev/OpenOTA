@@ -261,14 +261,19 @@ export default function DocsPage() {
         <Section id="quickstart" icon={Terminal} title="Quickstart">
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
             <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`npm install @openota/sdk @openota/native-android
-npm install -D @openota/cli
+              <code>{`npm install -D @openota/cli
 
 npx openota init --server-url https://YOUR-SERVER/api/v1 --runtime-version 1.0.0
 npx openota doctor
 npx openota release --version 1.0.1 --platform android`}</code>
             </pre>
           </Card>
+          <p className="text-sm text-muted-foreground">
+            <code>openota init</code> detects your package manager (npm, yarn, or pnpm) and automatically installs{" "}
+            <code>@openota/sdk</code>, <code>@openota/native-android</code>, and every native peer dependency the SDK
+            needs — nothing to install by hand. Pass <code>--skip-install</code> to opt out. If a dependency ever
+            goes missing later, <code>npx openota doctor --fix</code> repairs it the same way.
+          </p>
           <p className="text-sm text-muted-foreground">
             Full native wiring (Android/iOS) and SDK integration walkthrough lives in{" "}
             <a
@@ -367,9 +372,9 @@ npx openota release --version 1.0.1 --platform android`}</code>
 
         <Section id="native-deps" icon={Boxes} title="Native dependencies">
           <p className="text-muted-foreground">
-            <code>@openota/sdk</code> is a thin JS layer over a few native modules — installing it with npm/yarn is
-            not enough on its own. Every package below needs a real native rebuild before the SDK will work, not
-            just a JS reload.
+            <code>@openota/sdk</code> is a thin JS layer over a few native modules. <code>openota init</code> installs
+            these automatically (see Quickstart above) — but every one of them still needs a real native rebuild
+            before the SDK will work, not just a JS reload.
           </p>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
             <Table>
@@ -391,7 +396,8 @@ npx openota release --version 1.0.1 --platform android`}</code>
           </Card>
           <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
             <pre className="overflow-x-auto p-5 font-mono text-sm leading-relaxed">
-              <code>{`npm install react-native-mmkv react-native-nitro-modules \\
+              <code>{`# Already installed for you by \`openota init\` — only needed if you're adding these manually
+npm install react-native-mmkv react-native-nitro-modules \\
   react-native-fs react-native-zip-archive \\
   react-native-quick-crypto react-native-quick-base64
 

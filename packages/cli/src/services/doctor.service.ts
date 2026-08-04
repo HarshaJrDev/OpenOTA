@@ -4,11 +4,13 @@ import axios from "axios";
 import { execa } from "execa";
 import fse from "fs-extra";
 
+import { SDK_NATIVE_DEPS } from "../constants/index.js";
 import type { DoctorCheckResult } from "../types/index.js";
 import { getConfigPath, getProjectRoot, isReactNativeProject } from "../utils/paths.js";
 import { getNodeVersion } from "../utils/version.js";
 import { loadConfig } from "./config.service.js";
 import { credentialsFileMode, getApiKey } from "./credentials.service.js";
+import { getMissingDeps, installDependencies } from "./dependencies.service.js";
 import { resolveProjectFromKey } from "./project.service.js";
 
 async function checkNode(): Promise<DoctorCheckResult> {
@@ -49,21 +51,6 @@ async function checkIos(root: string): Promise<DoctorCheckResult> {
     message: ok ? "ios/ directory found" : "ios/ directory not found",
   };
 }
-
-// react-native-quick-base64 and react-native-nitro-modules are transitive *peer* dependencies of
-// react-native-quick-crypto/react-native-mmkv (Nitro-based versions) — npm/yarn happily hoists
-// them into node_modules without them ever landing in the app's own package.json, and RN's
-// autolinking only considers packages the app's package.json actually declares. Left undeclared,
-// autolinking silently skips them, producing a runtime "TurboModuleRegistry.getEnforcing(...):
-// 'QuickBase64' could not be found" crash that looks nothing like a missing-dependency problem.
-const SDK_NATIVE_DEPS = [
-  "react-native-mmkv",
-  "react-native-fs",
-  "react-native-zip-archive",
-  "react-native-quick-crypto",
-  "react-native-quick-base64",
-  "react-native-nitro-modules",
-];
 
 /**
  * @openota/sdk depends on a handful of native modules (see docs "Native dependencies"). Being in
@@ -232,4 +219,38 @@ export async function runDoctorChecks(root: string = getProjectRoot()): Promise<
   }
 
   return results;
+}
+
+export interface DoctorFixResult {
+  fixed: string[];
+  /** Failures are reported, not thrown — `doctor --fix` degrades to "fixed what it could" rather than aborting the whole run over one failed install. */
+  failed: Array<{ name: string; message: string }>;
+}
+
+/**
+ * Only handles the one class of problem that's safe to repair without user input: missing SDK
+ * native deps in package.json. Everything else `doctor` flags (missing config, auth, stale pods,
+ * unreachable server) either requires values only the user has (runtimeVersion, an API key) or a
+ * command this CLI can't safely run on their behalf (`pod install` touches native project state) —
+ * inventing those would be the exact "silently do the wrong thing" failure mode `init` already
+ * avoids for runtimeVersion.
+ */
+export async function runDoctorFix(root: string = getProjectRoot()): Promise<DoctorFixResult> {
+  const fixed: string[] = [];
+  const failed: Array<{ name: string; message: string }> = [];
+
+  const missingDeps = await getMissingDeps(root, SDK_NATIVE_DEPS);
+  if (missingDeps.length > 0) {
+    try {
+      await installDependencies(root, missingDeps);
+      fixed.push(`Installed missing dependencies: ${missingDeps.join(", ")}`);
+    } catch (error) {
+      failed.push({
+        name: "SDK Native Dependencies",
+        message: error instanceof Error ? error.message : "install failed",
+      });
+    }
+  }
+
+  return { fixed, failed };
 }
