@@ -2,7 +2,6 @@ import {
   ArrowRight,
   Check,
   Cloud,
-  Github,
   Layers,
   Lock,
   LogIn,
@@ -10,7 +9,6 @@ import {
   RotateCcw,
   ShieldCheck,
   Smartphone,
-  Star,
   Terminal,
   Wifi,
   X,
@@ -23,6 +21,7 @@ import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
 import { FadeIn } from "./components/fade-in";
+import { SiteFooter, SiteNav } from "./components/site-nav";
 
 const STACK = ["React Native", "TypeScript", "Kotlin", "Swift", "PostgreSQL", "Express"];
 
@@ -160,7 +159,7 @@ export default async function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[640px] grid-fade" />
       <div className="pointer-events-none absolute left-1/2 top-[-120px] -z-10 h-[520px] w-[820px] -translate-x-1/2 animate-glow-pulse rounded-full bg-gradient-to-br from-brand-from/40 via-brand-to/30 to-transparent blur-[120px]" />
 
-      <Nav stars={stars} />
+      <SiteNav stars={stars} />
       <Hero />
       <Stack />
       <ProductPreview />
@@ -171,62 +170,8 @@ export default async function Home() {
       <Comparison />
       <Faq />
       <Cta />
-      <Footer />
+      <SiteFooter />
     </div>
-  );
-}
-
-function Nav({ stars }: { stars: number | null }) {
-  return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-lg">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg brand-gradient-bg text-sm font-bold text-white">
-            O
-          </span>
-          OpenOTA
-        </Link>
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#why" className="transition-colors hover:text-foreground">
-            Why OpenOTA
-          </a>
-          <a href="#features" className="transition-colors hover:text-foreground">
-            Features
-          </a>
-          <a href="#how-it-works" className="transition-colors hover:text-foreground">
-            How it works
-          </a>
-          <a href="#faq" className="transition-colors hover:text-foreground">
-            FAQ
-          </a>
-          <Link href="/docs" className="transition-colors hover:text-foreground">
-            Docs
-          </Link>
-          <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
-            GitHub
-          </a>
-        </nav>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5">
-              <Github />
-              {stars !== null && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3 fill-current" />
-                  {stars.toLocaleString()}
-                </span>
-              )}
-            </a>
-          </Button>
-          <Button size="sm" asChild>
-            <a href="#get-started">
-              Get started
-              <ArrowRight />
-            </a>
-          </Button>
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -577,26 +522,3 @@ function Cta() {
   );
 }
 
-function Footer() {
-  return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
-        <span>© {new Date().getFullYear()} OpenOTA. Built by Harsha. MIT licensed.</span>
-        <div className="flex items-center gap-6">
-          <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
-            GitHub
-          </a>
-          <Link href="/docs" className="transition-colors hover:text-foreground">
-            Docs
-          </Link>
-          <a href="#features" className="transition-colors hover:text-foreground">
-            Features
-          </a>
-          <a href="#faq" className="transition-colors hover:text-foreground">
-            FAQ
-          </a>
-        </div>
-      </div>
-    </footer>
-  );
-}
