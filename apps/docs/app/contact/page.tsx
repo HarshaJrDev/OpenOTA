@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Report a bug, ask a question, or get in touch directly.",
 };
 
-const CONTACT_EMAIL = "knkgroup.services@gmail.com";
+const CONTACT_EMAIL = "developmet1043@gmail.com";
 
 export default async function ContactPage() {
   return (

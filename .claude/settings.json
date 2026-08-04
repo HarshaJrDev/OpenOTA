@@ -11,7 +11,12 @@
       "Bash(mkdir -p android/src/main/java/com/openota/runtime)",
       "Bash(mv src/main/java/com/openota/runtime/.gitkeep android/src/main/java/com/openota/runtime/)",
       "Bash(rm -rf src)",
-      "Bash(npx react-native *)"
+      "Bash(npx react-native *)",
+      "Bash(vercel ls *)",
+      "Bash(curl -s -o /dev/null -w \"openota.vercel.app: %{http_code}\\\\n\" \"https://openota.vercel.app/\")",
+      "Bash(curl -s \"https://openota.vercel.app/\")",
+      "Bash(vercel remove *)",
+      "Bash(vercel alias *)"
     ]
   }
 }
