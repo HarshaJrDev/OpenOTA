@@ -10,7 +10,7 @@ import { usersRepo } from "./repositories.js";
  * opt-in can. Idempotent: safe to call on every boot, only inserts once.
  */
 const DEMO_EMAIL = "demo@openota.dev";
-const DEMO_PASSWORD = "OpenOTA-Demo-2026!";
+const DEMO_PASSWORD = "OpenOTA-Demo-2026!"; // ggignore — intentionally public, documented in docs/CLOUD.md, hard-guarded off in production above
 
 export async function seedDemoAccountIfEnabled(): Promise<void> {
   if (env.nodeEnv === "production" || !env.seedDemoAccount) {
