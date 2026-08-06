@@ -82,9 +82,9 @@ pnpm turbo run test --filter=@openota/shared --filter=@openota/sdk --filter=@ope
 log "Build and tests passed."
 
 step "Step 6 — Publish to npm"
-# `pnpm release` = `... build ... && changeset publish` (see root package.json) — build already
-# ran above so this mostly re-confirms nothing changed since, then does the actual `npm publish`
-# per bumped package, with provenance.
+# `pnpm release` = build + ./scripts/publish-changed.sh (see root package.json) — publishes via
+# `pnpm publish` per package, NOT `changeset publish` (which doesn't resolve pnpm's workspace:*
+# protocol — see publish-changed.sh's doc comment for exactly what that broke once already).
 pnpm release
 log "Published."
 

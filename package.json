@@ -11,7 +11,7 @@
     "check-types": "turbo run check-types",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli && changeset publish"
+    "release": "turbo run build --filter=@openota/shared --filter=@openota/sdk --filter=@openota/cli && ./scripts/publish-changed.sh"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
