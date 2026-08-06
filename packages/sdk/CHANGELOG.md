@@ -1,5 +1,16 @@
 # @openota/sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix `0.3.0` being published with the literal `"@openota/shared": "workspace:*"` as a dependency
+  instead of a resolved version — made the package uninstallable by any consumer outside this
+  monorepo (`npm install @openota/sdk` failed with `EUNSUPPORTEDPROTOCOL`). Root cause: `changeset
+publish` shells out to plain `npm publish`, which doesn't rewrite pnpm's `workspace:*` protocol
+  the way `pnpm publish` does — confirmed via `pnpm pack`, which resolves it correctly. Publishing
+  this fix via `pnpm publish` directly, not `changeset publish`.
+
 ## 0.3.0
 
 ### Minor Changes
