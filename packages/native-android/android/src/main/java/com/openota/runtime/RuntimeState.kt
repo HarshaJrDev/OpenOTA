@@ -52,7 +52,35 @@ object RuntimeStateMachine {
         RuntimeState.INSTALLED to setOf(RuntimeState.ACTIVATED, RuntimeState.FAILED),
         RuntimeState.ACTIVATED to setOf(RuntimeState.FAILED, RuntimeState.ROLLBACK, RuntimeState.DOWNLOADED),
         RuntimeState.FAILED to setOf(RuntimeState.ROLLBACK, RuntimeState.DOWNLOADED, RuntimeState.EMBEDDED),
-        RuntimeState.ROLLBACK to setOf(RuntimeState.ACTIVATED, RuntimeState.EMBEDDED),
+        // FAILED is included because rollbackBundle() writes ROLLBACK first, then — if
+        // rollback.restore() throws (e.g. NoRollbackAvailableException, nothing to restore) —
+        // catches it and calls stateHolder.transition(FAILED) before rethrowing the original
+        // exception (see BundleManager.rollbackBundle()'s catch block). Without ROLLBACK ->
+        // FAILED being legal, that recovery transition itself throws IllegalStateTransitionException
+        // from inside the catch block, which replaces/masks the real, actionable
+        // NoRollbackAvailableException the caller was supposed to see. Confirmed via a pre-existing
+        // test (`a failed rollback with nothing to restore does not block the next activation`)
+        // that was already failing on main before this fix, independent of the DOWNLOADED edge
+        // below — this is a second, separate instance of the same category of bug.
+        //
+        // DOWNLOADED is included here (not just ACTIVATED/EMBEDDED) because `stateHolder` is
+        // initialized directly from the *persisted* root manifest's state on every BundleManager
+        // construction (see the constructor). rollbackBundle() writes ROLLBACK before attempting
+        // the restore and only reaches ACTIVATED afterward — a process kill/crash in that exact
+        // window (force-stop, OOM, OS kill) durably persists ROLLBACK with no further transition
+        // ever recorded. Every future launch would then construct a fresh BundleManager that reads
+        // ROLLBACK straight off disk and, without this edge, could never legally re-enter the
+        // install pipeline again — permanently blocking every future OTA update on that device
+        // until the app was reinstalled. Confirmed live: `openota rollback`'s device-side
+        // equivalent (a stray double-tap of "Roll back") left a real device in exactly this state,
+        // and the very next release upload failed with "Illegal OpenOTA runtime transition:
+        // ROLLBACK -> DOWNLOADED".
+        RuntimeState.ROLLBACK to setOf(
+            RuntimeState.ACTIVATED,
+            RuntimeState.EMBEDDED,
+            RuntimeState.DOWNLOADED,
+            RuntimeState.FAILED,
+        ),
     )
 
     /**
