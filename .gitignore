@@ -76,3 +76,7 @@ apps/server/dev.db-wal
 data/pgdata/
 apps/server/data/
 .env*
+
+# NearDeals_Mobile is its own separate git repo (github.com/knkgroupservices/NearDeals_Mobile),
+# just nested inside this folder on disk for local convenience — never part of this repo.
+NearDeals_Mobile/
