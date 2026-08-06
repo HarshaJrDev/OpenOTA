@@ -1,0 +1,21 @@
+# Never synced to the VPS — either regenerated there (node_modules, build output) or must never
+# leave your Mac in the first place (.env*, .git).
+.git/
+.git
+**/node_modules/
+node_modules/
+**/.next/
+.next/
+**/dist/
+dist/
+.turbo/
+**/.turbo/
+coverage/
+**/coverage/
+.env
+.env.*
+**/.env
+**/.env.*
+*.log
+.DS_Store
+**/.DS_Store
