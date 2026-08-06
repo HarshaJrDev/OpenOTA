@@ -1,6 +1,6 @@
 {
   "name": "@openota/sdk",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "Official React Native SDK for OpenOTA — check, download, verify and install OTA updates",
   "type": "module",
   "license": "MIT",
