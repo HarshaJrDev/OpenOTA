@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 
 import { Providers } from "@/components/providers";
+import { TrafficBeacon } from "@/components/traffic-beacon";
 
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
         <Analytics />
+        <TrafficBeacon />
       </body>
     </html>
   );

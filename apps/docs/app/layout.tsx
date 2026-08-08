@@ -5,6 +5,7 @@ import "./globals.css";
 
 import { Analytics } from "./components/analytics";
 import { StructuredData } from "./components/structured-data";
+import { TrafficBeacon } from "./components/traffic-beacon";
 
 const plexSans = IBM_Plex_Sans({
   variable: "--font-plex-sans",
@@ -72,6 +73,7 @@ export default function RootLayout({
         {children}
         <SpeedInsights />
         <Analytics />
+        <TrafficBeacon />
       </body>
     </html>
   );

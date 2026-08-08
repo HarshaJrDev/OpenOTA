@@ -1,15 +1,21 @@
 "use client";
 
-import { ShieldAlert } from "lucide-react";
+import * as React from "react";
+import { Eye, ShieldAlert, Users } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@openota/ui/card";
 import { Label } from "@openota/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@openota/ui/select";
 import { Skeleton } from "@openota/ui/skeleton";
 import { Switch } from "@openota/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@openota/ui/tabs";
 
 import { EmptyState } from "@/components/empty-state";
+import { StatCard } from "@/components/stat-card";
+import type { TrafficApp, TrafficRange } from "@/features/admin/api";
+import { useAdminSettings, useTraffic, useUpdateAdminSettings } from "@/features/admin/hooks";
 import { useMe } from "@/features/auth/hooks";
-import { useAdminSettings, useUpdateAdminSettings } from "@/features/admin/hooks";
 
 export default function AdminPage() {
   const { data: user, isLoading: meLoading } = useMe();
@@ -76,6 +82,98 @@ function AdminSettingsPanel() {
                 disabled={updateSettings.isPending}
                 onCheckedChange={(checked) => updateSettings.mutate({ emailTestMode: checked })}
               />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <TrafficPanel />
+    </div>
+  );
+}
+
+function TrafficPanel() {
+  const [app, setApp] = React.useState<TrafficApp>("docs");
+  const [range, setRange] = React.useState<TrafficRange>("30d");
+  const { data, isLoading } = useTraffic(app, range);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Traffic</h2>
+          <p className="text-sm text-muted-foreground">
+            Real pageviews recorded by the {app === "docs" ? "openota.xyz marketing site" : "dashboard itself"} —
+            no third-party analytics, nothing sampled or estimated.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Tabs value={app} onValueChange={(v) => setApp(v as TrafficApp)}>
+            <TabsList>
+              <TabsTrigger value="docs">Website</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Select value={range} onValueChange={(v) => setRange(v as TrafficRange)}>
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">7 days</SelectItem>
+              <SelectItem value="30d">30 days</SelectItem>
+              <SelectItem value="90d">90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard title="Pageviews" icon={Eye} value={(data?.views ?? 0).toString()} loading={isLoading} />
+        <StatCard title="Unique visitors" icon={Users} value={(data?.uniqueVisitors ?? 0).toString()} loading={isLoading} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Daily pageviews</CardTitle>
+        </CardHeader>
+        <CardContent className="h-64">
+          {isLoading ? (
+            <Skeleton className="h-full w-full" />
+          ) : !data?.daily.length ? (
+            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              No visits recorded in this range yet.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.daily}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="day" className="text-xs" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} className="text-xs" />
+                <Tooltip cursor={{ fill: "var(--color-muted)" }} />
+                <Bar dataKey="views" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Top pages</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : !data?.topPaths.length ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No visits recorded in this range yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.topPaths.map((p) => (
+                <div key={p.path} className="flex items-center justify-between border-b py-1.5 text-sm last:border-0">
+                  <span className="font-mono text-xs text-muted-foreground">{p.path}</span>
+                  <span className="font-medium">{p.views}</span>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

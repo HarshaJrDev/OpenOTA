@@ -4,11 +4,23 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
 
 import * as adminApi from "./api";
+import type { TrafficApp, TrafficRange } from "./api";
 
 const adminKeys = { settings: ["admin", "settings"] as const };
 
 export function useAdminSettings() {
   return useQuery({ queryKey: adminKeys.settings, queryFn: adminApi.getAdminSettings });
+}
+
+export function useTraffic(app: TrafficApp, range: TrafficRange) {
+  return useQuery({
+    queryKey: ["admin", "traffic", app, range],
+    queryFn: () => adminApi.getTraffic(app, range),
+    // Traffic changes continuously — a stale 5-minute-old count on an admin panel is misleading in
+    // a way a stale package list isn't, so this refetches more eagerly than the query client's
+    // global default.
+    refetchInterval: 30_000,
+  });
 }
 
 export function useUpdateAdminSettings() {
