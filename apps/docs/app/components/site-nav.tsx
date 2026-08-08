@@ -87,6 +87,23 @@ export function SiteFooter() {
           </Link>
         </div>
       </div>
+      <div className="mx-auto mt-6 flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border/40 px-6 pt-6 text-xs text-muted-foreground/80 sm:justify-start">
+        <Link href="/about" className="transition-colors hover:text-foreground">
+          About
+        </Link>
+        <Link href="/privacy" className="transition-colors hover:text-foreground">
+          Privacy Policy
+        </Link>
+        <Link href="/terms" className="transition-colors hover:text-foreground">
+          Terms of Service
+        </Link>
+        <Link href="/cookies" className="transition-colors hover:text-foreground">
+          Cookie Policy
+        </Link>
+        <Link href="/disclaimer" className="transition-colors hover:text-foreground">
+          Disclaimer
+        </Link>
+      </div>
     </footer>
   );
 }

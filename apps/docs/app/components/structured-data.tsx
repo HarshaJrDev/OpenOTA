@@ -35,7 +35,7 @@ export function StructuredData() {
   return (
     <script
       type="application/ld+json"
-      // eslint-disable-next-line react/no-danger -- static, hand-authored JSON, not user input
+      // Static, hand-authored JSON below — never user input.
       dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
     />
   );

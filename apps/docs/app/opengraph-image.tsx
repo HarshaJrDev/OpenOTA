@@ -31,7 +31,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse requires a plain <img>, not next/image */}
+          {/* ImageResponse (Satori) requires a plain <img>, not next/image */}
           <img src={icon} width={100} height={100} style={{ borderRadius: 22 }} alt="" />
           <span style={{ fontSize: 72, fontWeight: 700, color: "white", letterSpacing: -2 }}>OpenOTA</span>
         </div>
