@@ -56,6 +56,13 @@ warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 fail() { echo -e "${RED}[✘]${NC} $1"; exit 1; }
 step() { echo -e "\n${BLUE}──────────────────────────────────────${NC}\n${BLUE}  $1${NC}\n${BLUE}──────────────────────────────────────${NC}"; }
 
+# Resolved to an absolute path BEFORE the cd below — "$0" is relative whenever this is invoked as
+# a relative path (e.g. `cd scripts && ./deploy.sh`, or the equally natural `./deploy.sh` from
+# inside this directory), and `dirname "$0"` re-evaluated after `cd`ing to repo root would then
+# resolve against the wrong base directory, pointing rsync's --exclude-from at a nonexistent path.
+# Confirmed via a real failed deploy: "rsync: open: ./rsync-exclude.txt: No such file or directory".
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"  # repo root, wherever this is invoked from
 
 step "Step 1 — Verifying SSH access"
@@ -74,7 +81,7 @@ step "Step 3 — Syncing source (rsync, Mac -> VPS)"
 # -z: compress over the wire — worth it even on a fast link, this is a lot of small JS/TS files
 # --info=progress2: one live overall progress line instead of a scrolling per-file list
 rsync -az --delete --progress \
-  --exclude-from="$(dirname "$0")/rsync-exclude.txt" \
+  --exclude-from="${SCRIPT_DIR}/rsync-exclude.txt" \
   -e "ssh -p ${VPS_SSH_PORT}" \
   ./ "${VPS_USER}@${VPS_HOST}:${RELEASE_DIR}/"
 log "Source synced to ${RELEASE_DIR}"
