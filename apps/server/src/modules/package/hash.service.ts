@@ -51,6 +51,19 @@ export function verifyBundleChecksum(zipFilePath: string, bundleName: string, cl
     throw new UploadError(`Bundle entry "${entryPath}" not found in the uploaded zip.`);
   }
 
+  // Defense in depth on top of the adm-zip 0.6.0 upgrade (GHSA-xcpc-8h2w-3j85, "crafted ZIP file
+  // triggers 4GB memory allocation"): the central directory's declared uncompressed size is
+  // attacker-controlled and read before any actual decompression happens. Reject anything claiming
+  // to be absurdly larger than any real JS bundle could plausibly be *before* calling getData(),
+  // which is what allocates the buffer. 500 MB is generous headroom over any real RN bundle.
+  const MAX_ENTRY_UNCOMPRESSED_BYTES = 500 * 1024 * 1024;
+  const declaredSize = entry.header.size;
+  if (declaredSize > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+    throw new UploadError(
+      `Bundle entry "${entryPath}" declares an uncompressed size of ${declaredSize} bytes, exceeding the ${MAX_ENTRY_UNCOMPRESSED_BYTES}-byte limit — refusing to decompress.`,
+    );
+  }
+
   // A zip whose central directory parses but whose entry data is itself truncated/corrupted
   // (e.g. an interrupted upload) throws here too — same treatment as an unparseable zip above.
   let entryData: Buffer;

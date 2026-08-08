@@ -29,7 +29,7 @@
     "@types/node": "^22.15.3",
     "@types/pg": "^8.20.0",
     "@types/ws": "^8.5.13",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

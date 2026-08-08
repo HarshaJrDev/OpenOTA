@@ -74,7 +74,7 @@
     "@types/archiver": "^6.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.15.3",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "eslint": "^9.39.1",
     "tsx": "^4.23.1",
     "typescript": "5.9.2",
