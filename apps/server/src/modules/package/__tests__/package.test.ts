@@ -79,6 +79,28 @@ describe("package module", () => {
     expect(getRes.status).toBe(404);
   });
 
+  it("rejects a corrupted (non-zip) upload with a clean 400, not a 500", async () => {
+    // Real bytes that are not a valid zip archive at all — e.g. a truncated/interrupted upload.
+    // adm-zip's constructor throws a raw Error for this, which must be caught and translated,
+    // not left to fall through to the generic 500 INTERNAL_ERROR handler.
+    const garbage = Buffer.from("not a zip file, just random bytes ".repeat(50));
+    const res = await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "9.8.4")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", "a".repeat(64))
+      .field("size", String(garbage.length))
+      .attach("file", garbage, { filename: "bundle.zip", contentType: "application/zip" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("UPLOAD_FAILED");
+
+    const getRes = await request(app).get("/api/v1/packages/android/9.8.4");
+    expect(getRes.status).toBe(404);
+  });
+
   it("rejects duplicate uploads", async () => {
     const bundle = createTestBundleZip();
     const res = await request(app)
