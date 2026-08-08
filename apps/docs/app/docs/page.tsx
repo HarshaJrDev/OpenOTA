@@ -1,5 +1,21 @@
 import type { Metadata } from "next";
-import { Boxes, Cloud, Database, HardDrive, KeyRound, Layers, Package, Server, Settings, Smartphone, Sparkles, Terminal, Wifi } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  Cloud,
+  Database,
+  FlaskConical,
+  HardDrive,
+  KeyRound,
+  Layers,
+  Package,
+  Server,
+  Settings,
+  Smartphone,
+  Sparkles,
+  Terminal,
+  Wifi,
+} from "lucide-react";
 
 import { Badge } from "@openota/ui/badge";
 import { Card } from "@openota/ui/card";
@@ -26,6 +42,39 @@ const NAV = [
   { href: "#realtime", label: "Real-time updates" },
   { href: "#dashboard", label: "Dashboard features" },
   { href: "#env", label: "Environment variables" },
+  { href: "#reference-app", label: "Reference app" },
+  { href: "#troubleshooting", label: "Troubleshooting" },
+];
+
+const TROUBLESHOOTING = [
+  {
+    q: "\"Bundle checksum mismatch\" or \"Bundle entry not found in the uploaded zip\" on release",
+    a: "The uploaded zip's JS bundle doesn't match the claimed sha256/path — the server independently re-verifies both rather than trusting the CLI's claim. If you're calling the upload API directly instead of using the CLI, the bundle file must be at bundle/<bundleName> inside the zip, matching what the SDK's extractor expects on-device.",
+  },
+  {
+    q: "\"Manifest not found\" when the app tries to activate an update",
+    a: "The native runtime independently re-verifies the downloaded package — it re-parses manifest.json from the extracted files on disk, not the JS object the check() call returned. A package missing manifest.json (a hand-built or corrupted zip) fails here even if the server accepted the upload, by design: the JS layer is never treated as a trust boundary.",
+  },
+  {
+    q: "\"Bundle runtimeVersion does not match app runtimeVersion\"",
+    a: "The release's runtimeVersion doesn't match the value passed to OpenOTAReactHost.create() in MainApplication.kt. This is intentional — an OTA bundle built against a different native binary generation should never activate. Fix the mismatch, don't work around it: keep openota.config.json's runtimeVersion and the native constant in sync deliberately.",
+  },
+  {
+    q: "A device stays on \"Embedded\" after reinstalling the app or clearing app data",
+    a: "Expected, not a bug. The OTA-installed bundle lives in the app's private storage (Android: /data/data/<package>/files/OpenOTA/...) — both a full reinstall and Settings → Clear Data wipe that storage the same way Android wipes any app's private data. Check for update once more and it re-downloads cleanly.",
+  },
+  {
+    q: "\"Rollback failed\" / \"No rollback bundle is available\"",
+    a: "Correct behavior on a device that has only ever had one OTA generation installed (or none) — there's genuinely nothing to roll back to yet. The native runtime only ever keeps one previous generation; install a second real update first if you want to test rollback.",
+  },
+  {
+    q: "\"An unexpected error occurred\" (500) on upload instead of a specific error",
+    a: "If this happens on a self-hosted server with a genuinely malformed (non-zip) upload, you're hitting a real fixed bug from an earlier OpenOTA version — update to the latest server. A correctly-updated server always translates a corrupted upload into a clean 400 UPLOAD_FAILED, never a bare 500.",
+  },
+  {
+    q: "npx openota: 404 Not Found from the npm registry",
+    a: 'There is no package literally named "openota" on npm. The published package is @openota/cli — run npx @openota/cli <command>, or install it as a dev dependency and use your package manager\'s bin resolution (npm run / pnpm exec).',
+  },
 ];
 
 const CORE_CONCEPTS = [
@@ -533,6 +582,64 @@ OTA.connectLive(() => {
             </a>
             .
           </p>
+        </Section>
+
+        <Section id="reference-app" icon={FlaskConical} title="Reference app">
+          <p className="text-muted-foreground">
+            <code>OpenOTA_Example</code> in the monorepo is a real, working OTA client — not a mock. Every
+            screen talks to the live OpenOTA Cloud API through the real, published <code>@openota/sdk</code> and{" "}
+            <code>@openota/native-android</code> packages: check for update, download, verify, install, and
+            rollback, all real. It deliberately does not reimplement release/channel management — that stays on
+            this dashboard, exactly the separation of concerns your own app should follow.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="border-border/60 bg-card/60 p-5">
+              <h3 className="font-medium">What to read</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+                <li>
+                  <code>src/context/OtaContext.tsx</code> — the entire integration surface: one{" "}
+                  <code>OTA.configure()</code> call, check/sync/rollback wired to React state.
+                </li>
+                <li>
+                  <code>android/app/.../MainApplication.kt</code> — the required{" "}
+                  <code>OpenOTAReactHost.create()</code> native wiring, with the runtime-version constant.
+                </li>
+                <li>
+                  <code>openota.config.json</code> — a real <code>serverUrl</code>/<code>projectId</code>/
+                  <code>runtimeVersion</code> pointed at a live project, not a placeholder.
+                </li>
+              </ul>
+            </Card>
+            <Card className="border-border/60 bg-card/60 p-5">
+              <h3 className="font-medium">Try it yourself</h3>
+              <CodeBlock
+                label="reference app quickstart"
+                code={`cd OpenOTA_Example
+npm install
+npm run android
+npx @openota/cli release --version 1.0.1`}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Reopen the app and pull-to-refresh — the update comes from the real server response, not a
+                fixture.
+              </p>
+            </Card>
+          </div>
+        </Section>
+
+        <Section id="troubleshooting" icon={AlertTriangle} title="Troubleshooting">
+          <p className="text-muted-foreground">
+            Real errors this project has actually surfaced, not a generic FAQ — each one either explains
+            intentional behavior or names a bug that&apos;s already fixed in the current release.
+          </p>
+          <div className="space-y-4">
+            {TROUBLESHOOTING.map((item) => (
+              <Card key={item.q} className="border-border/60 bg-card/60 p-5">
+                <h3 className="font-medium">{item.q}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
+              </Card>
+            ))}
+          </div>
         </Section>
 
         <Card className="flex items-center gap-4 border-border/60 bg-card/60 p-6">
