@@ -30,3 +30,39 @@ export async function seedDemoAccountIfEnabled(): Promise<void> {
   // password lives here in source and in docs/CLOUD.md, not in runtime logs.
   logger.info({ email: DEMO_EMAIL }, "DEV MODE: seeded demo account — see docs/CLOUD.md for credentials");
 }
+
+const TEST_ADMIN_EMAIL = "admin@test.openota.dev";
+const TEST_USER_EMAIL = "user@test.openota.dev";
+
+/**
+ * DEV MODE ONLY, same hard production guard as seedDemoAccountIfEnabled — for local/CI
+ * authorization testing (admin vs. non-admin, project-isolation checks), never for anything a real
+ * user could stumble into. Unlike the demo account, passwords are NOT hardcoded: they must come
+ * from OPENOTA_TEST_ADMIN_PASSWORD / OPENOTA_TEST_USER_PASSWORD so a real password never sits in
+ * source. Seeding admin@test.openota.dev only creates the account — it becomes an actual admin
+ * only if also listed in ADMIN_EMAILS, which is a separate, deliberate step.
+ */
+export async function seedTestUsersIfEnabled(): Promise<void> {
+  if (env.nodeEnv === "production" || !env.seedTestUsers) {
+    return;
+  }
+  if (!env.testAdminPassword || !env.testUserPassword) {
+    logger.warn(
+      "SEED_TEST_USERS is on but OPENOTA_TEST_ADMIN_PASSWORD/OPENOTA_TEST_USER_PASSWORD are not both set — skipping. Unlike the demo account, test-user passwords are never hardcoded.",
+    );
+    return;
+  }
+
+  for (const [email, password] of [
+    [TEST_ADMIN_EMAIL, env.testAdminPassword],
+    [TEST_USER_EMAIL, env.testUserPassword],
+  ] as const) {
+    const existing = await usersRepo.findByEmail(email);
+    if (existing) continue;
+    const user = await usersRepo.create(email, hashPassword(password));
+    await usersRepo.markEmailVerified(user.id);
+    // Never logs the password — only confirms the account now exists, same posture as the demo
+    // account's log line.
+    logger.info({ email }, "DEV MODE: seeded test user");
+  }
+}

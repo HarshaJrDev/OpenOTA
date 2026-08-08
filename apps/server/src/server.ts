@@ -3,7 +3,7 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { captureException, initSentry } from "./config/sentry.js";
 import { initDb } from "./db/client.js";
-import { seedDemoAccountIfEnabled } from "./db/seed.js";
+import { seedDemoAccountIfEnabled, seedTestUsersIfEnabled } from "./db/seed.js";
 import { attachLiveWebSocketServer } from "./modules/live/server.js";
 
 // No-op unless SENTRY_DSN is set — see config/sentry.ts.
@@ -69,6 +69,7 @@ process.on("unhandledRejection", (reason) => {
 initDb()
   .then(async () => {
     await seedDemoAccountIfEnabled();
+    await seedTestUsersIfEnabled();
 
     const server = app.listen(env.port, () => {
       logger.info(`🚀 OpenOTA running on http://localhost:${env.port}`);

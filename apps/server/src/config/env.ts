@@ -88,6 +88,18 @@ const envSchema = z
       .string()
       .optional()
       .transform((v) => v === "true"),
+    // DEV MODE ONLY — same hard production guard as SEED_DEMO_ACCOUNT above. Seeds two accounts
+    // (admin@test.openota.dev, user@test.openota.dev) for local/CI authorization testing — the
+    // admin one only actually gets admin *access* if also listed in ADMIN_EMAILS, seeding it here
+    // only creates the account. Passwords must come from env, never a hardcoded default like the
+    // demo account has (that one is deliberately public/documented; these are meant to be
+    // per-environment secrets an operator or CI pipeline controls).
+    SEED_TEST_USERS: z
+      .string()
+      .optional()
+      .transform((v) => v === "true"),
+    OPENOTA_TEST_ADMIN_PASSWORD: z.string().min(8).optional(),
+    OPENOTA_TEST_USER_PASSWORD: z.string().min(8).optional(),
     // Google OAuth sign-in — additive to email/password, never required. All three or none: see
     // the superRefine below. GOOGLE_REDIRECT_URI must exactly match a URI registered on the
     // Google Cloud OAuth client (there's no "server public URL" env var to derive this from, so
@@ -182,6 +194,9 @@ export const env = {
   sentryDsn: parsed.data.SENTRY_DSN,
   requireEmailVerification: parsed.data.REQUIRE_EMAIL_VERIFICATION,
   seedDemoAccount: parsed.data.SEED_DEMO_ACCOUNT,
+  seedTestUsers: parsed.data.SEED_TEST_USERS,
+  testAdminPassword: parsed.data.OPENOTA_TEST_ADMIN_PASSWORD,
+  testUserPassword: parsed.data.OPENOTA_TEST_USER_PASSWORD,
   googleClientId: parsed.data.GOOGLE_CLIENT_ID,
   // Never log this value — server-only secret.
   googleClientSecret: parsed.data.GOOGLE_CLIENT_SECRET,
