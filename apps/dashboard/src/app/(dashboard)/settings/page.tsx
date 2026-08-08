@@ -1,3 +1,4 @@
+import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@openota/ui/card";
@@ -40,6 +41,33 @@ export default function SettingsPage() {
 
       <SettingsSection title="React Native">
         <SdkConfigCard />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FlaskConical className="h-4 w-4 text-muted-foreground" />
+              Reference app
+            </CardTitle>
+            <CardDescription>
+              OpenOTA_Example in the monorepo — a real, working OTA client, not a mock. Every screen talks to the
+              live OpenOTA API through the real, published @openota/sdk and @openota/native-android packages.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Worth reading: <code className="rounded bg-muted px-1 py-0.5 text-xs">src/context/OtaContext.tsx</code>{" "}
+            for the whole integration surface, and{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">android/app/.../MainApplication.kt</code> for the
+            required native wiring.{" "}
+            <a
+              href="https://docs.openota.xyz/docs#reference-app"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Full walkthrough in the docs →
+            </a>
+          </CardContent>
+        </Card>
       </SettingsSection>
 
       <SettingsSection title="OTA">

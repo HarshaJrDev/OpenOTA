@@ -1,12 +1,15 @@
 "use client";
 
 import type { Platform } from "@openota/shared";
-import { Activity, Download, RotateCcw, Smartphone, XCircle } from "lucide-react";
+import { Activity, Download, FolderKanban, RotateCcw, Smartphone, XCircle } from "lucide-react";
+import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Skeleton } from "@openota/ui/skeleton";
 
+import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
 import { useInstallResultCounts } from "@/features/analytics/hooks";
 import { useDevices } from "@/features/devices/hooks";
@@ -15,9 +18,29 @@ import { useCurrentProject } from "@/features/projects/current-project-context";
 
 export default function AnalyticsPage() {
   const { currentProjectId } = useCurrentProject();
-  const { data: packages, isLoading } = usePackages(currentProjectId);
-  const { data: devices, isLoading: devicesLoading } = useDevices(currentProjectId);
-  const { data: installResults, isLoading: installResultsLoading } = useInstallResultCounts(currentProjectId);
+
+  if (!currentProjectId) {
+    return (
+      <EmptyState
+        icon={FolderKanban}
+        title="No project selected"
+        description="Choose or create a project first — analytics are scoped to a single project."
+        action={
+          <Button asChild>
+            <Link href="/projects">Go to Projects</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return <ProjectAnalytics projectId={currentProjectId} />;
+}
+
+function ProjectAnalytics({ projectId }: { projectId: string }) {
+  const { data: packages, isLoading } = usePackages(projectId);
+  const { data: devices, isLoading: devicesLoading } = useDevices(projectId);
+  const { data: installResults, isLoading: installResultsLoading } = useInstallResultCounts(projectId);
   const totalDownloads = devices?.reduce((sum, device) => sum + device.download_count, 0) ?? 0;
   const totalInstalls = (installResults?.success ?? 0) + (installResults?.failure ?? 0);
   const successRate = totalInstalls > 0 ? Math.round(((installResults?.success ?? 0) / totalInstalls) * 100) : null;

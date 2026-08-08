@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radio, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useMe } from "@/features/auth/hooks";
@@ -23,7 +24,7 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-background md:flex">
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <Radio className="h-5 w-5 text-primary" />
+        <Image src="/icon.png" alt="" width={22} height={22} className="rounded-md" priority />
         <span className="font-semibold tracking-tight">OpenOTA</span>
       </div>
 
