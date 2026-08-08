@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "../components/Button";
@@ -33,9 +33,49 @@ function AppHeader() {
   return (
     <View style={styles.header}>
       <Logo size={56} />
-      <Text style={styles.appName}>⚡ OpenOTA Example v3</Text>
-      <Text style={styles.appTagline}>Second real OTA release — proves rollback has a real previous generation to restore.</Text>
+      <Text style={styles.appName}>📋 OpenOTA Example v4</Text>
+      <Text style={styles.appTagline}>Third real OTA release — adds a list, proving OTA can ship real layout/feature changes, not just text.</Text>
     </View>
+  );
+}
+
+// Dummy data — stands in for whatever real image-backed list a shipped app would render. The
+// point isn't the content, it's that a FlatList with real images is exactly what got added and
+// delivered via this OTA release, same as any other UI/feature change would be. place.dog is a
+// free, public, no-auth placeholder-image service (deterministic per id, like picsum but dogs).
+const DUMMY_DOGS = [
+  { id: "1", name: "Bolt", uri: "https://place.dog/500/500?id=1" },
+  { id: "2", name: "Maple", uri: "https://place.dog/500/500?id=2" },
+  { id: "3", name: "Cooper", uri: "https://place.dog/500/500?id=3" },
+  { id: "4", name: "Luna", uri: "https://place.dog/500/500?id=4" },
+  { id: "5", name: "Biscuit", uri: "https://place.dog/500/500?id=5" },
+];
+
+function DummyListSeparator() {
+  return <View style={styles.listSeparator} />;
+}
+
+function DummyDogRow({ item }: { item: (typeof DUMMY_DOGS)[number] }) {
+  return (
+    <View style={styles.listRow}>
+      <Image source={{ uri: item.uri }} style={styles.dogImage} />
+      <Text style={styles.listTitle}>{item.name}</Text>
+    </View>
+  );
+}
+
+function DummyList() {
+  return (
+    <Card style={styles.listCard}>
+      <Text style={styles.cardLabel}>Dogs</Text>
+      <FlatList
+        data={DUMMY_DOGS}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        ItemSeparatorComponent={DummyListSeparator}
+        renderItem={DummyDogRow}
+      />
+    </Card>
   );
 }
 
@@ -103,6 +143,8 @@ export function HomeScreen() {
 
         <Button label="Rollback to previous version" onPress={ota.rollbackNow} variant="ghost" loading={ota.phase === "installing"} style={{ marginTop: spacing.sm }} />
       </Card>
+
+      <DummyList />
     </ScrollView>
   );
 }
@@ -123,4 +165,10 @@ const styles = StyleSheet.create({
   error: { ...typography.caption, color: colors.danger, marginBottom: spacing.sm },
   actions: { flexDirection: "row", gap: spacing.sm },
   actionBtn: { flex: 1 },
+  listCard: { padding: 0, paddingVertical: spacing.md },
+  cardLabel: { ...typography.caption, color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: spacing.xs, paddingHorizontal: spacing.lg },
+  listSeparator: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
+  listRow: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, alignItems: "center", gap: spacing.sm },
+  listTitle: { ...typography.bodyStrong, color: colors.textPrimary },
+  dogImage: { width: "100%", aspectRatio: 1, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
 });
