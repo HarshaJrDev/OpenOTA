@@ -213,7 +213,32 @@ describe("package module", () => {
     expect(res.body.error.code).toBe("PACKAGE_NOT_FOUND");
   });
 
-  it("deletes a package", async () => {
+  it("refuses to delete the currently-active version", async () => {
+    // At this point in the suite 1.0.0 is the active flat/default-channel version (restored by
+    // the rollback test above) — deleting it would leave checkForUpdate broken for every device
+    // still on it, exactly the bug a real negative-test pass against production found.
+    const res = await request(app).delete("/api/v1/packages/android/1.0.0");
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("PACKAGE_IN_USE");
+
+    const getRes = await request(app).get("/api/v1/packages/android/1.0.0");
+    expect(getRes.status).toBe(200);
+  });
+
+  it("deletes a package once it's no longer active", async () => {
+    const bundle = createTestBundleZip("index.android.bundle", "console.log('v3');");
+    await request(app)
+      .post("/api/v1/packages")
+      .field("platform", "android")
+      .field("version", "3.0.0")
+      .field("runtimeVersion", "1.0.0")
+      .field("bundleName", "index.android.bundle")
+      .field("sha256", bundle.sha256)
+      .field("size", String(bundle.size))
+      .attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" })
+      .expect(201);
+    // 3.0.0 is now active — 1.0.0 is safe to delete.
+
     const res = await request(app).delete("/api/v1/packages/android/1.0.0");
     expect(res.status).toBe(200);
 

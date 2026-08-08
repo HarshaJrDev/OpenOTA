@@ -6,10 +6,11 @@ import type { Logger } from "pino";
 import { ALLOWED_UPLOAD_MIME_TYPES, DEFAULT_CHANNEL } from "@openota/shared";
 
 import { env } from "../../config/env.js";
-import { releasesRepo } from "../../db/repositories.js";
+import { environmentsRepo, releasesRepo } from "../../db/repositories.js";
 import { keyFor, liveRegistry } from "../live/registry.js";
 import {
   PackageAlreadyExistsError,
+  PackageInUseError,
   PackageNotFoundError,
   PackageTooLargeError,
   UploadError,
@@ -218,6 +219,29 @@ export function createPackageService(repository: PackageRepository, logger: Logg
   async function deletePackage(platform: Platform, version: string): Promise<void> {
     if (!(await repository.exists(platform, version))) {
       throw new PackageNotFoundError(platform, version);
+    }
+
+    // Deleting the version a channel currently points to left checkForUpdate broken for every
+    // device on that channel (repository.findManifest() throws once the underlying zip/manifest
+    // files are gone) — found via a real negative-test pass. Roll back first, then delete; the
+    // same explicit-intent bar every other active-pointer change already requires.
+    const channelsToCheck = projectId
+      ? (await environmentsRepo.listByProject(projectId)).map((e) => e.channel)
+      : // Self-hosted/flat has no channel registry to enumerate (channels there are free-form
+        // strings passed per-upload, not tracked anywhere) — DEFAULT_CHANNEL covers the
+        // overwhelmingly common case; a custom flat-mode channel isn't caught here.
+        [DEFAULT_CHANNEL];
+
+    const activeOn: string[] = [];
+    for (const channel of channelsToCheck) {
+      const active = await repository.getActiveVersion(platform, channel);
+      if (active === version) {
+        activeOn.push(channel);
+      }
+    }
+
+    if (activeOn.length > 0) {
+      throw new PackageInUseError(platform, version, activeOn);
     }
 
     await repository.remove(platform, version);

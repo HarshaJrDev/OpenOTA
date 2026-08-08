@@ -204,6 +204,44 @@ describe("environments", () => {
     expect(stagingHistory.body.data[0].version).toBe("9.0.0");
   });
 
+  it("refuses to delete the version a channel currently has active", async () => {
+    const cookie = await signup("env-owner-delete-active@example.test");
+    const projectId = await createProject(cookie, "Env Project Delete Active");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "1.0.0").expect(201);
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/projects/${projectId}/packages/android/1.0.0`)
+      .set("Authorization", `Bearer ${apiKey}`);
+    expect(deleteRes.status).toBe(409);
+    expect(deleteRes.body.error.code).toBe("PACKAGE_IN_USE");
+
+    // Still there and still the active release — the refused delete didn't corrupt anything.
+    const checkRes = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages/check`)
+      .query({ platform: "android", currentVersion: "0.0.0" });
+    expect(checkRes.body.data.latestVersion).toBe("1.0.0");
+  });
+
+  it("allows deleting a version once it's no longer active on any channel", async () => {
+    const cookie = await signup("env-owner-delete-inactive@example.test");
+    const projectId = await createProject(cookie, "Env Project Delete Inactive");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "1.0.0").expect(201);
+    await upload(projectId, apiKey, "2.0.0").expect(201);
+    // 1.0.0 is now superseded (inactive) on production — safe to delete.
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/projects/${projectId}/packages/android/1.0.0`)
+      .set("Authorization", `Bearer ${apiKey}`);
+    expect(deleteRes.status).toBe(200);
+
+    const getRes = await request(app).get(`/api/v1/projects/${projectId}/packages/android/1.0.0`);
+    expect(getRes.status).toBe(404);
+  });
+
   it("editing an environment's name/color/description persists", async () => {
     const cookie = await signup("env-owner-e@example.test");
     const projectId = await createProject(cookie, "Env Project E");

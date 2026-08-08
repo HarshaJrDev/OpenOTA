@@ -72,6 +72,19 @@ export class PackageAlreadyExistsError extends AppError {
   }
 }
 
+export class PackageInUseError extends AppError {
+  constructor(platform: string, version: string, channels: string[]) {
+    super(
+      "PACKAGE_IN_USE",
+      `Package for platform "${platform}" and version "${version}" is the active release on ` +
+        `${channels.length === 1 ? "channel" : "channels"} ${channels.map((c) => `"${c}"`).join(", ")} — ` +
+        `roll back to a different version first, then delete.`,
+      409,
+      { channels },
+    );
+  }
+}
+
 export class PackageNotFoundError extends AppError {
   constructor(platform: string, version: string) {
     super(
