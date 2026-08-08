@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { BUNDLE_DIR_NAME } from "@openota/shared";
 import AdmZip from "adm-zip";
 
 export interface TestBundleFixture {
@@ -12,14 +13,16 @@ export interface TestBundleFixture {
 }
 
 /**
- * Builds a real, minimal zip containing one entry named `bundleName` — required so uploads pass
- * `verifyBundleChecksum` (hash.service.ts), which now actually opens the zip and re-derives the
- * hash instead of trusting the claimed value. Every test that expects an upload to succeed (201)
- * needs this instead of an arbitrary `Buffer.from("fake zip contents")`.
+ * Builds a real, minimal zip containing one entry at `bundle/<bundleName>` — required so uploads
+ * pass `verifyBundleChecksum` (hash.service.ts), which now actually opens the zip and re-derives
+ * the hash instead of trusting the claimed value. Nested under `BUNDLE_DIR_NAME`, not at the zip
+ * root, to match what the real CLI (`archive.service.ts`) actually produces and what the SDK's
+ * own `extract.service.ts` expects on-device — a flat-root fixture here previously let this whole
+ * suite pass while the real CLI→server upload path was silently broken for every real release.
  */
 export function createTestBundleZip(bundleName = "index.android.bundle", content = "console.log('test bundle');"): TestBundleFixture {
   const zip = new AdmZip();
-  zip.addFile(bundleName, Buffer.from(content));
+  zip.addFile(`${BUNDLE_DIR_NAME}/${bundleName}`, Buffer.from(content));
   const buffer = zip.toBuffer();
   const sha256 = createHash("sha256").update(content).digest("hex");
   return { buffer, sha256, size: Buffer.byteLength(content) };

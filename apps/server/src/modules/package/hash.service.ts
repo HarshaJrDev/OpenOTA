@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 
+import { BUNDLE_DIR_NAME } from "@openota/shared";
 import AdmZip from "adm-zip";
 
 import { ChecksumMismatchError, UploadError } from "../../shared/errors.js";
@@ -27,10 +28,16 @@ export async function computeSha256FromFile(filePath: string): Promise<string> {
  */
 export function verifyBundleChecksum(zipFilePath: string, bundleName: string, claimedSha256: string): void {
   const zip = new AdmZip(zipFilePath);
-  const entry = zip.getEntry(bundleName);
+  // The CLI's archive.service.ts packs the bundle under a `bundle/` directory (matching what the
+  // SDK's own extract.service.ts expects on-device: `${extractedDir}/${BUNDLE_DIR_NAME}/${bundleName}`)
+  // — `bundleName` alone is just the filename, never the in-zip path. Looking it up at the zip
+  // root was a real bug: every real CLI-built upload failed with "not found in the uploaded zip"
+  // even though the zip was entirely valid.
+  const entryPath = `${BUNDLE_DIR_NAME}/${bundleName}`;
+  const entry = zip.getEntry(entryPath);
 
   if (!entry) {
-    throw new UploadError(`Bundle entry "${bundleName}" not found in the uploaded zip.`);
+    throw new UploadError(`Bundle entry "${entryPath}" not found in the uploaded zip.`);
   }
 
   const actual = createHash("sha256").update(entry.getData()).digest("hex");
