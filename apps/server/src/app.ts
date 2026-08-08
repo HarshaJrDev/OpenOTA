@@ -20,6 +20,7 @@ import { analyticsRouter } from "./modules/analytics/routes.js";
 import { appsRouter } from "./modules/apps/routes.js";
 import { devicesRouter } from "./modules/devices/routes.js";
 import { environmentsRouter } from "./modules/environments/routes.js";
+import { logsRouter } from "./modules/logs/routes.js";
 import { createProjectPackageRouter } from "./modules/package/project-routes.js";
 import { packageRouter } from "./modules/package/routes.js";
 import { projectRouter } from "./modules/project/routes.js";
@@ -120,6 +121,7 @@ app.use("/api/v1/projects/:projectId/packages", createProjectPackageRouter(stora
 app.use("/api/v1/projects/:projectId/devices", devicesRouter);
 app.use("/api/v1/projects/:projectId/apps", appsRouter);
 app.use("/api/v1/projects/:projectId/environments", environmentsRouter);
+app.use("/api/v1/projects/:projectId/logs", logsRouter);
 app.use("/api/v1/projects/:projectId/analytics", analyticsRouter);
 app.use("/api/v1/projects/:projectId/storage", storageRouter);
 

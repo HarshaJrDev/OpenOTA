@@ -510,6 +510,40 @@ export const deploymentEventsRepo = {
       [projectId, platform, channel],
     );
   },
+
+  /**
+   * The project-wide activity log (dashboard's Logs page) — every release/rollback/rollout_change
+   * across every platform and channel, not scoped to one channel like listByChannel above.
+   * Filters are optional and additive; `limit` is capped server-side (see routes.ts) since this
+   * is an activity feed, not something a UI should ever page through thousands of rows of.
+   */
+  async listByProject(
+    projectId: string,
+    filters: { platform?: string; channel?: string; eventType?: DeploymentEventType; limit: number },
+  ): Promise<DeploymentEventRow[]> {
+    const conditions = ["project_id = $1"];
+    const params: unknown[] = [projectId];
+
+    if (filters.platform) {
+      params.push(filters.platform);
+      conditions.push(`platform = $${params.length}`);
+    }
+    if (filters.channel) {
+      params.push(filters.channel);
+      conditions.push(`channel = $${params.length}`);
+    }
+    if (filters.eventType) {
+      params.push(filters.eventType);
+      conditions.push(`event_type = $${params.length}`);
+    }
+
+    params.push(filters.limit);
+
+    return query<DeploymentEventRow>(
+      `SELECT * FROM deployment_events WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${params.length}`,
+      params,
+    );
+  },
 };
 
 export const releasesRepo = {
