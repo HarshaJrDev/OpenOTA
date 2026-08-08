@@ -44,6 +44,7 @@ const NAV = [
   { href: "#env", label: "Environment variables" },
   { href: "#reference-app", label: "Reference app" },
   { href: "#troubleshooting", label: "Troubleshooting" },
+  { href: "#self-hosting", label: "Self-hosting & cloud setup" },
 ];
 
 const TROUBLESHOOTING = [
@@ -625,6 +626,32 @@ npx @openota/cli release --version 1.0.1`}
               </p>
             </Card>
           </div>
+          <div>
+            <h3 className="mb-2 font-medium">The whole integration, verbatim</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              This is the actual <code>OTA.configure()</code> call from <code>src/context/OtaContext.tsx</code> —
+              copied straight out of the reference app, not rewritten for docs.
+            </p>
+            <CodeBlock
+              label="OpenOTA_Example/src/context/OtaContext.tsx"
+              code={`import { OTA } from "@openota/sdk";
+import config from "../../openota.config.json";
+
+// One-time, module-level configure() — real values from openota.config.json, pointed at the live
+// OpenOTA Cloud server. Everything this app shows/does from here on is driven by what that server
+// returns; release/channel management itself happens on the OpenOTA Dashboard, not in this app.
+OTA.configure({
+  serverUrl: config.serverUrl,
+  projectId: config.projectId,
+  channel: "production",
+  autoRestart: false, // let the UI show a clear "Update ready — restart" state first
+});
+
+// Live updates: the server nudges this connection the instant a new release/rollback/rollout
+// change happens on this device's channel, instead of waiting for a manual check.
+OTA.connectLive(() => setUpdateAvailable(true));`}
+            />
+          </div>
         </Section>
 
         <Section id="troubleshooting" icon={AlertTriangle} title="Troubleshooting">
@@ -642,19 +669,75 @@ npx @openota/cli release --version 1.0.1`}
           </div>
         </Section>
 
-        <Card className="flex items-center gap-4 border-border/60 bg-card/60 p-6">
-          <Server className="h-8 w-8 shrink-0 text-brand-from" />
-          <div>
-            <h3 className="font-medium">Self-hosting?</h3>
-            <p className="text-sm text-muted-foreground">
-              <code>docker compose up -d</code> gets a server running locally in under a minute — see the{" "}
-              <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/HarshaJrDev/OpenOTA#readme">
-                repo README
-              </a>
-              .
-            </p>
+        <Section id="self-hosting" icon={Server} title="Self-hosting &amp; cloud setup">
+          <p className="text-muted-foreground">
+            Two ways to run OpenOTA: self-hosted with Docker (your own infra, zero external accounts required),
+            or Cloud mode across Render + Vercel (what powers <code>api.openota.xyz</code> and this dashboard
+            today). Both run the exact same server code — this is a deployment choice, not a different product.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="border-border/60 bg-card/60 p-5">
+              <h3 className="font-medium">Self-hosted (Docker)</h3>
+              <CodeBlock
+                label="docker-compose.yml — real content from the repo root"
+                code={`services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "\${PORT:-3900}:\${PORT:-3900}"
+    env_file: [.env]
+    volumes:
+      - openota_storage:/data/storage
+      - openota_pgdata:/repo/apps/server/data/pgdata
+
+volumes:
+  openota_storage:
+  openota_pgdata:`}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                <code>docker compose up -d</code> — no <code>.env</code> file needed to start: local storage and
+                an embedded PGlite database are the defaults, so this works with zero external accounts.
+              </p>
+            </Card>
+            <Card className="border-border/60 bg-card/60 p-5">
+              <h3 className="font-medium">Cloud (Render + Vercel)</h3>
+              <ul className="mt-1 list-disc space-y-1.5 pl-4 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">Server → Render.</strong> Set <code>DATABASE_URL</code> to a
+                  real Postgres connection string (Supabase works) so accounts/projects survive restarts, and{" "}
+                  <code>CORS_ALLOWED_ORIGINS</code> to your dashboard&apos;s origin.
+                </li>
+                <li>
+                  <strong className="text-foreground">Dashboard → Vercel.</strong> Set{" "}
+                  <code>NEXT_PUBLIC_OPENOTA_SERVER_URL</code> to your Render URL, including{" "}
+                  <code>/api/v1</code>.
+                </li>
+                <li>
+                  <strong className="text-foreground">Never deploy the server to Vercel</strong> — serverless has
+                  no persistent filesystem for local package storage, even with a managed database.
+                </li>
+                <li>
+                  Optional: <code>RESEND_API_KEY</code> or <code>SMTP_HOST</code>/<code>SMTP_USER</code>/
+                  <code>SMTP_PASS</code> for real verification/reset emails (unset = link logged to the server
+                  console, fully functional with zero email infra); <code>ADMIN_EMAILS</code> to grant admin
+                  access to specific accounts.
+                </li>
+              </ul>
+            </Card>
           </div>
-        </Card>
+          <p className="text-sm text-muted-foreground">
+            Full environment variable reference, architecture, and API docs:{" "}
+            <a
+              className="underline underline-offset-4 hover:text-foreground"
+              href="https://github.com/HarshaJrDev/OpenOTA/blob/main/docs/CLOUD.md"
+            >
+              docs/CLOUD.md
+            </a>{" "}
+            in the repo.
+          </p>
+        </Section>
       </div>
     </div>
   );
