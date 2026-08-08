@@ -25,7 +25,7 @@ const STRUCTURED_DATA = {
       "@type": "Organization",
       name: "OpenOTA",
       url: "https://openota.xyz",
-      logo: "https://openota.xyz/opengraph-image",
+      logo: "https://openota.xyz/icon.png",
       sameAs: ["https://github.com/HarshaJrDev/OpenOTA"],
     },
   ],

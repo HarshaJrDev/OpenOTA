@@ -1,4 +1,5 @@
 import { ArrowRight, Download, Github, Mail, Star, Tag } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@openota/ui/button";
@@ -9,9 +10,7 @@ export function SiteNav({ stars }: { stars: number | null }) {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg brand-gradient-bg text-sm font-bold text-white">
-            O
-          </span>
+          <Image src="/icon.png" alt="" width={28} height={28} className="rounded-lg" priority />
           OpenOTA
         </Link>
         <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
