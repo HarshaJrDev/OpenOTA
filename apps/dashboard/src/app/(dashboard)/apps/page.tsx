@@ -118,7 +118,12 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
   const setIdentifierValue = platform === "android" ? setPackageName : setBundleIdentifier;
 
   function handleSave() {
-    let remoteConfig: Record<string, unknown> | undefined;
+    // `null` = "clear this field," `undefined` = "leave whatever's stored alone" — this form
+    // always resends every field, so an empty input unambiguously means "clear it," not "I didn't
+    // mean to touch this." Previously this sent `undefined` for an emptied field, which the
+    // server read as "not touching it" and silently kept the old value — indistinguishable from a
+    // save that appeared to revert your change back to stale data.
+    let remoteConfig: Record<string, unknown> | null = null;
     if (remoteConfigText.trim()) {
       try {
         const parsed: unknown = JSON.parse(remoteConfigText);
@@ -138,9 +143,9 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
       platform,
       fields: {
         runtimeVersion: runtimeVersion || undefined,
-        packageName: platform === "android" ? packageName || undefined : undefined,
-        bundleIdentifier: platform === "ios" ? bundleIdentifier || undefined : undefined,
-        minSupportedVersion: minSupportedVersion || undefined,
+        packageName: platform === "android" ? packageName || null : undefined,
+        bundleIdentifier: platform === "ios" ? bundleIdentifier || null : undefined,
+        minSupportedVersion: minSupportedVersion || null,
         remoteConfig,
       },
     });
@@ -214,14 +219,28 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
           />
         </div>
         <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <Label htmlFor={`${platform}-remote-config`}>Remote config</Label>
-            <InfoTooltip>
-              Arbitrary JSON your app can fetch at runtime (GET .../apps/{platform}/config, no auth needed) —
-              independent of which OTA bundle is active. Change it here and the app sees the new value on its next
-              poll, with no new release required. OpenOTA doesn&apos;t read or act on this itself; it&apos;s entirely
-              up to your app what to do with it.
-            </InfoTooltip>
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={`${platform}-remote-config`}>Remote config</Label>
+              <InfoTooltip>
+                Arbitrary JSON your app can fetch at runtime (GET .../apps/{platform}/config, no auth needed) —
+                independent of which OTA bundle is active. Change it here and the app sees the new value on its next
+                poll, with no new release required. OpenOTA doesn&apos;t read or act on this itself; it&apos;s
+                entirely up to your app what to do with it.
+              </InfoTooltip>
+            </div>
+            {remoteConfigText && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoteConfigText("");
+                  setRemoteConfigError(null);
+                }}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Clear
+              </button>
+            )}
           </div>
           <Textarea
             id={`${platform}-remote-config`}
@@ -234,7 +253,13 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
             rows={3}
             className="font-mono text-xs"
           />
-          {remoteConfigError && <p className="text-xs text-destructive">{remoteConfigError}</p>}
+          {remoteConfigError ? (
+            <p className="text-xs text-destructive">{remoteConfigError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {remoteConfigText.trim() ? "Saving will replace the stored config with this." : "Empty — saving will clear any stored config for this platform."}
+            </p>
+          )}
         </div>
         <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>
           {upsert.isPending ? "Saving…" : "Save"}

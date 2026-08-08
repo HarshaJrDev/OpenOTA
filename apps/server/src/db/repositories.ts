@@ -402,10 +402,10 @@ export const appConfigsRepo = {
     platform: string,
     fields: {
       runtimeVersion?: string;
-      packageName?: string;
-      bundleIdentifier?: string;
-      minSupportedVersion?: string;
-      remoteConfig?: string;
+      packageName?: string | null;
+      bundleIdentifier?: string | null;
+      minSupportedVersion?: string | null;
+      remoteConfig?: string | null;
     },
   ): Promise<AppConfigRow> {
     const existing = await this.findOne(projectId, platform);
@@ -443,13 +443,20 @@ export const appConfigsRepo = {
       return row;
     }
 
+    // `undefined` (key omitted from the request) means "leave this field alone"; explicit `null`
+    // means "clear it" — see upsertAppSchema's doc comment for why that distinction matters. Only
+    // `runtimeVersion` skips this: it's required (never optional/nullable) on the wire, so
+    // `??` there just falls back correctly to "wasn't sent this time."
+    const resolve = <T>(incoming: T | null | undefined, current: T | null): T | null =>
+      incoming === undefined ? current : incoming;
+
     const updated: AppConfigRow = {
       ...existing,
       runtime_version: fields.runtimeVersion ?? existing.runtime_version,
-      package_name: fields.packageName ?? existing.package_name,
-      bundle_identifier: fields.bundleIdentifier ?? existing.bundle_identifier,
-      min_supported_version: fields.minSupportedVersion ?? existing.min_supported_version,
-      remote_config: fields.remoteConfig ?? existing.remote_config,
+      package_name: resolve(fields.packageName, existing.package_name),
+      bundle_identifier: resolve(fields.bundleIdentifier, existing.bundle_identifier),
+      min_supported_version: resolve(fields.minSupportedVersion, existing.min_supported_version),
+      remote_config: resolve(fields.remoteConfig, existing.remote_config),
       updated_at: now,
     };
     await query(

@@ -17,10 +17,12 @@ export interface AppConfig {
 
 export interface UpsertAppConfigFields {
   runtimeVersion?: string;
-  packageName?: string;
-  bundleIdentifier?: string;
-  minSupportedVersion?: string;
-  remoteConfig?: Record<string, unknown>;
+  // `null` explicitly clears the field server-side; `undefined` leaves whatever's already stored
+  // alone. Always send one or the other deliberately — see apps/routes.ts's schema doc comment.
+  packageName?: string | null;
+  bundleIdentifier?: string | null;
+  minSupportedVersion?: string | null;
+  remoteConfig?: Record<string, unknown> | null;
 }
 
 export function listAppConfigs(projectId: string): Promise<AppConfig[]> {

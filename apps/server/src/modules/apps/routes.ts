@@ -13,14 +13,20 @@ const platformSchema = z.enum(SUPPORTED_PLATFORMS);
 
 const upsertAppSchema = z.object({
   runtimeVersion: z.string().min(1).optional(),
-  packageName: z.string().max(200).optional(),
-  bundleIdentifier: z.string().max(200).optional(),
-  minSupportedVersion: z.string().max(50).optional(),
+  // Optional fields are `.nullable()`, not just `.optional()` — the dashboard's "Configure app"
+  // form resends every field on every save (not a per-field PATCH), so it needs a way to say
+  // "clear this" that's distinct from "wasn't included in this request." `undefined` (key
+  // omitted) means leave whatever's already stored alone; explicit `null` means clear it. Before
+  // this, clearing an optional field in the dashboard and saving silently kept the old value —
+  // indistinguishable from a bug where a save appeared to "roll back" to stale data.
+  packageName: z.string().max(200).nullable().optional(),
+  bundleIdentifier: z.string().max(200).nullable().optional(),
+  minSupportedVersion: z.string().max(50).nullable().optional(),
   // Arbitrary JSON the app can read back at runtime, independent of which OTA bundle is active —
   // see db/client.ts's app_configs.remote_config column doc comment. Validated as an object (not
   // a bare string/array) so /config always hands back something a client can safely spread into
   // its own config shape.
-  remoteConfig: z.record(z.string(), z.unknown()).optional(),
+  remoteConfig: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 /**
@@ -49,7 +55,7 @@ appsRouter.put("/:platform", requireSession, async (req, res, next) => {
     const body = upsertAppSchema.parse(req.body);
     const row = await appConfigsRepo.upsert(projectId, parsedPlatform, {
       ...body,
-      remoteConfig: body.remoteConfig !== undefined ? JSON.stringify(body.remoteConfig) : undefined,
+      remoteConfig: body.remoteConfig === undefined ? undefined : body.remoteConfig === null ? null : JSON.stringify(body.remoteConfig),
     });
     sendSuccess(res, row);
   } catch (error) {
