@@ -309,3 +309,34 @@ connectivity (not just "the process is up") — `openota-api.conf` proxies it at
 `127.0.0.1:3001` as part of every deploy. The dashboard and docs apps don't have a dedicated
 health route — `deploy.sh` just checks that `/` returns `200`, which is enough to catch "the
 Next.js server didn't start" without needing a purpose-built endpoint for two static-ish sites.
+
+## 14. Backups
+
+`scripts/backup.sh` — nightly (`0 2 * * *`, installed via `crontab` on the VPS, not tracked in this
+repo since crontab is host state) tar snapshot of the embedded PGlite data dir
+(`shared/data/pgdata`) and local package storage (`shared/storage`) into
+`/var/backups/openota/<timestamp>/{pgdata,storage}.tar.gz`, keeping the last 14 days. This is a
+filesystem-level snapshot, not a transactional `pg_dump`/PITR setup (PGlite has no network port to
+`pg_dump` against externally) — acceptable at this deployment's actual scale, not a claim of
+enterprise-grade point-in-time recovery. If write volume ever grows enough for that gap to matter,
+switch `DATABASE_URL` to a real managed Postgres (Supabase) and rely on its own backups instead.
+
+**Restore procedure** (run on the VPS, as root):
+
+```bash
+# 1. Stop the server so nothing writes to pgdata/storage mid-restore.
+pm2 stop openota-server
+
+# 2. Pick a backup and extract it over the live paths (BACKUP=/var/backups/openota/<timestamp>).
+BACKUP=/var/backups/openota/20260809-001304
+rm -rf /var/www/openota/shared/data/pgdata /var/www/openota/shared/storage
+tar -xzf "$BACKUP/pgdata.tar.gz"  -C /var/www/openota/shared/data
+tar -xzf "$BACKUP/storage.tar.gz" -C /var/www/openota/shared
+
+# 3. Restart and confirm via the real health check, not just "the process started".
+pm2 start openota-server
+curl -s https://api.openota.xyz/health
+```
+
+To pull a backup off the VPS entirely (e.g. before a risky migration): `scp -r
+root@<vps>:/var/backups/openota/<timestamp> ./local-backup/`.
