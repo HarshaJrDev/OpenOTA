@@ -25,6 +25,15 @@ export const uploadPackageSchema = z.object({
   assets: z.array(z.string()).optional(),
   channel: channelSchema.optional(),
   releaseNotes: z.string().max(4000).optional(),
+  // Uploading a version that isn't semver-newer than the channel's current active release no
+  // longer moves the active pointer by default (see service.ts's uploadPackage) — an operator who
+  // genuinely wants to force an old/equal version live sets this explicitly. `z.coerce.boolean()`
+  // would treat the string "false" as truthy (any non-empty string coerces to true), which is
+  // wrong for a multipart form field — parse the two real string values by hand instead.
+  force: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => v === "true"),
 });
 
 export const packageParamsSchema = z.object({

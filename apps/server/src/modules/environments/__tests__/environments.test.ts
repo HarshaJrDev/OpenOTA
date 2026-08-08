@@ -54,7 +54,12 @@ async function createApiKey(cookie: string, projectId: string) {
   return res.body.data.fullKey as string;
 }
 
-function upload(projectId: string, apiKey: string, version: string, opts: { channel?: string; releaseNotes?: string } = {}) {
+function upload(
+  projectId: string,
+  apiKey: string,
+  version: string,
+  opts: { channel?: string; releaseNotes?: string; force?: boolean } = {},
+) {
   const bundle = createTestBundleZip("index.android.bundle", `console.log('${version}');`);
   const req = request(app)
     .post(`/api/v1/projects/${projectId}/packages`)
@@ -67,6 +72,7 @@ function upload(projectId: string, apiKey: string, version: string, opts: { chan
     .field("size", String(bundle.size));
   if (opts.channel) req.field("channel", opts.channel);
   if (opts.releaseNotes) req.field("releaseNotes", opts.releaseNotes);
+  if (opts.force) req.field("force", "true");
   return req.attach("file", bundle.buffer, { filename: "bundle.zip", contentType: "application/zip" });
 }
 
@@ -141,6 +147,40 @@ describe("environments", () => {
     expect(entries[0]).toMatchObject({ version: "1.0.0", event_type: "rollback", reason: "2.0.0 crashed on launch" });
     expect(entries.some((e) => e.version === "2.0.0" && e.event_type === "release")).toBe(true);
     expect(entries.some((e) => e.version === "1.0.0" && e.event_type === "release")).toBe(true);
+  });
+
+  it("uploading an older version stores it but does not regress the active pointer", async () => {
+    const cookie = await signup("env-owner-downgrade@example.test");
+    const projectId = await createProject(cookie, "Env Project Downgrade");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "5.0.0").expect(201);
+
+    // 4.0.0 is older than the already-active 5.0.0 — a real scenario for a stale CI re-run or a
+    // fat-fingered --version. It must still upload successfully (so it's stored and available as
+    // a rollback target)...
+    const olderRes = await upload(projectId, apiKey, "4.0.0");
+    expect(olderRes.status).toBe(201);
+
+    // ...but must NOT become what devices are offered.
+    const checkRes = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages/check`)
+      .query({ platform: "android", currentVersion: "0.0.0" });
+    expect(checkRes.body.data.latestVersion).toBe("5.0.0");
+  });
+
+  it("force:true lets an older version become active anyway", async () => {
+    const cookie = await signup("env-owner-force@example.test");
+    const projectId = await createProject(cookie, "Env Project Force");
+    const apiKey = await createApiKey(cookie, projectId);
+
+    await upload(projectId, apiKey, "5.0.0").expect(201);
+    await upload(projectId, apiKey, "4.0.0", { force: true }).expect(201);
+
+    const checkRes = await request(app)
+      .get(`/api/v1/projects/${projectId}/packages/check`)
+      .query({ platform: "android", currentVersion: "0.0.0" });
+    expect(checkRes.body.data.latestVersion).toBe("4.0.0");
   });
 
   it("channels stay isolated: a release on staging never appears in production's history", async () => {

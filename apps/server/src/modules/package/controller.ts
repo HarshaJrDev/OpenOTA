@@ -30,6 +30,7 @@ export function createPackageController(service: PackageService) {
           assets: body.assets,
           channel: body.channel,
           releaseNotes: body.releaseNotes,
+          force: body.force,
           tempFilePath: req.file.path,
           mimeType: req.file.mimetype,
         },

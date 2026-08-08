@@ -124,11 +124,43 @@ export function createPackageService(repository: PackageRepository, logger: Logg
       await repository.saveZip(platform, version, createReadStream(tempFilePath));
       await repository.saveMetadata(platform, version, metadata);
       await repository.saveManifest(platform, version, manifest);
-      await repository.setActiveVersion(platform, version, channel);
-      activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
-      liveRegistry.broadcast(keyFor(projectId, platform, channel));
 
-      if (projectId) {
+      // Publishing is meant to move a channel forward — uploading a version that isn't
+      // semver-newer than what's already active (a stale CI re-run, a fat-fingered `--version`,
+      // an old branch accidentally released) must not silently regress every device that checks
+      // in next, the same protection devices already get client-side via checkForUpdate's own
+      // compareSemver guard. The package is still stored (so it's a valid rollback target and
+      // `openota upload` without `--force` isn't a hard failure), it just doesn't go live. An
+      // operator who genuinely wants an old/equal version live sets `force: true` explicitly —
+      // the same explicit-intent bar the separate `rollbackToVersion` action already requires.
+      //
+      // Deliberately `repository.getActiveVersion()`, NOT the memoized `getActiveRelease()` above
+      // — that helper's DEFAULT_CHANNEL fallback ("no explicit active version yet? use the
+      // highest semver ever uploaded") exists to give devices on legacy/self-hosted flat setups a
+      // sensible answer, not to decide whether a fresh upload should activate. Using it here was a
+      // real bug: on a channel with no active version yet, it would go looking through
+      // `listVersions()` for a highest-ever-uploaded fallback that has nothing to do with whether
+      // *this* upload should go live, doing real work for no reason on the single most common case
+      // (a project's very first release).
+      const currentActiveVersion = await repository.getActiveVersion(platform, channel);
+      const becomesActive = !currentActiveVersion || input.force || compareSemver(version, currentActiveVersion) > 0;
+
+      if (becomesActive) {
+        await repository.setActiveVersion(platform, version, channel);
+        activeReleaseCache.invalidatePrefix(cacheKey(platform, channel));
+        liveRegistry.broadcast(keyFor(projectId, platform, channel));
+      } else {
+        logger.warn(
+          { platform, version, channel, currentActive: currentActiveVersion },
+          "uploaded package is not newer than the active release — stored but not activated (pass force:true to override)",
+        );
+      }
+
+      // Activation history is specifically a log of active-pointer changes — a package that was
+      // uploaded but never activated (see becomesActive above) didn't produce one, so it has no
+      // event to record here. It's still fully retrievable via listPackages/getPackage and usable
+      // as a rollback target; it just never appears in the "release" timeline.
+      if (projectId && becomesActive) {
         await releasesRepo.recordActivation({
           projectId,
           platform,

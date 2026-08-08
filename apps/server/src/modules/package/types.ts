@@ -16,4 +16,6 @@ export interface UploadPackageInput {
   channel?: string;
   /** Free-text changelog for this release — shown on the dashboard's release history/detail views. */
   releaseNotes?: string;
+  /** Force this version live even if it isn't semver-newer than the channel's current active release. */
+  force?: boolean;
 }
