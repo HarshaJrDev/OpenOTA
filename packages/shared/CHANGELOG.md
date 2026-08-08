@@ -1,5 +1,17 @@
 # @openota/shared
 
+## 0.2.0
+
+### Minor Changes
+
+- `@openota/cli`: bump `adm-zip` to 0.6.0, patching a high-severity DoS (GHSA-xcpc-8h2w-3j85) where a
+  crafted zip's declared uncompressed size could trigger an oversized memory allocation before any
+  real decompression happens.
+
+  `@openota/shared`: add `PACKAGE_IN_USE` to `ERROR_CODES` — returned (409) when deleting a package
+  version that's currently active on any channel, instead of silently breaking `checkForUpdate` for
+  every device on that channel.
+
 ## 0.1.1
 
 ### Patch Changes
