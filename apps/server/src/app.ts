@@ -25,6 +25,7 @@ import { createProjectPackageRouter } from "./modules/package/project-routes.js"
 import { packageRouter } from "./modules/package/routes.js";
 import { projectRouter } from "./modules/project/routes.js";
 import { storageRouter } from "./modules/storage/routes.js";
+import { trafficAdminRouter, trafficTrackRouter } from "./modules/traffic/routes.js";
 import { createStorageProvider } from "./providers/storage/index.js";
 import { sendSuccess } from "./shared/responses.js";
 
@@ -124,6 +125,8 @@ app.use("/api/v1/projects/:projectId/environments", environmentsRouter);
 app.use("/api/v1/projects/:projectId/logs", logsRouter);
 app.use("/api/v1/projects/:projectId/analytics", analyticsRouter);
 app.use("/api/v1/projects/:projectId/storage", storageRouter);
+app.use("/api/v1/traffic", trafficAdminRouter);
+app.use("/api/v1/analytics", trafficTrackRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

@@ -273,6 +273,25 @@ export async function initDb(): Promise<void> {
     INSERT INTO settings (key, value, updated_at)
     VALUES ('email_test_mode', 'true', '1970-01-01T00:00:00.000Z')
     ON CONFLICT (key) DO NOTHING;
+
+    -- First-party pageview log for the admin Traffic panel — real visits only, nothing fabricated.
+    -- "app" distinguishes the marketing/docs site from the dashboard, since they're separate
+    -- deployments hit by very different audiences (anonymous visitors vs. logged-in operators).
+    -- "visitor_id" is a random UUID the client generates and persists in localStorage (see
+    -- analytics/track beacon) — not derived from IP or any fingerprint, so "unique visitors" here
+    -- means "unique browser profiles that kept the id", the same privacy-preserving definition
+    -- every cookie-less analytics tool uses. "user_id" is set only on the dashboard, only when the
+    -- visitor has an active session — lets admin see real logged-in usage, not just anonymous hits.
+    CREATE TABLE IF NOT EXISTS page_views (
+      id          TEXT PRIMARY KEY,
+      app         TEXT NOT NULL, -- "docs" | "dashboard"
+      path        TEXT NOT NULL,
+      referrer    TEXT,
+      visitor_id  TEXT NOT NULL,
+      user_id     TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_page_views_app_time ON page_views(app, created_at DESC);
   `);
 }
 

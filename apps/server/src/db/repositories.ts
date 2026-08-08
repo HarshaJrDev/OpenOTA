@@ -767,3 +767,72 @@ export const settingsRepo = {
     );
   },
 };
+
+export interface PageViewRow {
+  id: string;
+  app: string;
+  path: string;
+  referrer: string | null;
+  visitor_id: string;
+  user_id: string | null;
+  created_at: string;
+}
+
+export const pageViewsRepo = {
+  async record(params: {
+    app: "docs" | "dashboard";
+    path: string;
+    referrer?: string | null;
+    visitorId: string;
+    userId?: string | null;
+  }): Promise<void> {
+    await query(
+      `INSERT INTO page_views (id, app, path, referrer, visitor_id, user_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        randomUUID(),
+        params.app,
+        params.path,
+        params.referrer ?? null,
+        params.visitorId,
+        params.userId ?? null,
+        new Date().toISOString(),
+      ],
+    );
+  },
+
+  /** Total pageviews and distinct visitor_ids in the window — the two headline numbers. */
+  async summary(app: "docs" | "dashboard", sinceIso: string): Promise<{ views: number; uniqueVisitors: number }> {
+    const row = one(
+      await query<{ views: string; unique_visitors: string }>(
+        `SELECT COUNT(*) AS views, COUNT(DISTINCT visitor_id) AS unique_visitors
+         FROM page_views WHERE app = $1 AND created_at >= $2`,
+        [app, sinceIso],
+      ),
+    );
+    const result = await row;
+    return { views: Number(result?.views ?? 0), uniqueVisitors: Number(result?.unique_visitors ?? 0) };
+  },
+
+  /** One row per calendar day in the window, oldest first — feeds the admin traffic chart. */
+  async dailyCounts(app: "docs" | "dashboard", sinceIso: string): Promise<Array<{ day: string; views: number }>> {
+    const rows = await query<{ day: string; views: string }>(
+      `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS views
+       FROM page_views WHERE app = $1 AND created_at >= $2
+       GROUP BY day ORDER BY day ASC`,
+      [app, sinceIso],
+    );
+    return rows.map((r) => ({ day: r.day, views: Number(r.views) }));
+  },
+
+  /** Most-visited paths in the window, most-visited first. */
+  async topPaths(app: "docs" | "dashboard", sinceIso: string, limit: number): Promise<Array<{ path: string; views: number }>> {
+    const rows = await query<{ path: string; views: string }>(
+      `SELECT path, COUNT(*) AS views FROM page_views
+       WHERE app = $1 AND created_at >= $2
+       GROUP BY path ORDER BY views DESC LIMIT $3`,
+      [app, sinceIso, limit],
+    );
+    return rows.map((r) => ({ path: r.path, views: Number(r.views) }));
+  },
+};
