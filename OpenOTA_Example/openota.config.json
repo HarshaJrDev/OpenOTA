@@ -1,0 +1,8 @@
+{
+  "serverUrl": "https://api.openota.xyz/api/v1",
+  "projectId": "7353a847-e740-4378-8366-62cb93633754",
+  "deployment": "production",
+  "platforms": ["android"],
+  "bundleOutput": "./openota",
+  "runtimeVersion": "1.0.0"
+}
