@@ -54,6 +54,21 @@ const envSchema = z
     // instead of emailed, which keeps self-hosted/dev deployments fully usable with zero email
     // infrastructure — verification/reset still work, an operator just reads the link from logs.
     RESEND_API_KEY: z.string().min(1).optional(),
+    // SMTP fallback (e.g. Gmail with an App Password) for operators who'd rather not sign up for
+    // Resend. Used only when RESEND_API_KEY is unset — see email.service.ts's sendEmail() for the
+    // precedence. All four must be set together for SMTP to activate; a partial config is treated
+    // as "not configured" (falls through to log-only) rather than a startup error, matching every
+    // other optional integration in this file.
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASS: z.string().min(1).optional(),
+    // true for port 465 (implicit TLS); false (default) uses STARTTLS on 587, which is what
+    // Gmail's smtp.gmail.com + an App Password expects.
+    SMTP_SECURE: z
+      .string()
+      .optional()
+      .transform((v) => v === "true"),
     EMAIL_FROM: z.string().email().default("OpenOTA <onboarding@resend.dev>"),
     // Public URL of the dashboard, used to build verify-email/reset-password links. Falls back to
     // the Vercel-hosted dashboard so a deployment that never sets this still produces working links.
@@ -156,6 +171,12 @@ export const env = {
   ),
   // Never log this value — server-only secret.
   resendApiKey: parsed.data.RESEND_API_KEY,
+  smtpHost: parsed.data.SMTP_HOST,
+  smtpPort: parsed.data.SMTP_PORT,
+  smtpUser: parsed.data.SMTP_USER,
+  // Never log this value — server-only secret.
+  smtpPass: parsed.data.SMTP_PASS,
+  smtpSecure: parsed.data.SMTP_SECURE,
   emailFrom: parsed.data.EMAIL_FROM,
   dashboardUrl: parsed.data.DASHBOARD_URL.replace(/\/+$/, ""),
   sentryDsn: parsed.data.SENTRY_DSN,

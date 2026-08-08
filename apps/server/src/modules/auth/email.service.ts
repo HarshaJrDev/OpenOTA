@@ -1,3 +1,5 @@
+import nodemailer, { type Transporter } from "nodemailer";
+
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { getEmailTestMode } from "../admin/service.js";
@@ -8,26 +10,44 @@ interface SendEmailParams {
   html: string;
 }
 
+// Lazily built and memoized — one long-lived pooled connection, not a new SMTP handshake per
+// email. Only ever constructed when SMTP is actually the active transport (see sendEmail below),
+// so an operator using Resend (or neither) never pays for this.
+let smtpTransport: Transporter | undefined;
+function getSmtpTransport(): Transporter {
+  smtpTransport ??= nodemailer.createTransport({
+    host: env.smtpHost,
+    port: env.smtpPort,
+    secure: env.smtpSecure,
+    auth: { user: env.smtpUser, pass: env.smtpPass },
+  });
+  return smtpTransport;
+}
+
+function isSmtpConfigured(): boolean {
+  return Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+}
+
 /**
- * No RESEND_API_KEY configured, OR the admin-controlled "email test mode" setting is on (the
- * default — see admin/service.ts and db/client.ts's schema comment on the `settings` table) → log
- * the email instead of sending it. This is deliberate, not a fallback for errors: it keeps
- * self-hosted/dev/testing-stage deployments fully functional (an operator can read the
- * verification/reset link straight from the server log) without requiring anyone to set up real
- * email infrastructure, and lets an admin flip real sending on/off from the dashboard without a
- * redeploy once they're ready to email real users.
+ * Transport precedence: Resend (if RESEND_API_KEY set) → SMTP (if all four SMTP_* vars set, e.g.
+ * Gmail + an App Password) → log-only. Resend stays first because it's zero-setup for anyone who
+ * signs up for a key; SMTP exists for operators who'd rather reuse an email account they already
+ * have. Neither is required — the admin-controlled "email test mode" toggle (default ON — see
+ * admin/service.ts) and the log-only fallback below both exist so self-hosted/dev/testing-stage
+ * deployments stay fully functional with zero email infrastructure: an operator can always read
+ * the verification/reset link straight from the server log.
  *
- * A *configured* key that fails to actually send (revoked key, unverified sending domain, Resend
- * outage, ...) is deliberately non-fatal too, for the same reason: signup/login/resend/forgot-
- * password must keep working even when transactional email is broken, since the account itself
- * doesn't depend on email deliverability (self-hosted operators can still read the link from this
- * log line, same as the no-key/test-mode path). This previously threw, which turned a Resend-side
- * failure into a 500 on `/auth/signup` and `/auth/verify-email/resend` for every user, not just an
- * unsent email — see the incident this comment is fixing.
+ * A *configured* transport that fails to actually send (revoked key/password, unverified sending
+ * domain, provider outage, ...) is deliberately non-fatal for the same reason: signup/login/
+ * resend/forgot-password must keep working even when transactional email is broken, since the
+ * account itself doesn't depend on email deliverability (self-hosted operators can still read the
+ * link from this log line). This previously threw for Resend, which turned a Resend-side failure
+ * into a 500 on `/auth/signup` and `/auth/verify-email/resend` for every user, not just an unsent
+ * email — see the incident that fixed. SMTP follows the same non-fatal contract.
  */
 async function sendEmail({ to, subject, html }: SendEmailParams): Promise<void> {
-  if (!env.resendApiKey) {
-    logger.info({ to, subject, html }, "RESEND_API_KEY not set — logging email instead of sending");
+  if (!env.resendApiKey && !isSmtpConfigured()) {
+    logger.info({ to, subject, html }, "No email transport configured — logging email instead of sending");
     return;
   }
 
@@ -36,25 +56,38 @@ async function sendEmail({ to, subject, html }: SendEmailParams): Promise<void> 
     return;
   }
 
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from: env.emailFrom, to, subject, html }),
-    });
+  if (env.resendApiKey) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from: env.emailFrom, to, subject, html }),
+      });
 
-    if (!response.ok) {
-      const body = await response.text();
-      logger.error(
-        { to, subject, status: response.status, body },
-        "Failed to send email via Resend — continuing without blocking the caller. Check RESEND_API_KEY validity and that EMAIL_FROM's domain is verified in Resend.",
-      );
+      if (!response.ok) {
+        const body = await response.text();
+        logger.error(
+          { to, subject, status: response.status, body },
+          "Failed to send email via Resend — continuing without blocking the caller. Check RESEND_API_KEY validity and that EMAIL_FROM's domain is verified in Resend.",
+        );
+      }
+    } catch (error) {
+      logger.error({ to, subject, err: error }, "Failed to reach Resend — continuing without blocking the caller");
     }
+    return;
+  }
+
+  try {
+    await getSmtpTransport().sendMail({ from: env.emailFrom, to, subject, html });
   } catch (error) {
-    logger.error({ to, subject, err: error }, "Failed to reach Resend — continuing without blocking the caller");
+    // Never log SMTP_PASS — this catches the transport's own error object, not credentials.
+    logger.error(
+      { to, subject, err: error },
+      "Failed to send email via SMTP — continuing without blocking the caller. Check SMTP_HOST/PORT/USER/PASS and SMTP_SECURE.",
+    );
   }
 }
 
