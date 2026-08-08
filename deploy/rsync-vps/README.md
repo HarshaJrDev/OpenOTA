@@ -340,3 +340,33 @@ curl -s https://api.openota.xyz/health
 
 To pull a backup off the VPS entirely (e.g. before a risky migration): `scp -r
 root@<vps>:/var/backups/openota/<timestamp> ./local-backup/`.
+
+## 15. Monitoring
+
+`scripts/monitor.mjs` — standalone health-check, run every 5 minutes via cron on the VPS (not
+Sentry/APM: that needs an external account this setup deliberately doesn't require). Checks the
+real `/health` endpoint (actual DB + storage connectivity) plus that the dashboard and docs apps
+answer at all, and emails the operator via the same SMTP transport `email.service.ts` uses **only
+on a state change** (down, or recovered) — not on every run, so a real outage doesn't flood the
+inbox, and "no email" during an outage never has to be read as "still fine, no news."
+
+Setup on the VPS (already done for the current deployment):
+```bash
+scp scripts/monitor.mjs root@<vps>:/var/www/openota/shared/monitor.mjs
+ssh root@<vps> 'cat > /var/www/openota/shared/run-monitor.sh << EOF
+#!/bin/bash
+cd /var/www/openota/shared
+set -a; source env/server.env; set +a
+node monitor.mjs >> logs/monitor.log 2>&1
+EOF
+chmod +x /var/www/openota/shared/run-monitor.sh'
+# then add to crontab: */5 * * * * /var/www/openota/shared/run-monitor.sh
+```
+
+Needs `MONITOR_ALERT_EMAIL` (defaults to `SMTP_USER` if unset) and the same `SMTP_*` vars as email
+delivery, in `shared/env/server.env`.
+
+**Known blind spot, disclosed rather than hidden**: if the whole VPS goes down, this cron can't run
+either — true of any self-hosted-only monitor without a second, independent machine watching it.
+It catches what actually matters most day-to-day: app crashes, PM2 process death, and DB/storage
+failures while the VPS itself stays up.
