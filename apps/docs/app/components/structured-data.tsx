@@ -38,7 +38,7 @@ const STRUCTURED_DATA = {
       "@type": "WebPage",
       "@id": "https://openota.xyz/#webpage",
       url: "https://openota.xyz",
-      name: "OpenOTA — React Native OTA Updates Without App Store Review",
+      name: "OpenOTA — Ship React Native Updates Instantly, No App Store Wait",
       description:
         "Push React Native app updates instantly — no App Store wait, no review queue. Self-hosted or Cloud, checksum-verified on-device, instant one-tap rollback.",
       datePublished: "2026-08-08",
