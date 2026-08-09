@@ -11,6 +11,8 @@ export interface Spec extends TurboModule {
   restart(): Promise<void>;
   clearBundle(): Promise<void>;
   getRuntimeInfo(): Promise<RuntimeInfo>;
+  getFcmToken(): Promise<string | null>;
+  registerForPushNotifications(): Promise<void>;
 }
 
 /**

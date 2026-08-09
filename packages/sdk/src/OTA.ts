@@ -9,6 +9,7 @@ import { downloadPackage } from "./services/download.service.js";
 import { extractPackage } from "./services/extract.service.js";
 import { installPackage } from "./services/install.service.js";
 import { connectLive, type LiveConnection } from "./services/live.service.js";
+import { registerPush as registerPushInternal } from "./services/push.service.js";
 import { rollbackPackage } from "./services/rollback.service.js";
 import { syncPackage } from "./services/sync.service.js";
 import { verifyPackage } from "./services/verify.service.js";
@@ -108,6 +109,18 @@ export const OTA = {
   disconnectLive(): void {
     liveConnection?.disconnect();
     liveConnection = null;
+  },
+
+  /**
+   * Killed-app delivery — complementary to, not a replacement for, connectLive(): while the app is
+   * alive, the WebSocket path above is the live signal, and this is what reaches the device when
+   * it's fully closed (see push.service.ts's doc comment for why no foreground FCM handling is
+   * added here). Requests the Android 13+ notification permission, registers the current FCM
+   * token with the server, and keeps it current across rotations. Idempotent — safe to call from
+   * every app launch.
+   */
+  async registerPush(): Promise<void> {
+    await registerPushInternal();
   },
 
   getCurrentVersion(): CurrentVersionInfo {

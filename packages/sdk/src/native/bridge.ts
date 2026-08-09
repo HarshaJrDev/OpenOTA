@@ -82,3 +82,11 @@ export async function nativeClearBundle(): Promise<void> {
 export async function nativeGetRuntimeInfo(): Promise<RuntimeInfo> {
   return callNative(() => requireNativeModule().getRuntimeInfo());
 }
+
+export async function nativeGetFcmToken(): Promise<string | null> {
+  return callNative(() => requireNativeModule().getFcmToken());
+}
+
+export async function nativeRegisterForPushNotifications(): Promise<void> {
+  return callNative(() => requireNativeModule().registerForPushNotifications());
+}
