@@ -671,17 +671,71 @@ OTA.connectLive(() => setUpdateAvailable(true));`}
 
         <Section id="self-hosting" icon={Server} title="Self-hosting &amp; cloud setup">
           <p className="text-muted-foreground">
-            Two ways to run OpenOTA: self-hosted with Docker (your own infra, zero external accounts required),
-            or Cloud mode across Render + Vercel (what powers <code>api.openota.xyz</code> and this dashboard
-            today). Both run the exact same server code — this is a deployment choice, not a different product.
+            One server codebase, three ways to run it — a deployment/ownership choice, never a different
+            product.
           </p>
 
           <div>
-            <h3 className="mb-2 font-medium">What you actually need to provide, self-hosted</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Server</TableHead>
+                  <TableHead>Database</TableHead>
+                  <TableHead>Storage</TableHead>
+                  <TableHead>Domain</TableHead>
+                  <TableHead>Email</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">OpenOTA Cloud</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Managed + Your Data</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>OpenOTA</TableCell>
+                  <TableCell>You</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Full Self-Hosted</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>You</TableCell>
+                  <TableCell>You</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm text-muted-foreground">
+              <li>
+                <strong className="text-foreground">OpenOTA Cloud</strong> — zero setup: create an account,
+                create a project, get a <code>projectId</code> + API key.
+              </li>
+              <li>
+                <strong className="text-foreground">Managed + Your Data</strong> — OpenOTA runs a dedicated
+                server instance for you, but your data plane is yours: your own Postgres, your own storage
+                bucket, your own email credentials — your releases never sit in shared infrastructure.
+              </li>
+              <li>
+                <strong className="text-foreground">Full Self-Hosted</strong> — <code>docker compose up -d</code>{" "}
+                on your own infrastructure. You own every layer.
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="mb-2 font-medium">Full Self-Hosted: what you need to provide</h3>
             <p className="mb-3 text-sm text-muted-foreground">
-              OpenOTA provides the server software. You provide the infrastructure it runs on — and every row
-              below except the first has a working zero-config default, so you only touch what you actually
-              want to own.
+              Every row except the first has a working zero-config default, so you only touch what you
+              actually want to own.
             </p>
             <Table>
               <TableHeader>

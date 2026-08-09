@@ -58,6 +58,31 @@ Browser (Dashboard, *.vercel.app)          React Native app / CI
 
 ---
 
+## 1a. Deployment modes
+
+One server codebase, three ways to run it — this is a deployment/ownership choice, never a
+different product or a forked implementation.
+
+| | Server | Database | Storage | Domain | Email |
+|---|---|---|---|---|---|
+| **OpenOTA Cloud** | OpenOTA | OpenOTA | OpenOTA | OpenOTA | OpenOTA |
+| **Managed + Your Data** | OpenOTA | You | You | OpenOTA | You |
+| **Full Self-Hosted** | You | You | You | You | You |
+
+- **OpenOTA Cloud** — `api.openota.xyz`. Zero setup: create an account, create a project, get a
+  `projectId` + API key. Everything else is OpenOTA's to run and own.
+- **Managed + Your Data** — OpenOTA runs a dedicated server instance for you (own subdomain, own
+  PM2 process), but *your* data plane: your own Postgres (`DATABASE_URL`) and your own storage
+  bucket (`STORAGE_PROVIDER=supabase` + your credentials) — your releases and metadata never sit
+  in OpenOTA's shared infrastructure. Email is yours too (your own SMTP/Resend credentials, not
+  OpenOTA's) — keeps deliverability and sender reputation under your control, not shared across
+  every client on one mailbox. This is the middle tier: real data ownership, without operating a
+  server yourself.
+- **Full Self-Hosted** — `docker compose up -d` on your own infrastructure. You own every layer,
+  OpenOTA provides only the software. See §6 below for the full requirements checklist.
+
+---
+
 ## 2. Two credential types (important)
 
 Cloud uses **two different, non-interchangeable** credentials:
