@@ -1,7 +1,11 @@
 import {
   ArrowRight,
   Check,
+  ChevronDown,
+  Clock,
   Cloud,
+  Github,
+  Hourglass,
   Layers,
   Lock,
   LogIn,
@@ -9,6 +13,8 @@ import {
   RotateCcw,
   ShieldCheck,
   Smartphone,
+  Star,
+  Tag,
   Terminal,
   Wifi,
   X,
@@ -34,11 +40,25 @@ const ENVIRONMENTS_PREVIEW = [
   { name: "Development", version: "1.5.0-dev.9", status: "active", rollout: 100, devices: "6" },
 ];
 
+// Illustrative rollout curve for the dashboard preview below — a progressive rollout climbing to
+// ~98% adoption over a 24h window, the shape a healthy release actually produces (fast initial
+// pickup as apps come back online, tapering as it approaches saturation). Labeled "illustrative
+// preview" in the UI, same honesty bar as ENVIRONMENTS_PREVIEW above — not a fabricated metric.
+const ADOPTION_CURVE = [4, 11, 22, 38, 54, 67, 76, 83, 88, 92, 95, 97, 98];
+const ADOPTION_LABELS = ["00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00", "24:00"];
+
+const HEALTH_STATS = [
+  { label: "Crash-free rate", value: "99.94%", tone: "good" as const },
+  { label: "Rollback rate", value: "0.02%", tone: "good" as const },
+  { label: "Median adopt time", value: "41s", tone: "neutral" as const },
+];
+
 const FEATURES = [
   {
     icon: Zap,
     title: "Instant OTA updates",
     description: "Ship JS bundle changes to every device in seconds — no app store review, no waiting.",
+    featured: true,
   },
   {
     icon: RotateCcw,
@@ -63,7 +83,8 @@ const FEATURES = [
   {
     icon: Cloud,
     title: "Self-host or Cloud",
-    description: "Run it on your own infrastructure today, or use OpenOTA Cloud when you don't want to.",
+    description: "Run it on your own infrastructure today, or use OpenOTA Cloud when you don't want to — same server code, same SDK, either way.",
+    featured: true,
   },
   {
     icon: Wifi,
@@ -93,14 +114,17 @@ const PIPELINE_STEPS = [
 
 const WHY = [
   {
+    icon: Hourglass,
     title: "The App Store review queue is slow",
     body: "A one-line copy fix or a critical bug patch can sit in review for days. OpenOTA ships the JS change directly to installed apps — no binary resubmission, no waiting on a reviewer.",
   },
   {
+    icon: ShieldCheck,
     title: "But not every change should skip review",
     body: "Native code, new permissions, and anything Apple/Google require review for still goes through the store as normal. OpenOTA only ever touches the JS bundle — that boundary is enforced by the runtime, not a policy you have to remember.",
   },
   {
+    icon: Check,
     title: "\"It worked in staging\" isn't good enough",
     body: "Every device independently re-verifies the SHA-256 checksum of what it downloaded before running it — the server's word alone is never trusted. If a release is bad, rollback is a local pointer swap, not a re-deploy.",
   },
@@ -173,7 +197,7 @@ export default async function Home() {
         <HowItWorks />
         <Comparison />
         <Faq />
-        <Cta />
+        <Cta stars={stars} />
       </main>
       <SiteFooter />
     </div>
@@ -321,46 +345,140 @@ function Stack() {
   );
 }
 
+/** Thin 2px line + subtle area fill, rounded data-end, baseline-anchored — single series so no
+ * legend is needed (the card header names it). Pure SVG, no charting library. */
+function AdoptionChart() {
+  const w = 560;
+  const h = 160;
+  const padX = 8;
+  const padTop = 14;
+  const padBottom = 28;
+  const plotW = w - padX * 2;
+  const plotH = h - padTop - padBottom;
+  const max = 100;
+
+  const points = ADOPTION_CURVE.map((v, i) => {
+    const x = padX + (i / (ADOPTION_CURVE.length - 1)) * plotW;
+    const y = padTop + plotH - (v / max) * plotH;
+    return [x, y] as const;
+  });
+  const linePath = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${points[points.length - 1]![0].toFixed(1)},${(padTop + plotH).toFixed(1)} L${points[0]![0].toFixed(1)},${(padTop + plotH).toFixed(1)} Z`;
+  const last = points[points.length - 1]!;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label="Rollout adoption climbing from 4% to 98% over 24 hours">
+      <defs>
+        <linearGradient id="adoption-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--brand-from)" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="var(--brand-from)" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="adoption-line" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--brand-from)" />
+          <stop offset="100%" stopColor="var(--brand-to)" />
+        </linearGradient>
+      </defs>
+
+      {/* Recessive gridlines — hairline, never competing with the data */}
+      {[0, 25, 50, 75, 100].map((tick) => {
+        const y = padTop + plotH - (tick / max) * plotH;
+        return <line key={tick} x1={padX} y1={y} x2={w - padX} y2={y} stroke="var(--border)" strokeWidth="1" opacity="0.5" />;
+      })}
+
+      <path d={areaPath} fill="url(#adoption-area)" />
+      <path d={linePath} fill="none" stroke="url(#adoption-line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Direct label on the endpoint only — not every point */}
+      <circle cx={last[0]} cy={last[1]} r="4" fill="var(--brand-to)" stroke="var(--card)" strokeWidth="2" />
+      <text x={last[0] - 8} y={last[1] - 12} textAnchor="end" className="fill-foreground text-[13px] font-semibold">
+        98%
+      </text>
+
+      {ADOPTION_LABELS.map((label, i) =>
+        i % 3 === 0 ? (
+          <text
+            key={label}
+            x={padX + (i / (ADOPTION_LABELS.length - 1)) * plotW}
+            y={h - 8}
+            // Edge labels would otherwise clip past the viewBox under "middle" anchoring — anchor
+            // the first/last ticks inward instead of centering them on the exact axis endpoint.
+            textAnchor={i === 0 ? "start" : i === ADOPTION_LABELS.length - 1 ? "end" : "middle"}
+            className="fill-muted-foreground text-[10px]"
+          >
+            {label}
+          </text>
+        ) : null,
+      )}
+    </svg>
+  );
+}
+
 function ProductPreview() {
   return (
     <section className="mx-auto max-w-5xl px-6 pb-24">
       <FadeIn>
         <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-2xl shadow-brand-from/10 backdrop-blur">
-          <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-6 py-4">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-brand-from" />
-              <span className="text-sm font-medium">Environments</span>
+              <span className="text-sm font-medium">Rollout health</span>
               <Badge variant="secondary" className="text-xs">
-                your-app
+                your-app · production
               </Badge>
             </div>
-            <span className="text-xs text-muted-foreground">Cloud dashboard — illustrative preview</span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Cloud dashboard — illustrative preview
+            </span>
           </div>
-          <div className="grid divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {ENVIRONMENTS_PREVIEW.map((env) => (
-              <div key={env.name} className="p-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{env.name}</span>
-                  <Badge variant={env.name === "Production" ? "default" : "secondary"} className="text-xs capitalize">
-                    {env.status}
-                  </Badge>
-                </div>
-                <div className="mt-3 font-mono text-sm text-muted-foreground">v{env.version}</div>
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Rollout</span>
-                    <span>{env.rollout}%</span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full brand-gradient-bg" style={{ width: `${env.rollout}%` }} />
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Smartphone className="h-3.5 w-3.5" />
-                  {env.devices} devices
-                </div>
+
+          <div className="grid gap-0 lg:grid-cols-[1.4fr_1fr]">
+            <div className="border-b border-border/60 p-6 lg:border-b-0 lg:border-r">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Adoption over 24h</span>
+                <span>v1.4.2</span>
               </div>
-            ))}
+              <div className="mt-3">
+                <AdoptionChart />
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-3 border-t border-border/60 pt-4">
+                {HEALTH_STATS.map((stat) => (
+                  <div key={stat.label}>
+                    <div className={`font-mono text-lg font-semibold ${stat.tone === "good" ? "text-emerald-400" : "text-foreground"}`}>
+                      {stat.value}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="divide-y divide-border/60">
+              {ENVIRONMENTS_PREVIEW.map((env) => (
+                <div key={env.name} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{env.name}</span>
+                    <Badge variant={env.name === "Production" ? "default" : "secondary"} className="text-xs capitalize">
+                      {env.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 font-mono text-xs text-muted-foreground">v{env.version}</div>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Rollout</span>
+                      <span>{env.rollout}%</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full brand-gradient-bg" style={{ width: `${env.rollout}%` }} />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    {env.devices} devices
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </FadeIn>
@@ -392,12 +510,17 @@ function Why() {
         </h2>
       </FadeIn>
 
-      <div className="mt-14 space-y-6">
-        {WHY.map((item, i) => (
-          <FadeIn key={item.title} delay={i * 0.08}>
-            <Card className="border-border/60 bg-card/60 p-6">
-              <h3 className="font-medium">{item.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
+      <div className="relative mt-14 min-w-0 space-y-5">
+        {WHY.map(({ icon: Icon, title, body }, i) => (
+          <FadeIn key={title} delay={i * 0.08} className="min-w-0">
+            <Card className="flex min-w-0 items-start gap-4 border-border/60 bg-card/60 p-6">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-secondary">
+                <Icon className="h-4 w-4 text-brand-from" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-medium">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+              </div>
             </Card>
           </FadeIn>
         ))}
@@ -428,13 +551,26 @@ function Features() {
         </p>
       </FadeIn>
 
-      <ul className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map(({ icon: Icon, title, description }, i) => (
-          <li key={title}>
-            <FadeIn delay={i * 0.06}>
-              <Card className="group h-full border-border/60 bg-card/60 p-6 transition-colors hover:border-brand-from/40 hover:bg-card">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary transition-colors group-hover:brand-gradient-bg">
-                  <Icon className="h-5 w-5 text-secondary-foreground transition-colors group-hover:text-white" />
+      {/* grid-cols-1 at the base is load-bearing (see Pipeline's comment above) — bare `grid` sizes
+          its single implicit column to content width, not the container, and silently overflows
+          long card text past the viewport on mobile. */}
+      <ul className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {FEATURES.map(({ icon: Icon, title, description, featured }, i) => (
+          <li key={title} className={featured ? "sm:col-span-2 lg:col-span-1" : undefined}>
+            <FadeIn delay={i * 0.06} className="h-full">
+              <Card
+                className={`group relative h-full min-w-0 overflow-hidden border-border/60 bg-card/60 p-6 transition-colors hover:border-brand-from/40 hover:bg-card ${
+                  featured ? "lg:row-span-1 lg:bg-gradient-to-br lg:from-card lg:to-card/40" : ""
+                }`}
+              >
+                {featured && (
+                  <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-brand-from/20 to-brand-to/10 blur-2xl" />
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary transition-colors group-hover:brand-gradient-bg">
+                    <Icon className="h-5 w-5 text-secondary-foreground transition-colors group-hover:text-white" />
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground/50">{String(i + 1).padStart(2, "0")}</span>
                 </div>
                 <h3 className="mt-4 font-medium">{title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{description}</p>
@@ -447,6 +583,21 @@ function Features() {
   );
 }
 
+const MANIFEST_LINES = [
+  { key: "manifestVersion", value: "1" },
+  { key: "bundleVersion", value: '"1.2.0"' },
+  { key: "platform", value: '"android"' },
+  { key: "runtimeVersion", value: '"1.0.0"' },
+  { key: "downloadUrl", value: '"/packages/android/1.2.0/download"' },
+  { key: "sha256", value: '"0d04b2f7…c9a8"' },
+  { key: "size", value: "1401005" },
+  { key: "activatedAt", value: '"2026-08-10T00:41:22Z"' },
+];
+
+/** Left: a real vertical timeline (connected numbered steps), right: the actual manifest JSON a
+ * release produces, with the field(s) each step touches highlighted — pairs a plain-language
+ * explanation with the literal on-the-wire artifact, same "text next to code" pattern used
+ * throughout the rest of this page (Hero's terminal card, HowItWorks' code chips). */
 function Pipeline() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24">
@@ -459,64 +610,94 @@ function Pipeline() {
         </p>
       </FadeIn>
 
-      <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {PIPELINE_STEPS.map((step, i) => (
-          <li key={step.num}>
-            <FadeIn delay={i * 0.07}>
-              <Card className="h-full border-border/60 bg-card/60 p-5">
-                <div className="text-2xl font-semibold text-muted-foreground">{step.num}</div>
-                <h3 className="mt-2 font-medium">{step.title}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
-              </Card>
-            </FadeIn>
-          </li>
-        ))}
-      </ol>
+      {/* grid-cols-1 at the base is load-bearing, not decorative — bare `grid` with no explicit
+          column track sizes that (single, implicit) column to content width (`auto`), not the
+          container width, so long text inside it silently overflows past the viewport on mobile.
+          `grid-cols-1` pins it to a real 1fr track; lg: still overrides to the two-column layout. */}
+      <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1fr] lg:items-start">
+        <ol className="relative min-w-0">
+          {/* Connecting spine — the visual "pipeline" the steps sit on */}
+          <div className="absolute left-4 top-2 bottom-2 w-px bg-border/60" aria-hidden />
+          {PIPELINE_STEPS.map((step, i) => (
+            <li key={step.num} className="relative flex min-w-0 gap-4 pb-8 last:pb-0">
+              <FadeIn delay={i * 0.07} className="relative flex min-w-0 gap-4">
+                <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-xs font-semibold text-muted-foreground">
+                  {i + 1}
+                </span>
+                {/* min-w-0 overrides the flex item's default min-width:auto — without it, long
+                    body text refuses to wrap and pushes past the viewport on narrow screens. */}
+                <div className="min-w-0 pt-0.5">
+                  <h3 className="font-medium">{step.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+                </div>
+              </FadeIn>
+            </li>
+          ))}
+        </ol>
 
-      <FadeIn delay={0.1} className="mt-6">
-        <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 sm:flex-nowrap">
-            <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              No black box — it&apos;s all just this
-            </span>
-            <code className="overflow-x-auto whitespace-nowrap font-mono text-xs text-muted-foreground">
-              {"{ "}
-              <span className="text-brand-from">bundleVersion</span>: <span className="text-emerald-400">&quot;1.2.0&quot;</span>,{" "}
-              <span className="text-brand-from">platform</span>: <span className="text-emerald-400">&quot;android&quot;</span>,{" "}
-              <span className="text-brand-from">sha256</span>: <span className="text-emerald-400">&quot;0d04b2…8a&quot;</span>
-              {" }"}
-            </code>
-          </div>
-        </Card>
-      </FadeIn>
+        <FadeIn delay={0.12} className="lg:sticky lg:top-24">
+          <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-xl shadow-brand-from/10">
+            <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
+              <span className="text-xs font-medium text-muted-foreground">manifest.json</span>
+              <span className="text-xs text-muted-foreground">what the device actually receives</span>
+            </div>
+            <pre className="overflow-x-auto px-5 py-5 font-mono text-xs leading-relaxed">
+              <code>
+                {"{\n"}
+                {MANIFEST_LINES.map((line, i) => (
+                  <span key={line.key} className="block rounded px-1.5 py-0.5 -mx-1.5 transition-colors hover:bg-secondary/60">
+                    {"  "}
+                    <span className="text-brand-from">{line.key}</span>
+                    <span className="text-muted-foreground">: </span>
+                    <span className="text-emerald-400">{line.value}</span>
+                    {i < MANIFEST_LINES.length - 1 ? <span className="text-muted-foreground">,</span> : null}
+                  </span>
+                ))}
+                {"}"}
+              </code>
+            </pre>
+          </Card>
+        </FadeIn>
+      </div>
     </section>
   );
 }
 
+/** One continuous terminal session instead of three separate cards — same visual identity as the
+ * Hero's terminal mockup, so "here's the whole workflow" reads as one real session a developer
+ * would actually run, not three disconnected steps. */
 function HowItWorks() {
   return (
     <section id="how-it-works" className="mx-auto max-w-4xl px-6 py-24">
       <FadeIn className="text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Three commands to your first release</h2>
+        <p className="mt-4 text-muted-foreground">Nothing to configure beyond this — no dashboard click required first.</p>
       </FadeIn>
 
-      <ol className="mt-14 space-y-4">
-        {STEPS.map(({ step, title, code }, i) => (
-          <li key={step}>
-            <FadeIn delay={i * 0.08}>
-              <Card className="flex flex-col items-start gap-4 border-border/60 bg-card/60 p-6 sm:flex-row sm:items-center">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full brand-gradient-bg text-sm font-semibold text-white">
-                  {step}
-                </span>
-                <div className="flex-1">
-                  <h3 className="font-medium">{title}</h3>
+      <FadeIn delay={0.1} className="mt-14 min-w-0">
+        <Card className="overflow-hidden border-border/60 bg-card/80 p-0 shadow-xl shadow-brand-from/10">
+          <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-3">
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
+            <span className="ml-2 text-xs text-muted-foreground">terminal</span>
+          </div>
+          <div className="min-w-0 overflow-x-auto px-5 py-5 font-mono text-sm leading-relaxed">
+            {STEPS.map(({ step, title, code }, i) => (
+              <div key={step} className={i > 0 ? "mt-5" : undefined}>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-brand-from">{step}</span>
+                  <span># {title}</span>
                 </div>
-                <code className="w-full shrink-0 rounded-md bg-muted px-4 py-2 font-mono text-sm sm:w-auto">{code}</code>
-              </Card>
-            </FadeIn>
-          </li>
-        ))}
-      </ol>
+                <div className="mt-1.5 whitespace-nowrap">
+                  <span className="text-muted-foreground">$ </span>
+                  <span className="text-foreground">{code}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </FadeIn>
     </section>
   );
 }
@@ -536,9 +717,9 @@ function Comparison() {
         <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>&nbsp;</TableHead>
-                <TableHead>
+                <TableHead className="bg-brand-from/6 border-x border-brand-from/20">
                   <span className="flex items-center gap-2">
                     <span className="flex h-5 w-5 items-center justify-center rounded brand-gradient-bg text-[10px] font-bold text-white">
                       O
@@ -550,10 +731,14 @@ function Comparison() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {COMPARISON.map((row) => (
+              {COMPARISON.map((row, i) => (
                 <TableRow key={row.label}>
                   <TableCell className="font-medium">{row.label}</TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell
+                    className={`border-x border-brand-from/20 bg-brand-from/6 text-foreground/90 ${
+                      i === COMPARISON.length - 1 ? "border-b-0" : ""
+                    }`}
+                  >
                     <span className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                       {row.openota}
@@ -595,13 +780,22 @@ function Faq() {
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Frequently asked</h2>
       </FadeIn>
 
-      <ul className="mt-12 space-y-4">
+      {/* Native <details>/<summary> — no JS needed, and per Google's own guidance collapsed
+          accordion content still counts for indexing as long as it stays in the DOM (which this
+          does; it's only visually collapsed via the browser's own toggle, never display:none'd
+          out of existence). Same FAQPage schema above reads from this exact FAQ array either way. */}
+      <ul className="mt-12 space-y-3">
         {FAQ.map((item, i) => (
           <li key={item.q}>
             <FadeIn delay={i * 0.05}>
-              <Card className="border-border/60 bg-card/60 p-6">
-                <h3 className="font-medium">{item.q}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
+              <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
+                <details className="group min-w-0">
+                  <summary className="flex min-w-0 cursor-pointer list-none items-center justify-between gap-4 p-6 [&::-webkit-details-marker]:hidden">
+                    <h3 className="min-w-0 font-medium">{item.q}</h3>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="min-w-0 px-6 pb-6 text-sm text-muted-foreground">{item.a}</p>
+                </details>
               </Card>
             </FadeIn>
           </li>
@@ -611,11 +805,11 @@ function Faq() {
   );
 }
 
-function Cta() {
+function Cta({ stars }: { stars: number | null }) {
   return (
     <section id="get-started" className="mx-auto max-w-4xl px-6 pb-32">
       <FadeIn>
-        <Card className="relative overflow-hidden border-border/60 bg-card/60 px-8 py-16 text-center">
+        <Card className="relative min-w-0 overflow-hidden border-border/60 bg-card/60 px-8 py-16 text-center">
           <div className="pointer-events-none absolute inset-0 -z-10 animate-glow-pulse bg-gradient-to-br from-brand-from/15 via-transparent to-brand-to/15" />
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl brand-gradient-bg">
             <Package className="h-6 w-6 text-white" />
@@ -624,6 +818,32 @@ function Cta() {
           <p className="mx-auto mt-3 max-w-md text-muted-foreground">
             Self-host OpenOTA in minutes, or spin up a project on OpenOTA Cloud — same SDK, same CLI, either way.
           </p>
+
+          {/* Real trust signals only — live GitHub star count (same source as the nav badge,
+              omitted rather than faked if the API is unreachable), the actual license, and the
+              actual free-forever self-host claim. No fabricated numbers. */}
+          <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Github className="h-3.5 w-3.5" />
+              {stars !== null ? (
+                <span className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-current text-yellow-500/80" />
+                  {stars.toLocaleString()} {stars === 1 ? "star" : "stars"}
+                </span>
+              ) : (
+                "Open source on GitHub"
+              )}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5" />
+              MIT licensed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              Self-host, free forever
+            </span>
+          </div>
+
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild>
               <Link href="/docs">
