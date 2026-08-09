@@ -111,18 +111,21 @@ $SSH "
 log "Dependencies installed."
 
 step "Step 6 — Building (Turbo — dependency graph, e.g. @openota/shared, is resolved automatically)"
-BUILD_FILTERS="--filter=@openota/server --filter=@openota/dashboard --filter=docs"
-case "$TARGET" in
-  server)    BUILD_FILTERS="--filter=@openota/server" ;;
-  dashboard) BUILD_FILTERS="--filter=@openota/dashboard" ;;
-  docs)      BUILD_FILTERS="--filter=docs" ;;
-esac
+# ALWAYS builds all three apps here, regardless of $TARGET — a real production outage taught this
+# the hard way: `current` is ONE symlink shared by all three PM2 apps (Step 8 flips it for
+# everyone at once), so a selective build (e.g. `./deploy.sh dashboard` building only the
+# dashboard) leaves the other two apps' compiled output missing from this release directory. That
+# was invisible as long as their PM2 processes never restarted — they kept serving from the old
+# release's already-loaded code in memory — but the next `pm2 restart`/`pm2 reload` (for ANY
+# reason, e.g. picking up a new env var) made them resolve `dist/server.js` through the now-current
+# symlink into a release where it was never built, crash-looping with ERR_MODULE_NOT_FOUND. $TARGET
+# still controls which PM2 app gets *reloaded* below (Step 9) — just not which ones get *built*.
 $SSH "
   set -e
   cd '${RELEASE_DIR}'
   export PNPM_HOME=\"\$HOME/.local/share/pnpm\"
   export PATH=\"\$PNPM_HOME:\$PATH\"
-  pnpm turbo run build ${BUILD_FILTERS}
+  pnpm turbo run build --filter=@openota/server --filter=@openota/dashboard --filter=docs
 "
 log "Build complete."
 
