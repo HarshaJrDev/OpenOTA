@@ -48,6 +48,9 @@ export function SiteNav({ stars }: { stars: number | null }) {
               )}
             </a>
           </Button>
+          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+            <a href="https://dashboard.openota.xyz">Dashboard</a>
+          </Button>
           <Button size="sm" asChild>
             <Link href="/download">
               Get started
@@ -76,6 +79,9 @@ export function SiteFooter() {
           <Link href="/docs" className="transition-colors hover:text-foreground">
             Documentation
           </Link>
+          <a href="https://dashboard.openota.xyz" className="transition-colors hover:text-foreground">
+            Dashboard
+          </a>
           <Link href="/pricing" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
             <Tag className="h-3.5 w-3.5" />
             Pricing
