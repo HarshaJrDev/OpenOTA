@@ -38,7 +38,7 @@ const STRUCTURED_DATA = {
       "@type": "WebPage",
       "@id": "https://openota.xyz/#webpage",
       url: "https://openota.xyz",
-      name: "OpenOTA — Instant OTA updates for React Native",
+      name: "OpenOTA — Open Source OTA Platform for React Native",
       description:
         "Push React Native app updates instantly — no App Store wait, no review queue. Self-hosted or Cloud, checksum-verified on-device, instant one-tap rollback.",
       datePublished: "2026-08-08",
@@ -46,6 +46,12 @@ const STRUCTURED_DATA = {
       isPartOf: { "@type": "WebSite", name: "OpenOTA", url: "https://openota.xyz" },
       author: { "@type": "Organization", name: "OpenOTA", url: "https://openota.xyz" },
       publisher: { "@type": "Organization", name: "OpenOTA", url: "https://openota.xyz" },
+      breadcrumb: { "@id": "https://openota.xyz/#breadcrumb" },
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://openota.xyz/#breadcrumb",
+      itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: "https://openota.xyz" }],
     },
   ],
 };

@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@openota/ui/table";
 
 import { CopyButton } from "./components/copy-button";
 import { FadeIn } from "./components/fade-in";
@@ -283,6 +284,12 @@ function Hero() {
             height={830}
             className="w-full rounded-2xl border border-border/60 shadow-xl shadow-brand-from/10"
           />
+          <p className="text-center text-xs text-muted-foreground">
+            Real screenshots, not mockups — captured from{" "}
+            <code className="rounded bg-muted px-1 py-0.5">OpenOTA_Example</code>, our own reference React Native
+            app, during a live end-to-end test: publish a release, receive a real push notification, verify and
+            activate on-device.
+          </p>
         </div>
       </FadeIn>
     </section>
@@ -349,6 +356,20 @@ function ProductPreview() {
             ))}
           </div>
         </Card>
+      </FadeIn>
+
+      <FadeIn delay={0.14} className="mt-4 text-center text-xs text-muted-foreground">
+        Verification uses SHA-256, the hash function standardized in{" "}
+        <a
+          href="https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-4 hover:text-foreground"
+        >
+          NIST FIPS 180-4
+        </a>
+        , via Node.js&apos;s built-in <code>crypto</code> module server-side and the platform&apos;s native
+        implementation on-device — no custom or unvetted hashing.
       </FadeIn>
     </section>
   );
@@ -468,21 +489,23 @@ function HowItWorks() {
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Three commands to your first release</h2>
       </FadeIn>
 
-      <div className="mt-14 space-y-4">
+      <ol className="mt-14 space-y-4">
         {STEPS.map(({ step, title, code }, i) => (
-          <FadeIn key={step} delay={i * 0.08}>
-            <Card className="flex flex-col items-start gap-4 border-border/60 bg-card/60 p-6 sm:flex-row sm:items-center">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full brand-gradient-bg text-sm font-semibold text-white">
-                {step}
-              </span>
-              <div className="flex-1">
-                <h3 className="font-medium">{title}</h3>
-              </div>
-              <code className="w-full shrink-0 rounded-md bg-muted px-4 py-2 font-mono text-sm sm:w-auto">{code}</code>
-            </Card>
-          </FadeIn>
+          <li key={step}>
+            <FadeIn delay={i * 0.08}>
+              <Card className="flex flex-col items-start gap-4 border-border/60 bg-card/60 p-6 sm:flex-row sm:items-center">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full brand-gradient-bg text-sm font-semibold text-white">
+                  {step}
+                </span>
+                <div className="flex-1">
+                  <h3 className="font-medium">{title}</h3>
+                </div>
+                <code className="w-full shrink-0 rounded-md bg-muted px-4 py-2 font-mono text-sm sm:w-auto">{code}</code>
+              </Card>
+            </FadeIn>
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   );
 }
@@ -500,27 +523,41 @@ function Comparison() {
 
       <FadeIn delay={0.1} className="mt-12">
         <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
-          <div className="grid grid-cols-[1.2fr_1fr_1fr] border-b border-border/60 text-sm font-medium">
-            <div className="px-5 py-3 text-muted-foreground">&nbsp;</div>
-            <div className="flex items-center gap-2 border-l border-border/60 px-5 py-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded brand-gradient-bg text-[10px] font-bold text-white">O</span>
-              OpenOTA
-            </div>
-            <div className="border-l border-border/60 px-5 py-3 text-muted-foreground">Typical hosted vendor</div>
-          </div>
-          {COMPARISON.map((row) => (
-            <div key={row.label} className="grid grid-cols-[1.2fr_1fr_1fr] border-b border-border/60 text-sm last:border-b-0">
-              <div className="px-5 py-4 font-medium">{row.label}</div>
-              <div className="flex items-start gap-2 border-l border-border/60 px-5 py-4 text-muted-foreground">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                {row.openota}
-              </div>
-              <div className="flex items-start gap-2 border-l border-border/60 px-5 py-4 text-muted-foreground">
-                <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive/70" />
-                {row.others}
-              </div>
-            </div>
-          ))}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>&nbsp;</TableHead>
+                <TableHead>
+                  <span className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded brand-gradient-bg text-[10px] font-bold text-white">
+                      O
+                    </span>
+                    OpenOTA
+                  </span>
+                </TableHead>
+                <TableHead className="text-muted-foreground">Typical hosted vendor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {COMPARISON.map((row) => (
+                <TableRow key={row.label}>
+                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <span className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      {row.openota}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <span className="flex items-start gap-2">
+                      <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive/70" />
+                      {row.others}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       </FadeIn>
     </section>

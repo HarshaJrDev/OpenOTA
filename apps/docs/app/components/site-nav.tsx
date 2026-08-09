@@ -10,7 +10,7 @@ export function SiteNav({ stars }: { stars: number | null }) {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <Image src="/icon.png" alt="" width={28} height={28} className="rounded-lg" priority />
+          <Image src="/icon.png" alt="OpenOTA logo" width={28} height={28} className="rounded-lg" priority />
           OpenOTA
         </Link>
         <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
