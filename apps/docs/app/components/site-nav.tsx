@@ -64,7 +64,10 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
-        <span>© {new Date().getFullYear()} OpenOTA. Built by Harsha. MIT licensed.</span>
+        <span>
+          © {new Date().getFullYear()} OpenOTA. Built by Harsha. MIT licensed.{" "}
+          <span className="text-muted-foreground/70">· Page last updated August 9, 2026</span>
+        </span>
         <div className="flex flex-wrap items-center justify-center gap-6">
           <a href="https://github.com/HarshaJrDev/OpenOTA" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
             <Github className="h-3.5 w-3.5" />

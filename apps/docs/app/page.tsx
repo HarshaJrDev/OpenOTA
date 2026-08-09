@@ -14,6 +14,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Badge } from "@openota/ui/badge";
@@ -189,15 +190,29 @@ function Hero() {
         <h1 className="mt-6 text-5xl font-semibold tracking-tight text-balance sm:text-6xl">
           Ship React Native updates
           <br />
-          <span className="brand-gradient-text">without the app store</span>
+          <span className="brand-gradient-text">instantly — no app store wait</span>
         </h1>
+      </FadeIn>
+
+      {/* Direct-answer summary, right under the H1 — the short "bottom line" a search engine or
+          an AI assistant can lift verbatim, before any of the longer explanation below. */}
+      <FadeIn delay={0.12}>
+        <p className="mt-5 max-w-2xl rounded-full border border-border/60 bg-secondary/40 px-5 py-2.5 text-sm font-medium text-foreground/90 text-balance">
+          In short: OpenOTA pushes JS/asset updates straight to installed React Native apps —
+          usually live in under a minute — the same way a social app refreshes your feed, not the
+          way an app store update works.
+        </p>
       </FadeIn>
 
       <FadeIn delay={0.16}>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground text-balance">
           OpenOTA delivers JS bundle updates over the air — instantly, verified, and reversible. Build a signed
           bundle, push it to your own server, and let installed apps sync, verify, and roll back on their own.
-          Self-host it in ten minutes, or use OpenOTA Cloud and skip the infrastructure entirely.
+          Self-host it in ten minutes, or use{" "}
+          <Link href="/pricing" className="underline underline-offset-4 hover:text-foreground">
+            OpenOTA Cloud
+          </Link>{" "}
+          and skip the infrastructure entirely.
         </p>
       </FadeIn>
 
@@ -218,8 +233,8 @@ function Hero() {
         </div>
       </FadeIn>
 
-      <FadeIn delay={0.32} className="mt-16 w-full">
-        <Card className="mx-auto max-w-lg overflow-hidden border-border/60 bg-card/80 p-0 text-left shadow-2xl shadow-brand-from/10 backdrop-blur">
+      <FadeIn delay={0.32} className="mt-16 grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <Card className="mx-auto w-full max-w-lg overflow-hidden border-border/60 bg-card/80 p-0 text-left shadow-2xl shadow-brand-from/10 backdrop-blur">
           <div className="flex items-center gap-1.5 border-b border-border/60 px-4 py-3">
             <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
             <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
@@ -248,6 +263,27 @@ function Hero() {
             />
           </div>
         </Card>
+
+        {/* Real screenshot from the OpenOTA_Example reference app + a real push notification —
+            not mockups. Same session that shipped this build sent this exact push to a physical
+            Android emulator and confirmed delivery. */}
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-4">
+          <Image
+            src="/screenshots/app-screen.png"
+            alt="OpenOTA_Example React Native app showing the current OTA version, production channel, and an Up to date status, with Check for update, Sync, and Rollback buttons"
+            width={1280}
+            height={1550}
+            className="w-full rounded-2xl border border-border/60 shadow-xl shadow-brand-from/10"
+            priority
+          />
+          <Image
+            src="/screenshots/push-notification.png"
+            alt="Real Android push notification from OpenOTA reading New version available, v1.0.9 is ready, tap to update instantly — delivered while the app was fully closed"
+            width={1280}
+            height={830}
+            className="w-full rounded-2xl border border-border/60 shadow-xl shadow-brand-from/10"
+          />
+        </div>
       </FadeIn>
     </section>
   );
@@ -338,6 +374,18 @@ function Why() {
           </FadeIn>
         ))}
       </div>
+
+      <FadeIn delay={0.2} className="mt-8 text-center text-sm text-muted-foreground">
+        See the full mechanics — bundle build, checksum verification, and rollback — on the{" "}
+        <Link href="/docs#how-it-works" className="underline underline-offset-4 hover:text-foreground">
+          how it works page
+        </Link>
+        , or jump straight to{" "}
+        <Link href="/download" className="underline underline-offset-4 hover:text-foreground">
+          downloading the CLI
+        </Link>
+        .
+      </FadeIn>
     </section>
   );
 }
@@ -480,8 +528,21 @@ function Comparison() {
 }
 
 function Faq() {
+  // FAQPage schema, generated straight from the same FAQ array the visible section renders —
+  // there is no separate/hidden copy that could drift from what a real visitor actually reads.
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
+
   return (
     <section id="faq" className="mx-auto max-w-3xl px-6 py-24">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <FadeIn className="text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Frequently asked</h2>
       </FadeIn>

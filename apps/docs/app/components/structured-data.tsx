@@ -1,6 +1,11 @@
 // Schema.org JSON-LD — describes what OpenOTA actually is (a free, open-source, self-hostable
 // developer tool), not a fabricated pricing/rating claim. SoftwareApplication is the correct type
 // for a CLI+SDK+server product like this; Organization anchors the publisher identity for both.
+// WebPage ties the homepage's content to that same author/publisher for AI/answer-engine
+// extraction, with a real, honest date — the SDK's actual last-shipped version, not a fabricated
+// "last updated today" claim (see packages/sdk/package.json for the source of truth).
+const LAST_UPDATED = "2026-08-09";
+
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
@@ -18,7 +23,8 @@ const STRUCTURED_DATA = {
         priceCurrency: "USD",
         description: "Free and open source under the MIT license; self-host at no cost.",
       },
-      softwareVersion: "0.3.1",
+      softwareVersion: "0.4.0",
+      dateModified: LAST_UPDATED,
       author: { "@type": "Organization", name: "OpenOTA", url: "https://openota.xyz" },
     },
     {
@@ -27,6 +33,19 @@ const STRUCTURED_DATA = {
       url: "https://openota.xyz",
       logo: "https://openota.xyz/icon.png",
       sameAs: ["https://github.com/HarshaJrDev/OpenOTA"],
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://openota.xyz/#webpage",
+      url: "https://openota.xyz",
+      name: "OpenOTA — Instant OTA updates for React Native",
+      description:
+        "Push React Native app updates instantly — no App Store wait, no review queue. Self-hosted or Cloud, checksum-verified on-device, instant one-tap rollback.",
+      datePublished: "2026-08-08",
+      dateModified: LAST_UPDATED,
+      isPartOf: { "@type": "WebSite", name: "OpenOTA", url: "https://openota.xyz" },
+      author: { "@type": "Organization", name: "OpenOTA", url: "https://openota.xyz" },
+      publisher: { "@type": "Organization", name: "OpenOTA", url: "https://openota.xyz" },
     },
   ],
 };

@@ -20,8 +20,10 @@ const plexMono = IBM_Plex_Mono({
 
 const SITE_URL = "https://openota.xyz";
 const TITLE = "OpenOTA — Instant OTA updates for React Native";
+// 156 characters — inside the ~110-165 target range. Leads with the concrete benefit (instant,
+// no store wait), matches (doesn't duplicate word-for-word) the H1 on the homepage.
 const DESCRIPTION =
-  "Ship JS bundle updates to your React Native app in seconds, without an app store review. Self-hosted or OpenOTA Cloud, project-isolated, checksum-verified on-device, with instant rollback.";
+  "Push React Native app updates instantly — no App Store wait, no review queue. Self-hosted or Cloud, checksum-verified on-device, instant one-tap rollback.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
