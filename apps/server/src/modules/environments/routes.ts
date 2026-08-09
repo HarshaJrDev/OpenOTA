@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { DEFAULT_ENVIRONMENTS } from "../project/service.js";
 import { deploymentEventsRepo, environmentsRepo, releasesRepo } from "../../db/repositories.js";
-import { keyFor, liveRegistry } from "../live/registry.js";
+import { keyFor, liveRegistry, notifyReleaseChange } from "../live/registry.js";
 import { sessionRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import { requireSession } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
@@ -170,7 +170,7 @@ environmentsRouter.patch("/:channel/rollout", requireSession, async (req, res, n
 
     const { platform, percentage } = updateRolloutSchema.parse(req.body);
     const updated = await releasesRepo.setRolloutPercentage(projectId, platform, channel, percentage, req.user!.id);
-    liveRegistry.broadcast(keyFor(projectId, platform, channel));
+    void notifyReleaseChange(projectId, platform, channel);
     sendSuccess(res, updated ?? null);
   } catch (error) {
     next(error);

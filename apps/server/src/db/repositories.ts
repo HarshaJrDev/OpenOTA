@@ -64,6 +64,8 @@ export interface AppConfigRow {
   bundle_identifier: string | null;
   min_supported_version: string | null;
   remote_config: string | null;
+  push_title: string | null;
+  push_body: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -406,6 +408,8 @@ export const appConfigsRepo = {
       bundleIdentifier?: string | null;
       minSupportedVersion?: string | null;
       remoteConfig?: string | null;
+      pushTitle?: string | null;
+      pushBody?: string | null;
     },
   ): Promise<AppConfigRow> {
     const existing = await this.findOne(projectId, platform);
@@ -421,12 +425,14 @@ export const appConfigsRepo = {
         bundle_identifier: fields.bundleIdentifier ?? null,
         min_supported_version: fields.minSupportedVersion ?? null,
         remote_config: fields.remoteConfig ?? null,
+        push_title: fields.pushTitle ?? null,
+        push_body: fields.pushBody ?? null,
         created_at: now,
         updated_at: now,
       };
       await query(
-        `INSERT INTO app_configs (id, project_id, platform, runtime_version, package_name, bundle_identifier, min_supported_version, remote_config, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        `INSERT INTO app_configs (id, project_id, platform, runtime_version, package_name, bundle_identifier, min_supported_version, remote_config, push_title, push_body, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           row.id,
           row.project_id,
@@ -436,6 +442,8 @@ export const appConfigsRepo = {
           row.bundle_identifier,
           row.min_supported_version,
           row.remote_config,
+          row.push_title,
+          row.push_body,
           row.created_at,
           row.updated_at,
         ],
@@ -457,21 +465,61 @@ export const appConfigsRepo = {
       bundle_identifier: resolve(fields.bundleIdentifier, existing.bundle_identifier),
       min_supported_version: resolve(fields.minSupportedVersion, existing.min_supported_version),
       remote_config: resolve(fields.remoteConfig, existing.remote_config),
+      push_title: resolve(fields.pushTitle, existing.push_title),
+      push_body: resolve(fields.pushBody, existing.push_body),
       updated_at: now,
     };
     await query(
-      "UPDATE app_configs SET runtime_version = $1, package_name = $2, bundle_identifier = $3, min_supported_version = $4, remote_config = $5, updated_at = $6 WHERE id = $7",
+      "UPDATE app_configs SET runtime_version = $1, package_name = $2, bundle_identifier = $3, min_supported_version = $4, remote_config = $5, push_title = $6, push_body = $7, updated_at = $8 WHERE id = $9",
       [
         updated.runtime_version,
         updated.package_name,
         updated.bundle_identifier,
         updated.min_supported_version,
         updated.remote_config,
+        updated.push_title,
+        updated.push_body,
         updated.updated_at,
         existing.id,
       ],
     );
     return updated;
+  },
+};
+
+export interface DeviceTokenRow {
+  id: string;
+  project_id: string;
+  device_id: string;
+  platform: string;
+  channel: string;
+  fcm_token: string;
+  updated_at: string;
+}
+
+export const deviceTokensRepo = {
+  /** Upsert on (project_id, device_id) — a device re-registering overwrites its own row. */
+  async upsert(params: {
+    projectId: string;
+    deviceId: string;
+    platform: string;
+    channel: string;
+    fcmToken: string;
+  }): Promise<void> {
+    await query(
+      `INSERT INTO device_tokens (id, project_id, device_id, platform, channel, fcm_token, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (project_id, device_id)
+       DO UPDATE SET platform = $4, channel = $5, fcm_token = $6, updated_at = $7`,
+      [randomUUID(), params.projectId, params.deviceId, params.platform, params.channel, params.fcmToken, new Date().toISOString()],
+    );
+  },
+
+  async listByProjectPlatformChannel(projectId: string, platform: string, channel: string): Promise<DeviceTokenRow[]> {
+    return query<DeviceTokenRow>(
+      "SELECT * FROM device_tokens WHERE project_id = $1 AND platform = $2 AND channel = $3",
+      [projectId, platform, channel],
+    );
   },
 };
 

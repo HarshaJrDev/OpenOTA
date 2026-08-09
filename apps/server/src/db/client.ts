@@ -292,6 +292,28 @@ export async function initDb(): Promise<void> {
       created_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_page_views_app_time ON page_views(app, created_at DESC);
+
+    -- FCM tokens for killed-app OTA push (see modules/push). Separate from device_checkins (which
+    -- has no "channel" column) since a push fan-out needs (project, platform, channel), not just
+    -- (project, platform). Unique on (project_id, device_id) — a device re-registering (token
+    -- rotation, app reinstall) overwrites its own row rather than accumulating stale duplicates.
+    CREATE TABLE IF NOT EXISTS device_tokens (
+      id          TEXT PRIMARY KEY,
+      project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      device_id   TEXT NOT NULL,
+      platform    TEXT NOT NULL,
+      channel     TEXT NOT NULL,
+      fcm_token   TEXT NOT NULL,
+      updated_at  TEXT NOT NULL,
+      UNIQUE (project_id, device_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_device_tokens_fanout ON device_tokens(project_id, platform, channel);
+
+    -- Operator-set custom push alert text, per (project, platform) app config — see
+    -- modules/apps/routes.ts. Both nullable/optional: unset means notifyReleaseChange() falls back
+    -- to a sensible default title/body rather than sending a push with no visible content.
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS push_title TEXT;
+    ALTER TABLE app_configs ADD COLUMN IF NOT EXISTS push_body TEXT;
   `);
 }
 

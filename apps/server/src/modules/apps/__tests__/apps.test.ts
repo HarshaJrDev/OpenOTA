@@ -129,4 +129,27 @@ describe("apps", () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
+
+  it("round-trips pushTitle/pushBody, including clearing them with explicit null", async () => {
+    const cookie = await signup("apps-owner-d@example.test");
+    const projectId = await createProject(cookie, "Apps Project D");
+
+    const created = await request(app)
+      .put(`/api/v1/projects/${projectId}/apps/android`)
+      .set("Cookie", cookie!)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ runtimeVersion: "1.0.0", pushTitle: "New update!", pushBody: "Tap to see what's new." });
+    expect(created.status).toBe(200);
+    expect(created.body.data.push_title).toBe("New update!");
+    expect(created.body.data.push_body).toBe("Tap to see what's new.");
+
+    const cleared = await request(app)
+      .put(`/api/v1/projects/${projectId}/apps/android`)
+      .set("Cookie", cookie!)
+      .set("X-Requested-With", "XMLHttpRequest")
+      .send({ runtimeVersion: "1.0.0", pushTitle: null, pushBody: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.data.push_title).toBeNull();
+    expect(cleared.body.data.push_body).toBeNull();
+  });
 });

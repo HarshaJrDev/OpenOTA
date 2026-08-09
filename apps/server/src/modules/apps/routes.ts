@@ -27,6 +27,11 @@ const upsertAppSchema = z.object({
   // a bare string/array) so /config always hands back something a client can safely spread into
   // its own config shape.
   remoteConfig: z.record(z.string(), z.unknown()).nullable().optional(),
+  // Custom text for the killed-app push alert (see modules/live/registry.ts's
+  // notifyReleaseChange()) — plain strings, no JSON handling needed unlike remoteConfig. Unset ->
+  // a sensible default title/body is used instead of sending a blank-looking push.
+  pushTitle: z.string().max(100).nullable().optional(),
+  pushBody: z.string().max(200).nullable().optional(),
 });
 
 /**

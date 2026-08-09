@@ -100,6 +100,14 @@ const envSchema = z
       .transform((v) => v === "true"),
     OPENOTA_TEST_ADMIN_PASSWORD: z.string().min(8).optional(),
     OPENOTA_TEST_USER_PASSWORD: z.string().min(8).optional(),
+    // Killed-app OTA delivery via Firebase Cloud Messaging — additive to the WebSocket "live"
+    // path (connectLive()), which only reaches an app that's open or backgrounded-but-alive. The
+    // *entire contents* of a downloaded Firebase service-account JSON key, as one string — parsed
+    // lazily in modules/push/fcm.ts, never at the schema level (same shape as every other secret
+    // here). Unset -> push silently disabled, WS path still works untouched. The operator plugs in
+    // their OWN Firebase project; nothing is hardcoded to a shared one, same posture as Google
+    // OAuth.
+    FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
     // Google OAuth sign-in — additive to email/password, never required. All three or none: see
     // the superRefine below. GOOGLE_REDIRECT_URI must exactly match a URI registered on the
     // Google Cloud OAuth client (there's no "server public URL" env var to derive this from, so
@@ -183,6 +191,8 @@ export const env = {
   ),
   // Never log this value — server-only secret.
   resendApiKey: parsed.data.RESEND_API_KEY,
+  // Never log this value — server-only secret (contains a private key).
+  firebaseServiceAccountJson: parsed.data.FIREBASE_SERVICE_ACCOUNT_JSON,
   smtpHost: parsed.data.SMTP_HOST,
   smtpPort: parsed.data.SMTP_PORT,
   smtpUser: parsed.data.SMTP_USER,

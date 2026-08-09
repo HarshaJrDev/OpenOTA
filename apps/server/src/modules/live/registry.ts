@@ -2,6 +2,10 @@ import type { WebSocket } from "ws";
 
 import type { LiveMessage } from "@openota/shared";
 
+import { appConfigsRepo, deviceTokensRepo } from "../../db/repositories.js";
+import { logger } from "../../config/logger.js";
+import { isPushConfigured, sendPushNotification } from "../push/fcm.js";
+
 /**
  * `${projectId ?? "self-hosted"}:${platform}:${channel}` — the same identity a device's poll-path
  * check request is already scoped by (see package/service.ts's checkForUpdate cacheKey), just
@@ -88,3 +92,45 @@ export type LiveRegistry = ReturnType<typeof createLiveRegistry>;
  * server.ts.
  */
 export const liveRegistry: LiveRegistry = createLiveRegistry();
+
+const DEFAULT_PUSH_TITLE = "App update available";
+const DEFAULT_PUSH_BODY = "A new version is ready. Open the app to update.";
+
+/**
+ * The single call site every release/rollback/rollout-change should go through instead of calling
+ * `liveRegistry.broadcast()` directly: does exactly what broadcast() always did (nudge any open
+ * WebSocket connections), then — only if a project and push are both configured — fans a data-only
+ * FCM push out to every device_tokens row on this exact (project, platform, channel), so a fully
+ * killed app finds out too. Best-effort throughout: a push failure must never affect the
+ * WS broadcast or the caller's own release/rollback flow, same posture the WS broadcast itself
+ * already had (fire-and-forget, no return value).
+ */
+export async function notifyReleaseChange(projectId: string | undefined, platform: string, channel: string): Promise<void> {
+  liveRegistry.broadcast(keyFor(projectId, platform, channel));
+
+  if (!projectId || !isPushConfigured()) {
+    return;
+  }
+
+  try {
+    const [tokens, appConfig] = await Promise.all([
+      deviceTokensRepo.listByProjectPlatformChannel(projectId, platform, channel),
+      appConfigsRepo.findOne(projectId, platform),
+    ]);
+    if (tokens.length === 0) {
+      return;
+    }
+
+    const title = appConfig?.push_title || DEFAULT_PUSH_TITLE;
+    const body = appConfig?.push_body || DEFAULT_PUSH_BODY;
+    const data = { type: "openota-release-changed", projectId, platform, channel, title, body };
+
+    const results = await Promise.allSettled(tokens.map((t) => sendPushNotification(t.fcm_token, data)));
+    const failures = results.filter((r) => r.status === "rejected" || r.status === "fulfilled" && r.value === false).length;
+    if (failures > 0) {
+      logger.warn({ projectId, platform, channel, failures, total: tokens.length }, "Some push notifications failed to send");
+    }
+  } catch (error) {
+    logger.error({ err: error, projectId, platform, channel }, "notifyReleaseChange: push fan-out failed — WS broadcast already sent");
+  }
+}

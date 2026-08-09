@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { deviceCheckinsRepo, installResultsRepo } from "../../db/repositories.js";
+import { deviceCheckinsRepo, deviceTokensRepo, installResultsRepo } from "../../db/repositories.js";
 import { requireApiKey, requireProjectMatch } from "../../middleware/apiKey.middleware.js";
 import { deviceRateLimiter } from "../../middleware/rateLimit.middleware.js";
 import type { StorageProvider } from "../../providers/storage/provider.js";
@@ -22,6 +22,13 @@ const reportInstallResultSchema = z.object({
   version: z.string().min(1),
   runtimeVersion: z.string().min(1),
   status: z.enum(["success", "failure", "rollback"]),
+});
+
+const fcmTokenSchema = z.object({
+  deviceId: z.string().min(1),
+  platform: z.string().min(1),
+  channel: z.string().min(1),
+  fcmToken: z.string().min(1),
 });
 
 /**
@@ -148,6 +155,28 @@ export function createProjectPackageRouter(storageProvider: StorageProvider): Ex
         status: body.status,
       });
       sendSuccess(res, { recorded: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Anonymous, no-auth, deviceRateLimiter-protected — same auth posture as check/download/report
+  // above, since it fires from the same untrusted device population. A device registers (or
+  // re-registers, on token rotation) its FCM token here so a future release/rollback/rollout
+  // change can reach it even fully killed — see modules/push/fcm.ts and live/registry.ts's
+  // notifyReleaseChange().
+  router.post("/fcm-token", deviceRateLimiter, async (req, res, next) => {
+    try {
+      const { projectId } = req.params as unknown as { projectId: string };
+      const body = fcmTokenSchema.parse(req.body);
+      await deviceTokensRepo.upsert({
+        projectId,
+        deviceId: body.deviceId,
+        platform: body.platform,
+        channel: body.channel,
+        fcmToken: body.fcmToken,
+      });
+      sendSuccess(res, { registered: true });
     } catch (error) {
       next(error);
     }
