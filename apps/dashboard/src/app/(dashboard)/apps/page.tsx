@@ -99,6 +99,8 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
   const [minSupportedVersion, setMinSupportedVersion] = React.useState(config?.min_supported_version ?? "");
   const [remoteConfigText, setRemoteConfigText] = React.useState(config?.remote_config ?? "");
   const [remoteConfigError, setRemoteConfigError] = React.useState<string | null>(null);
+  const [pushTitle, setPushTitle] = React.useState(config?.push_title ?? "");
+  const [pushBody, setPushBody] = React.useState(config?.push_body ?? "");
 
   React.useEffect(() => {
     setRuntimeVersion(config?.runtime_version ?? "");
@@ -107,6 +109,8 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
     setMinSupportedVersion(config?.min_supported_version ?? "");
     setRemoteConfigText(config?.remote_config ?? "");
     setRemoteConfigError(null);
+    setPushTitle(config?.push_title ?? "");
+    setPushBody(config?.push_body ?? "");
   }, [config]);
 
   const identifierLabel = platform === "android" ? "Package name" : "Bundle identifier";
@@ -147,6 +151,8 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
         bundleIdentifier: platform === "ios" ? bundleIdentifier || null : undefined,
         minSupportedVersion: minSupportedVersion || null,
         remoteConfig,
+        pushTitle: pushTitle || null,
+        pushBody: pushBody || null,
       },
     });
   }
@@ -260,6 +266,30 @@ function AppConfigCard({ projectId, platform, config }: { projectId: string; pla
               {remoteConfigText.trim() ? "Saving will replace the stored config with this." : "Empty — saving will clear any stored config for this platform."}
             </p>
           )}
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor={`${platform}-push-title`}>Push notification title</Label>
+            <InfoTooltip>
+              Shown when a release/rollback reaches a device via push, even fully closed — requires Firebase to be
+              configured (see docs). Leave blank to use the default (&quot;App update available&quot;).
+            </InfoTooltip>
+          </div>
+          <Input
+            id={`${platform}-push-title`}
+            placeholder="App update available"
+            value={pushTitle}
+            onChange={(e) => setPushTitle(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${platform}-push-body`}>Push notification body</Label>
+          <Input
+            id={`${platform}-push-body`}
+            placeholder="A new version is ready. Open the app to update."
+            value={pushBody}
+            onChange={(e) => setPushBody(e.target.value)}
+          />
         </div>
         <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>
           {upsert.isPending ? "Saving…" : "Save"}

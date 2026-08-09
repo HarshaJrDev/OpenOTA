@@ -11,6 +11,8 @@ export interface AppConfig {
   bundle_identifier: string | null;
   min_supported_version: string | null;
   remote_config: string | null;
+  push_title: string | null;
+  push_body: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -23,6 +25,10 @@ export interface UpsertAppConfigFields {
   bundleIdentifier?: string | null;
   minSupportedVersion?: string | null;
   remoteConfig?: Record<string, unknown> | null;
+  // Custom text for the killed-app push alert — plain strings, same undefined-vs-null contract as
+  // every other optional field here. Unset -> the server falls back to a sensible default.
+  pushTitle?: string | null;
+  pushBody?: string | null;
 }
 
 export function listAppConfigs(projectId: string): Promise<AppConfig[]> {
