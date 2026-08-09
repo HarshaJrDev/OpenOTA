@@ -675,6 +675,64 @@ OTA.connectLive(() => setUpdateAvailable(true));`}
             or Cloud mode across Render + Vercel (what powers <code>api.openota.xyz</code> and this dashboard
             today). Both run the exact same server code — this is a deployment choice, not a different product.
           </p>
+
+          <div>
+            <h3 className="mb-2 font-medium">What you actually need to provide, self-hosted</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              OpenOTA provides the server software. You provide the infrastructure it runs on — and every row
+              below except the first has a working zero-config default, so you only touch what you actually
+              want to own.
+            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>You need</TableHead>
+                  <TableHead>Default (zero setup)</TableHead>
+                  <TableHead>Or bring your own</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">A server</TableCell>
+                  <TableCell colSpan={2} className="text-muted-foreground">
+                    Required — any machine that runs Docker (a VPS, your own hardware). No specific cloud provider.
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Database</TableCell>
+                  <TableCell className="text-muted-foreground">Embedded, on the same server</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <code>DATABASE_URL</code> → any real Postgres (Supabase or otherwise)
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">File storage</TableCell>
+                  <TableCell className="text-muted-foreground">Local disk, on the same server</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <code>STORAGE_PROVIDER=supabase</code> → your Supabase Storage project + bucket
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Domain</TableCell>
+                  <TableCell className="text-muted-foreground">Your server&apos;s raw IP</TableCell>
+                  <TableCell className="text-muted-foreground">A subdomain you own, DNS pointed at that server</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Email</TableCell>
+                  <TableCell className="text-muted-foreground">Links logged to the server console</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    A Resend API key, or SMTP creds for any mailbox
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Once running, the real, live status of each of these — which provider is active, is it actually
+              reachable right now — is visible in the dashboard under <strong>Admin → Infrastructure</strong>{" "}
+              (masked config only; credentials never round-trip to the browser).
+            </p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="border-border/60 bg-card/60 p-5">
               <h3 className="font-medium">Self-hosted (Docker)</h3>
