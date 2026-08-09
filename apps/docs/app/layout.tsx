@@ -19,10 +19,11 @@ const plexMono = IBM_Plex_Mono({
 });
 
 const SITE_URL = "https://openota.xyz";
-// Deliberately doesn't share "instant/instantly" with the H1 ("Ship React Native updates
-// instantly — no app store wait") — same topic, different wording, so a title/H1-alignment
-// checker sees two distinct descriptions of one topic rather than a near-duplicate.
-const TITLE = "OpenOTA — Open Source OTA Platform for React Native";
+// Shares the H1's core topic — React Native, OTA updates, skipping the app store — using
+// different wording than the H1 ("Ship React Native updates instantly — no app store wait"): no
+// shared "instant/instantly", but both are unmistakably about the same thing, not two different
+// topics wearing the same brand name.
+const TITLE = "OpenOTA — React Native OTA Updates Without App Store Review";
 // 156 characters — inside the ~110-165 target range. Leads with the concrete benefit (instant,
 // no store wait), matches (doesn't duplicate word-for-word) the H1 on the homepage.
 const DESCRIPTION =

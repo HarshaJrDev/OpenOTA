@@ -421,19 +421,21 @@ function Features() {
         </p>
       </FadeIn>
 
-      <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map(({ icon: Icon, title, description }, i) => (
-          <FadeIn key={title} delay={i * 0.06}>
-            <Card className="group h-full border-border/60 bg-card/60 p-6 transition-colors hover:border-brand-from/40 hover:bg-card">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary transition-colors group-hover:brand-gradient-bg">
-                <Icon className="h-5 w-5 text-secondary-foreground transition-colors group-hover:text-white" />
-              </div>
-              <h3 className="mt-4 font-medium">{title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-            </Card>
-          </FadeIn>
+          <li key={title}>
+            <FadeIn delay={i * 0.06}>
+              <Card className="group h-full border-border/60 bg-card/60 p-6 transition-colors hover:border-brand-from/40 hover:bg-card">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary transition-colors group-hover:brand-gradient-bg">
+                  <Icon className="h-5 w-5 text-secondary-foreground transition-colors group-hover:text-white" />
+                </div>
+                <h3 className="mt-4 font-medium">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+              </Card>
+            </FadeIn>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -450,17 +452,19 @@ function Pipeline() {
         </p>
       </FadeIn>
 
-      <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <ol className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {PIPELINE_STEPS.map((step, i) => (
-          <FadeIn key={step.num} delay={i * 0.07}>
-            <Card className="h-full border-border/60 bg-card/60 p-5">
-              <div className="text-2xl font-semibold text-muted-foreground/50">{step.num}</div>
-              <h3 className="mt-2 font-medium">{step.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
-            </Card>
-          </FadeIn>
+          <li key={step.num}>
+            <FadeIn delay={i * 0.07}>
+              <Card className="h-full border-border/60 bg-card/60 p-5">
+                <div className="text-2xl font-semibold text-muted-foreground/50">{step.num}</div>
+                <h3 className="mt-2 font-medium">{step.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
+              </Card>
+            </FadeIn>
+          </li>
         ))}
-      </div>
+      </ol>
 
       <FadeIn delay={0.1} className="mt-6">
         <Card className="overflow-hidden border-border/60 bg-card/60 p-0">
@@ -584,16 +588,18 @@ function Faq() {
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Frequently asked</h2>
       </FadeIn>
 
-      <div className="mt-12 space-y-4">
+      <ul className="mt-12 space-y-4">
         {FAQ.map((item, i) => (
-          <FadeIn key={item.q} delay={i * 0.05}>
-            <Card className="border-border/60 bg-card/60 p-6">
-              <h3 className="font-medium">{item.q}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
-            </Card>
-          </FadeIn>
+          <li key={item.q}>
+            <FadeIn delay={i * 0.05}>
+              <Card className="border-border/60 bg-card/60 p-6">
+                <h3 className="font-medium">{item.q}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
+              </Card>
+            </FadeIn>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
