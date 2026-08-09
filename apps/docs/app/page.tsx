@@ -163,16 +163,18 @@ export default async function Home() {
       <div className="pointer-events-none absolute left-1/2 top-[-120px] -z-10 h-[520px] w-[820px] -translate-x-1/2 animate-glow-pulse rounded-full bg-gradient-to-br from-brand-from/40 via-brand-to/30 to-transparent blur-[120px]" />
 
       <SiteNav stars={stars} />
-      <Hero />
-      <Stack />
-      <ProductPreview />
-      <Why />
-      <Features />
-      <Pipeline />
-      <HowItWorks />
-      <Comparison />
-      <Faq />
-      <Cta />
+      <main>
+        <Hero />
+        <Stack />
+        <ProductPreview />
+        <Why />
+        <Features />
+        <Pipeline />
+        <HowItWorks />
+        <Comparison />
+        <Faq />
+        <Cta />
+      </main>
       <SiteFooter />
     </div>
   );
@@ -274,6 +276,10 @@ function Hero() {
             alt="OpenOTA_Example React Native app showing the current OTA version, production channel, and an Up to date status, with Check for update, Sync, and Rollback buttons"
             width={1280}
             height={1550}
+            // Actual rendered width is the max-w-sm container above (~384px), not the viewport —
+            // without this, Next.js assumes 100vw and serves a much larger variant than needed
+            // (a real ~44KB-per-image waste PageSpeed Insights flagged).
+            sizes="(min-width: 640px) 384px, 90vw"
             className="w-full rounded-2xl border border-border/60 shadow-xl shadow-brand-from/10"
             priority
           />
@@ -282,6 +288,7 @@ function Hero() {
             alt="Real Android push notification from OpenOTA reading New version available, v1.0.9 is ready, tap to update instantly — delivered while the app was fully closed"
             width={1280}
             height={830}
+            sizes="(min-width: 640px) 384px, 90vw"
             className="w-full rounded-2xl border border-border/60 shadow-xl shadow-brand-from/10"
           />
           <p className="text-center text-xs text-muted-foreground">
@@ -457,7 +464,7 @@ function Pipeline() {
           <li key={step.num}>
             <FadeIn delay={i * 0.07}>
               <Card className="h-full border-border/60 bg-card/60 p-5">
-                <div className="text-2xl font-semibold text-muted-foreground/50">{step.num}</div>
+                <div className="text-2xl font-semibold text-muted-foreground">{step.num}</div>
                 <h3 className="mt-2 font-medium">{step.title}</h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
               </Card>

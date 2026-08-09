@@ -69,7 +69,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-muted-foreground sm:flex-row">
         <span>
           © {new Date().getFullYear()} OpenOTA. Built by Harsha. MIT licensed.{" "}
-          <span className="text-muted-foreground/70">· Page last updated August 9, 2026</span>
+          <span className="text-muted-foreground">· Page last updated August 9, 2026</span>
         </span>
         <div className="flex flex-wrap items-center justify-center gap-6">
           <a href="https://github.com/HarshaJrDev/OpenOTA" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
@@ -96,7 +96,7 @@ export function SiteFooter() {
           </Link>
         </div>
       </div>
-      <div className="mx-auto mt-6 flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border/40 px-6 pt-6 text-xs text-muted-foreground/80 sm:justify-start">
+      <div className="mx-auto mt-6 flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-border/40 px-6 pt-6 text-xs text-muted-foreground sm:justify-start">
         <Link href="/about" className="transition-colors hover:text-foreground">
           About
         </Link>
