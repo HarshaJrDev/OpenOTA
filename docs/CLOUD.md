@@ -274,6 +274,41 @@ curl "https://YOUR-SERVER/api/v1/projects/$PID/packages/check?platform=android&c
 | `SEED_TEST_USERS` / `OPENOTA_TEST_ADMIN_PASSWORD` / `OPENOTA_TEST_USER_PASSWORD` | no | off | **DEV MODE ONLY**, same hard production guard. Seeds `admin@test.openota.dev` + `user@test.openota.dev` for local/CI authorization testing — unlike the demo account, passwords are never hardcoded; both password vars must be set or nothing is seeded. Seeding the admin account only creates it — it needs to also be listed in `ADMIN_EMAILS` to actually get admin access. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | no | — | Enables "Continue with Google" (see §3.1a). All three or none — set together from a Google Cloud OAuth 2.0 Client ID (Web application type). `GOOGLE_REDIRECT_URI` must exactly match a URI registered on that client, e.g. `https://YOUR-SERVER/api/v1/auth/google/callback`. |
 | `ADMIN_EMAILS` | no | — | Comma-separated allowlist. Any account (password **or** Google) signed in under one of these emails gets admin access (currently: the runtime settings toggle at `/admin`). Not a roles/permissions system — just a trusted-humans list. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | no | — | Enables killed-app OTA push (see §5a). The *entire contents* of a downloaded Firebase service-account key JSON file, as one string — no reformatting needed. Unset -> push silently disabled; the WebSocket live path (`OTA.connectLive()`) is completely unaffected either way. |
+
+---
+
+## 5a. Push notifications (FCM) — optional, killed-app OTA delivery
+
+`OTA.connectLive()` (the WebSocket path) only reaches a device while its app is open or
+backgrounded-but-alive. This closes that gap: a real Android notification, shown even when the
+app is fully killed, that opens the app on tap. Entirely opt-in — nothing below is required for
+OTA itself to work.
+
+You'll need **your own** Firebase project — nothing is hardcoded to a shared one, same as Google
+sign-in.
+
+1. **Firebase Console** → create/select a project (independent of any Google Cloud OAuth project
+   already used for dashboard login).
+2. Add an **Android app** to it — the package name must exactly match your app's `applicationId`
+   (`android/app/build.gradle`).
+3. Download `google-services.json` → place it at `your-app/android/app/google-services.json`.
+4. `your-app/android/build.gradle` (root): add the Google Services Gradle plugin classpath —
+   `classpath("com.google.gms:google-services:4.4.2")`.
+5. `your-app/android/app/build.gradle`: `apply plugin: "com.google.gms.google-services"`.
+6. **Firebase Console** → Project Settings → Service Accounts → "Generate new private key" →
+   downloads a JSON file.
+7. On your OpenOTA server, set `FIREBASE_SERVICE_ACCOUNT_JSON` to the **entire contents** of that
+   file (one string, no reformatting).
+8. Rebuild your app — pulls in the native Firebase dependency and the app-level config.
+9. Call `OTA.registerPush()` once (e.g. after `OTA.configure()`) — requests the Android 13+
+   notification permission and registers the device's token with the server.
+10. (Optional) On the dashboard's Apps page, set a custom **push notification title/body** per
+    platform — otherwise a sensible default is used.
+
+Verify it end-to-end: install a real signed release build (not debug), force-stop the app (not
+just background it), publish a release from the dashboard/CLI, confirm a notification appears,
+tap it, confirm the app opens and picks up the new version.
 
 ---
 
