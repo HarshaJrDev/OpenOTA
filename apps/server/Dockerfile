@@ -36,7 +36,13 @@ COPY --from=build /repo/apps/server/package.json apps/server/package.json
 COPY --from=build /repo/apps/server/dist apps/server/dist
 COPY --from=build /repo/apps/server/node_modules apps/server/node_modules
 
+COPY --from=build /repo/apps/server/docker-entrypoint.sh /repo/apps/server/docker-entrypoint.sh
+RUN chmod +x /repo/apps/server/docker-entrypoint.sh
+
 WORKDIR /repo/apps/server
 EXPOSE 3900
 
-CMD ["node", "dist/server.js"]
+# See docker-entrypoint.sh's doc comment — generates and persists a SESSION_SECRET on first boot
+# if the operator didn't set one, so `docker compose up -d` with zero config actually works in
+# production mode, not just in theory.
+CMD ["./docker-entrypoint.sh"]

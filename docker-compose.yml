@@ -8,7 +8,13 @@ services:
     ports:
       - "${PORT:-3900}:${PORT:-3900}"
     env_file:
-      - .env
+      # Real bug found via a true fresh-clone `docker compose up -d` test: Compose refuses to
+      # start at all if `.env` doesn't literally exist on disk — "works with no .env file" (the
+      # comment below) was only true for a developer who'd already created one from
+      # .env.example, not a genuinely fresh clone. `required: false` (Compose v2.24+) makes a
+      # missing .env a no-op instead of a hard failure.
+      - path: .env
+        required: false
     environment:
       # Overridable via .env — these are just safe defaults so `docker compose up` works with no
       # .env file at all (self-hosting on local storage, zero external accounts required).
