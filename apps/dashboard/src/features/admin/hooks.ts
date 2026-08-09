@@ -12,6 +12,14 @@ export function useAdminSettings() {
   return useQuery({ queryKey: adminKeys.settings, queryFn: adminApi.getAdminSettings });
 }
 
+export function useInfrastructureStatus() {
+  return useQuery({
+    queryKey: ["admin", "infrastructure"],
+    queryFn: adminApi.getInfrastructureStatus,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useTraffic(app: TrafficApp, range: TrafficRange) {
   return useQuery({
     queryKey: ["admin", "traffic", app, range],

@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Eye, ShieldAlert, Users } from "lucide-react";
+import { CheckCircle2, Database, Eye, Globe, HardDrive, Mail, ShieldAlert, XCircle, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { Badge } from "@openota/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@openota/ui/card";
 import { Label } from "@openota/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@openota/ui/select";
@@ -14,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@openota/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
 import type { TrafficApp, TrafficRange } from "@/features/admin/api";
-import { useAdminSettings, useTraffic, useUpdateAdminSettings } from "@/features/admin/hooks";
+import { useAdminSettings, useInfrastructureStatus, useTraffic, useUpdateAdminSettings } from "@/features/admin/hooks";
 import { useMe } from "@/features/auth/hooks";
 
 export default function AdminPage() {
@@ -87,7 +88,119 @@ function AdminSettingsPanel() {
         </CardContent>
       </Card>
 
+      <InfrastructurePanel />
+
       <TrafficPanel />
+    </div>
+  );
+}
+
+function StatusBadge({ ok }: { ok: boolean }) {
+  return ok ? (
+    <Badge variant="outline" className="gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+      <CheckCircle2 className="h-3 w-3" />
+      Connected
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="gap-1 text-xs text-destructive">
+      <XCircle className="h-3 w-3" />
+      Unreachable
+    </Badge>
+  );
+}
+
+function InfrastructurePanel() {
+  const { data, isLoading } = useInfrastructureStatus();
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Infrastructure</h2>
+        <p className="text-sm text-muted-foreground">
+          Real, live connection status. Database, storage, and email are bootstrap-level config (env
+          vars / docker-compose) — this is a status view, not an editor. Change values in your
+          server&apos;s env file and restart to reconfigure.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-48 w-full" />
+      ) : !data ? (
+        <p className="text-sm text-muted-foreground">Could not load infrastructure status.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                Database
+              </CardTitle>
+              <StatusBadge ok={data.database.connected} />
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="text-muted-foreground">
+                Provider: <span className="font-medium text-foreground capitalize">{data.database.provider}</span>
+              </p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{data.database.maskedUrl}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                Storage
+              </CardTitle>
+              <StatusBadge ok={data.storage.connected} />
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="text-muted-foreground">
+                Provider: <span className="font-medium text-foreground capitalize">{data.storage.provider}</span>
+                {data.storage.bucket ? ` · ${data.storage.bucket}` : ""}
+              </p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{data.storage.maskedUrl}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Email
+              </CardTitle>
+              <Badge variant="outline" className="text-xs capitalize">
+                {data.email.transport}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="text-muted-foreground">
+                From: <span className="font-medium text-foreground">{data.email.maskedFrom}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {data.email.testMode ? "Test mode ON — logged only, nothing sent" : "Test mode OFF — real sends active"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Domain
+              </CardTitle>
+              <Badge variant="outline" className={`text-xs ${data.domain.httpsEnforced ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                {data.domain.httpsEnforced ? "HTTPS" : "HTTP"}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p className="truncate font-mono text-xs text-muted-foreground">{data.domain.dashboardUrl}</p>
+              <p className="text-xs text-muted-foreground">
+                {data.domain.corsAllowedOrigins ? `CORS: ${data.domain.corsAllowedOrigins.join(", ")}` : "CORS: reflects any origin"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

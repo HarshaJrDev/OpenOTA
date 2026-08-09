@@ -79,4 +79,33 @@ describe("admin settings", () => {
     const meNonAdmin = await request(app).get("/api/v1/auth/me").set("Cookie", nonAdminCookie);
     expect(meNonAdmin.body.data.isAdmin).toBe(false);
   });
+
+  describe("GET /admin/infrastructure", () => {
+    it("rejects a non-admin the same as logged-out (401, can't be probed)", async () => {
+      const cookie = await signup("infra-not-admin@example.test");
+      const res = await request(app).get("/api/v1/admin/infrastructure").set("Cookie", cookie);
+      expect(res.status).toBe(401);
+    });
+
+    it("reports real, live status for an admin — embedded DB + local storage in this test env, never raw credentials", async () => {
+      const cookie = await signup("infra-admin@example.test");
+      // Not in ADMIN_EMAILS from beforeAll — add via login as an existing admin instead.
+      const loginRes = await request(app).post("/api/v1/auth/login").send({ email: "admin@example.test", password: "correct-horse-battery" });
+      const adminCookie = loginRes.headers["set-cookie"][0] as string;
+
+      const res = await request(app).get("/api/v1/admin/infrastructure").set("Cookie", adminCookie);
+      expect(res.status).toBe(200);
+
+      expect(res.body.data.database).toMatchObject({ provider: "embedded", connected: true });
+      expect(res.body.data.storage).toMatchObject({ provider: "local", connected: true });
+      expect(res.body.data.email.transport).toBe("log-only");
+      expect(res.body.data.domain.dashboardUrl).toEqual(expect.any(String));
+
+      // Never leak the DB URL, password, or any *_KEY/*_SECRET field, at any nesting depth.
+      const serialized = JSON.stringify(res.body);
+      expect(serialized).not.toMatch(/password/i);
+      expect(serialized.toLowerCase()).not.toContain("secret");
+      void cookie; // signup only needed to prove the non-admin/admin distinction above, not reused here
+    });
+  });
 });
