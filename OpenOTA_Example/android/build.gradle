@@ -15,6 +15,9 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        // Parses google-services.json (see app/build.gradle) and wires FirebaseApp.initializeApp()
+        // automatically — required for @openota/native-android's FCM push support to work.
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 

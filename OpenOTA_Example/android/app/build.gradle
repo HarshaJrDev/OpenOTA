@@ -1,6 +1,10 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Reads google-services.json (see this module's directory) and wires up
+// FirebaseApp.initializeApp() automatically — required for @openota/native-android's FCM push
+// support (getFcmToken()/registerForPushNotifications()) to actually work.
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.

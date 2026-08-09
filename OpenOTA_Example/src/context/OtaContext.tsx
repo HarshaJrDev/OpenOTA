@@ -48,6 +48,10 @@ export function OtaProvider({ children }: { children: React.ReactNode }) {
     // Live updates: the server nudges this connection the instant a new release/rollback/rollout
     // change happens on this device's channel, instead of waiting for a manual check.
     OTA.connectLive(() => setUpdateAvailable(true));
+    // Killed-app delivery — complementary to connectLive() above, not a replacement (see
+    // OTA.registerPush()'s own doc comment). Requires google-services.json + the server's
+    // FIREBASE_SERVICE_ACCOUNT_JSON to actually deliver anything; harmlessly no-ops otherwise.
+    void OTA.registerPush();
     return () => OTA.disconnectLive();
   }, []);
 
