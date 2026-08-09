@@ -2,7 +2,7 @@
 
 This is the end-to-end path from "nothing installed" to "a real user's device picks up a JS
 change with no App Store review." Every command here is real and has been run against the live
-production stack (`https://openota.onrender.com` + a private Supabase bucket) while writing this.
+production stack (`https://api.openota.xyz` + a private Supabase bucket) while writing this.
 
 If you just want the command list without the walkthrough, see [COMMANDS.md](./COMMANDS.md).
 
@@ -10,7 +10,7 @@ If you just want the command list without the walkthrough, see [COMMANDS.md](./C
 
 | | Hosted (this repo's deployment) | Self-hosted |
 |---|---|---|
-| Server URL | `https://openota.onrender.com/api/v1` | your own, e.g. `http://localhost:3001/api/v1` |
+| Server URL | `https://api.openota.xyz/api/v1` | your own, e.g. `http://localhost:3001/api/v1` |
 | Storage | Supabase (already configured) | `LocalStorageProvider` (disk) by default |
 | Setup needed | none — just point your app at it | run `apps/server` yourself, see `apps/server/README.md` |
 
@@ -60,7 +60,7 @@ class MainApplication : Application(), ReactApplication {
 import { OTA } from "@openota/sdk";
 
 OTA.configure({
-  serverUrl: "https://openota.onrender.com/api/v1", // or your self-hosted URL
+  serverUrl: "https://api.openota.xyz/api/v1", // or your self-hosted URL
   channel: "production",
   autoRestart: false,   // if true, OTA.sync() restarts the app automatically after installing
   requestTimeout: 15_000,
@@ -71,14 +71,14 @@ OTA.configure({
 
 ```sh
 cd your-react-native-app
-npx openota init --server-url https://openota.onrender.com/api/v1 --runtime-version 1.0.0
+npx openota init --server-url https://api.openota.xyz/api/v1 --runtime-version 1.0.0
 ```
 
 This writes `openota.config.json`:
 
 ```json
 {
-  "serverUrl": "https://openota.onrender.com/api/v1",
+  "serverUrl": "https://api.openota.xyz/api/v1",
   "deployment": "production",
   "platforms": ["android", "ios"],
   "bundleOutput": "./openota",
@@ -127,7 +127,7 @@ OPENOTA_SERVER_URL=http://localhost:3001/api/v1 npx openota release --version 1.
 ## 4. Verify the release landed
 
 ```sh
-curl -s "https://openota.onrender.com/api/v1/packages/check?platform=android&currentVersion=1.0.0" | jq
+curl -s "https://api.openota.xyz/api/v1/packages/check?platform=android&currentVersion=1.0.0" | jq
 ```
 ```json
 {

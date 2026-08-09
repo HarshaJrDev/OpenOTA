@@ -6,9 +6,9 @@ Full walkthrough: [GETTING_STARTED.md](./GETTING_STARTED.md). This page is the f
 
 | | URL |
 |---|---|
-| Production backend | `https://openota.onrender.com` |
-| Production API base | `https://openota.onrender.com/api/v1` |
-| Health check | `https://openota.onrender.com/health` |
+| Production backend | `https://api.openota.xyz` |
+| Production API base | `https://api.openota.xyz/api/v1` |
+| Health check | `https://api.openota.xyz/health` |
 | Self-hosted default | `http://localhost:3001/api/v1` |
 
 ## CLI (`npx openota <command>`)
@@ -32,7 +32,7 @@ deployment temporarily.
 
 ```sh
 # First-time setup in a React Native project
-npx openota init --server-url https://openota.onrender.com/api/v1 --runtime-version 1.0.0
+npx openota init --server-url https://api.openota.xyz/api/v1 --runtime-version 1.0.0
 
 # Ship a release
 npx openota release --version 1.0.4 --platform android
@@ -66,21 +66,21 @@ Base path: `/api/v1/packages` (also mounted at `/api/packages` and `/packages` f
 
 ```sh
 # Health
-curl https://openota.onrender.com/health
+curl https://api.openota.xyz/health
 
 # Check for an update
-curl "https://openota.onrender.com/api/v1/packages/check?platform=android&currentVersion=1.0.0"
+curl "https://api.openota.xyz/api/v1/packages/check?platform=android&currentVersion=1.0.0"
 
 # List all packages
-curl https://openota.onrender.com/api/v1/packages/
+curl https://api.openota.xyz/api/v1/packages/
 
 # Roll back
-curl -X POST https://openota.onrender.com/api/v1/packages/rollback \
+curl -X POST https://api.openota.xyz/api/v1/packages/rollback \
   -H "Content-Type: application/json" \
   -d '{"platform":"android","version":"1.0.3"}'
 
 # Delete a package
-curl -X DELETE https://openota.onrender.com/api/v1/packages/android/1.0.4
+curl -X DELETE https://api.openota.xyz/api/v1/packages/android/1.0.4
 ```
 
 ### Error codes

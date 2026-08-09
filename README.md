@@ -1,4 +1,29 @@
-# OpenOTA
+<p align="center">
+  <img src="apps/docs/public/icon.png" alt="OpenOTA logo" width="72" height="72" />
+</p>
+
+<h1 align="center">OpenOTA</h1>
+
+<p align="center">
+  Open-source, self-hostable over-the-air update infrastructure for React Native.
+</p>
+
+<p align="center">
+  <a href="https://github.com/HarshaJrDev/OpenOTA/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/HarshaJrDev/OpenOTA/actions/workflows/server-ci.yml"><img alt="Server CI" src="https://github.com/HarshaJrDev/OpenOTA/actions/workflows/server-ci.yml/badge.svg"></a>
+  <a href="https://github.com/HarshaJrDev/OpenOTA/actions/workflows/package-ci.yml"><img alt="Package CI" src="https://github.com/HarshaJrDev/OpenOTA/actions/workflows/package-ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/@openota/sdk"><img alt="npm" src="https://img.shields.io/npm/v/@openota/sdk.svg?label=%40openota%2Fsdk"></a>
+  <a href="https://github.com/HarshaJrDev/OpenOTA/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/HarshaJrDev/OpenOTA?style=social"></a>
+</p>
+
+<p align="center">
+  <a href="https://openota.xyz">Website</a> ·
+  <a href="https://openota.xyz/docs">Docs</a> ·
+  <a href="https://dashboard.openota.xyz">Dashboard</a> ·
+  <a href="https://openota.xyz/pricing">Pricing</a>
+</p>
+
+---
 
 Self-hosted over-the-air update infrastructure for React Native: build a signed JS bundle, push
 it to your own server, and let devices sync, verify, and roll back on their own — no App Store
@@ -23,16 +48,17 @@ npx openota release --version 1.0.1 --platform android
 Full guide: **[docs/SELF_HOSTING.md](./docs/SELF_HOSTING.md)** · Storage options (local disk vs.
 your own Supabase project): **[docs/STORAGE.md](./docs/STORAGE.md)**
 
-### Path B — Official hosted service (optional)
+### Path B — OpenOTA Cloud (optional)
 
-Skip running a server entirely and point at the maintained deployment:
+Skip running a server entirely and point at the hosted deployment:
 ```sh
 npm install @openota/sdk @openota/native-android @openota/cli --save-dev
-npx openota init --server-url https://openota.onrender.com/api/v1 --runtime-version 1.0.0
+npx openota init --server-url https://api.openota.xyz/api/v1 --runtime-version 1.0.0
 npx openota release --version 1.0.1 --platform android
 ```
-`https://openota.onrender.com` (`/health`, API base `/api/v1`) — this is just another `serverUrl`
-value; nothing about the CLI/SDK/native runtime depends on it specifically.
+`https://api.openota.xyz` (`/health`, API base `/api/v1`) — this is just another `serverUrl`
+value; nothing about the CLI/SDK/native runtime depends on it specifically. Manage projects,
+releases, and API keys from the [dashboard](https://dashboard.openota.xyz).
 
 ---
 
@@ -74,7 +100,8 @@ storage backend) directly, only to the OpenOTA API.
 | `apps/dashboard` | Cloud web dashboard — auth (signup/login/email verification/password reset), projects, API keys, releases + rollback, real device tracking, install-result analytics. |
 | `apps/docs` | Marketing/docs landing page for OpenOTA Cloud. |
 | `apps/openota-site` | The self-hosted-focused marketing site. |
-| `apps/example` | A real React Native app used as the OTA integration playground/demo. |
+| `OpenOTA_Example` (repo root) | The primary reference React Native app — real SDK/native integration, used throughout the docs and dashboard's "Reference app" links. |
+| `apps/example` | An earlier internal integration playground; `OpenOTA_Example` above is the one referenced by current docs. |
 | `apps/e2e` | End-to-end certification suite (real CLI → real server → real Android instrumented tests). |
 
 ## Local development

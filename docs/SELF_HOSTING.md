@@ -1,7 +1,7 @@
 # Self-hosting OpenOTA
 
 OpenOTA is designed to run entirely on infrastructure you control. This is the primary,
-first-class path — the hosted service at `https://openota.onrender.com` is one optional
+first-class path — the hosted service at `https://api.openota.xyz` is one optional
 `serverUrl` among many, not a dependency.
 
 ```
