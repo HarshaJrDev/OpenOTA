@@ -75,6 +75,16 @@ dependencies {
     implementation "com.facebook.react:react-android"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "androidx.annotation:annotation:1.9.1"
+    // Killed-app OTA push delivery (see runtime/push/). This library never applies the Google
+    // Services *plugin* itself — that's app-level only, via the consuming app's own
+    // google-services.json (see docs/CLOUD.md's Firebase setup section). Without that file, the
+    // app simply never calls FirebaseApp.initializeApp() and getFcmToken() fails gracefully
+    // (returns null, see OpenOTAModule.kt) — push is fully opt-in per consuming app.
+    implementation platform("com.google.firebase:firebase-bom:33.7.0")
+    implementation "com.google.firebase:firebase-messaging"
+    // NotificationCompat/ActivityCompat, for showing the update notification and checking the
+    // Android 13+ POST_NOTIFICATIONS permission.
+    implementation "androidx.core:core-ktx:1.15.0"
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"

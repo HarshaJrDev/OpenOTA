@@ -1,1 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 13+ requires this to actually show a notification (a killed-app push can still be
+         received and handled without it — this only gates whether the tray notification appears).
+         The consuming app must still request it at runtime; see
+         OpenOTAModule.registerForPushNotifications(). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <service
+            android:name="com.openota.runtime.push.OpenOTAFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

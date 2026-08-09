@@ -1,5 +1,7 @@
 package com.openota.runtime
 
+import android.os.Build
+import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -7,6 +9,8 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
+import com.google.firebase.messaging.FirebaseMessaging
+import com.openota.runtime.push.ReactContextHolder
 
 /**
  * The only surface JS ever touches. Every method here is a thin translation to [BundleManager] or
@@ -26,6 +30,10 @@ class OpenOTAModule(reactContext: ReactApplicationContext) :
         super.initialize()
         runCatching { manager.confirmBoot() }
             .onFailure { OpenOTALogger.e("confirmBoot() failed", it) }
+        // Android instantiates OpenOTAFirebaseMessagingService entirely outside RN's lifecycle —
+        // this is the one point where a real ReactApplicationContext is available to hand it, via
+        // the small companion-object holder (see push/OpenOTAFirebaseMessagingService.kt).
+        ReactContextHolder.attach(reactApplicationContext)
     }
 
     @ReactMethod
@@ -75,6 +83,39 @@ class OpenOTAModule(reactContext: ReactApplicationContext) :
         runCatching { manager.getRuntimeInfo() }
             .onSuccess { promise.resolve(it.toWritableMap()) }
             .onFailure { promise.reject(errorCode(it), it.message, it) }
+    }
+
+    /** Thin wrapper — resolves null (never rejects) if Firebase isn't configured for this app (no google-services.json). */
+    @ReactMethod
+    fun getFcmToken(promise: Promise) {
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { promise.resolve(it) }
+            .addOnFailureListener {
+                OpenOTALogger.e("getFcmToken() failed — Firebase likely not configured for this app", it)
+                promise.resolve(null)
+            }
+    }
+
+    /**
+     * No-ops (resolves immediately) on API < 33, where POST_NOTIFICATIONS doesn't exist as a
+     * runtime permission — push delivery itself still works there, only the tray notification is
+     * gated. Requesting requires the current Activity; if none is attached (e.g. called before any
+     * screen mounted), resolves without requesting rather than crashing.
+     */
+    @ReactMethod
+    fun registerForPushNotifications(promise: Promise) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            promise.resolve(null)
+            return
+        }
+        val activity = reactApplicationContext.currentActivity
+        val permission = android.Manifest.permission.POST_NOTIFICATIONS
+        if (activity == null || ContextCompat.checkSelfPermission(reactApplicationContext, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            promise.resolve(null)
+            return
+        }
+        androidx.core.app.ActivityCompat.requestPermissions(activity, arrayOf(permission), 0)
+        promise.resolve(null)
     }
 
     private fun errorCode(error: Throwable): String = (error as? OpenOTAException)?.code ?: "INTERNAL_ERROR"
