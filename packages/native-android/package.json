@@ -1,6 +1,6 @@
 {
   "name": "@openota/native-android",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "OpenOTA Runtime Engine — Android native module (BundleManager, verification, staging, activation, rollback)",
   "license": "MIT",
   "homepage": "https://github.com/HarshaJrDev/OpenOTA/tree/main/packages/native-android#readme",

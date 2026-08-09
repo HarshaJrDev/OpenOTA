@@ -1,5 +1,22 @@
 # @openota/sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- Add FCM push notifications for killed-app OTA delivery, complementary to the existing WebSocket
+  live path (`OTA.connectLive()`), which only reaches an app that's open or backgrounded-but-alive.
+
+  `@openota/native-android`: new `getFcmToken()`/`registerForPushNotifications()` native methods, a
+  `FirebaseMessagingService` that shows a real (operator-customizable) notification even when the
+  app is fully closed, and tapping it opens the app. Requires the consuming app to add its own
+  Firebase project (`google-services.json` + the Google Services Gradle plugin) — fully opt-in,
+  nothing hardcoded to a shared Firebase project. See docs/CLOUD.md for setup.
+
+  `@openota/sdk`: new `OTA.registerPush()` — idempotent, requests the Android 13+ notification
+  permission, registers the device's FCM token with the server, and keeps it current across
+  rotations.
+
 ## 0.3.2
 
 ### Patch Changes
