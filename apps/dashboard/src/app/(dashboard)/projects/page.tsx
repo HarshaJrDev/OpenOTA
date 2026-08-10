@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FolderKanban, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, FolderKanban, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openota/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@openota/ui/dialog";
@@ -98,44 +99,86 @@ export default function ProjectsPage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {projects?.map((project) => (
-          <Card key={project.id} className="transition-colors hover:border-primary">
-            <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openProject(project.id)}>
-                <CardTitle className="truncate text-base">{project.name}</CardTitle>
-                <div className="flex items-center gap-1">
-                  <p className="truncate font-mono text-xs text-muted-foreground">{project.id}</p>
-                  <span onClick={(e) => e.stopPropagation()}>
-                    <CopyButton value={project.id} label="Project ID" className="h-5 w-5" />
-                  </span>
+        {projects?.map((project) => {
+          const isCurrent = project.id === currentProjectId;
+          return (
+            // The whole card is the click target now (not just the title) — it previously showed
+            // a "this is clickable" hover state (hover:border-primary) on the outer Card while
+            // only a small inner <button> around the title actually navigated anywhere, so most of
+            // the card's surface was a dead click with no feedback. role="button" + onClick here,
+            // with the dropdown's own trigger stopping propagation so its icon-button clicks don't
+            // also fire the card's navigation.
+            <Card
+              key={project.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => openProject(project.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openProject(project.id);
+                }
+              }}
+              className={`group cursor-pointer transition-colors hover:border-primary ${
+                isCurrent ? "border-primary/60 bg-primary/[0.03]" : ""
+              }`}
+            >
+              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="truncate text-base">{project.name}</CardTitle>
+                    {isCurrent && (
+                      <Badge variant="secondary" className="shrink-0 gap-1 text-xs">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Current
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className="truncate font-mono text-xs text-muted-foreground">{project.id}</p>
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <CopyButton value={project.id} label="Project ID" className="h-5 w-5" />
+                    </span>
+                  </div>
                 </div>
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Project actions">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setRenameTarget(project);
-                      setRenameValue(project.name);
-                    }}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" /> Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onSelect={() => setDeleteTarget(project)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
-          </Card>
-        ))}
+                <div className="flex shrink-0 items-center gap-1">
+                  {/* Only visible on hover/focus — a quiet affordance that this whole card opens
+                      the project, without competing with the dropdown for attention. */}
+                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        aria-label="Project actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          setRenameTarget(project);
+                          setRenameValue(project.name);
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onSelect={() => setDeleteTarget(project)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+            </Card>
+          );
+        })}
       </div>
 
       {projects && projects.length > 0 && (
