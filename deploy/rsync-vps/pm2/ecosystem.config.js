@@ -1,8 +1,8 @@
 // PM2 process definitions for all three OpenOTA apps, pointed at the `current` symlink that
 // deploy.sh atomically swaps to the newest release. Install once:
 //   pm2 start ecosystem.config.js
-// Every later deploy just does `pm2 reload <name>` (see deploy.sh) — this file itself rarely
-// changes.
+// Every later deploy reloads the dashboard/docs apps via `pm2 reload`/`startOrReload` (see
+// deploy.sh) — this file itself rarely changes.
 //
 // Ports are internal-only (127.0.0.1) — nginx is what's actually exposed on 80/443.
 //
@@ -13,8 +13,16 @@
 // writing the same on-disk database with no cross-process coordination — silent corruption risk.
 // Once you point DATABASE_URL at a real external Postgres (recommended for production — see
 // deploy/rsync-vps/README.md), it becomes safe to raise `instances` and switch to "cluster" here.
-// The dashboard and docs apps have no such constraint (stateless Next.js SSR) and already run
-// cluster mode for real multi-core zero-downtime reloads.
+//
+// IMPORTANT — do NOT deploy openota-server with `pm2 reload`/`startOrReload`, only `pm2 restart`.
+// This was originally documented as safe on the theory that fork-mode + 1 instance avoids the
+// old+new-concurrently overlap that makes cluster-mode reload zero-downtime — that theory was
+// wrong. `pm2 reload` still briefly starts the new process before the old one has fully exited
+// even in fork mode, and that overlap corrupted this exact on-disk PGlite database in a real
+// production incident. deploy.sh/rollback.sh now use `pm2 restart` for openota-server
+// specifically; if you ever reload it by hand, use `restart`, not `reload`/`startOrReload`.
+// The dashboard and docs apps have no such constraint (stateless Next.js SSR) and correctly keep
+// using cluster-mode zero-downtime reloads.
 module.exports = {
   apps: [
     {

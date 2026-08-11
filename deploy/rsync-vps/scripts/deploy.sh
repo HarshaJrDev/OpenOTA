@@ -160,11 +160,32 @@ rollback_and_exit() {
 reload_pm2() {
   # `startOrReload` (not plain `reload`) matters on the very first-ever deploy: at that point no
   # PM2 process exists yet, and `pm2 reload <name>` errors with nothing to reload. startOrReload
-  # starts whatever isn't running yet and gracefully reloads whatever already is — one command
-  # that's correct for both the first deploy and every deploy after it.
+  # starts whatever isn't running yet and gracefully reloads whatever already is — correct for
+  # cluster-mode dashboard/docs, which have no on-disk single-writer constraint.
+  #
+  # openota-server is different: fork-mode, 1 instance, backed by an embedded on-disk PGlite
+  # database whenever DATABASE_URL is unset (see ecosystem.config.js's comment). `pm2
+  # reload`/`startOrReload` still briefly runs the OLD and NEW process concurrently even in fork
+  # mode with a single instance — confirmed the hard way: this exact command corrupted this exact
+  # database in a real production incident. A second process is never safe to point at the same
+  # PGlite data directory, so openota-server is always fully stopped before the new one starts —
+  # `pm2 restart` when it's already running (sequential, no overlap), falling back to
+  # `startOrReload --only` only on the genuine first-ever deploy when no process exists yet to
+  # restart.
+  restart_or_start_server() {
+    if $SSH "pm2 describe openota-server >/dev/null 2>&1"; then
+      $SSH "pm2 restart openota-server"
+    else
+      $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-server"
+    fi
+  }
   case "$TARGET" in
-    all)       $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js'" ;;
-    server)    $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-server" ;;
+    all)
+      restart_or_start_server
+      $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-dashboard"
+      $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-docs"
+      ;;
+    server)    restart_or_start_server ;;
     dashboard) $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-dashboard" ;;
     docs)      $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-docs" ;;
   esac

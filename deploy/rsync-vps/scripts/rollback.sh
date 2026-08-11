@@ -69,7 +69,16 @@ read -r -p "Proceed? [y/N] " confirm
 $SSH "ln -sfn '${TARGET_DIR}' '${APP_ROOT}/current'"
 log "current -> ${TARGET_ID}"
 
-$SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js'"
+# openota-server is fork-mode/single-instance over an on-disk PGlite database — `startOrReload`
+# briefly runs old+new concurrently even here, which corrupted this exact database once already.
+# Restart it sequentially instead; cluster-mode dashboard/docs keep the zero-downtime reload.
+if $SSH "pm2 describe openota-server >/dev/null 2>&1"; then
+  $SSH "pm2 restart openota-server"
+else
+  $SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-server"
+fi
+$SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-dashboard"
+$SSH "pm2 startOrReload '${APP_ROOT}/shared/ecosystem.config.js' --only openota-docs"
 log "PM2 reloaded."
 
 sleep 3
