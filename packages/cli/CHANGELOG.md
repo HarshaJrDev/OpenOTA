@@ -1,5 +1,26 @@
 # @openota/cli
 
+## 0.2.5
+
+### Patch Changes
+
+- `openota login --api-key <key>` now validates the key against the target server before saving it,
+  instead of saving unconditionally and printing "Logged in." regardless of whether the server
+  actually accepts it. That silent-save behavior is exactly how a key ends up paired with the wrong
+  server (a Cloud project's key saved against a self-hosted deployment, or vice versa) — the mismatch
+  only ever surfaced later as a confusing 401 on `openota release`.
+
+  `resolveProjectFromKey` now returns a four-way result based on the server's real `GET /projects/me`
+  response — a genuinely valid project-scoped key, a valid self-hosted flat key, an explicit
+  rejection, or "server unreachable" (a network blip, not a verdict on the key). `login` blocks and
+  exits non-zero on an explicit rejection, but still saves on "unreachable" so a correct key isn't
+  punished for a transient timeout. `doctor`'s project-access check was updated to the same four-way
+  result.
+
+  Verified against real infrastructure: a Cloud project's key against a dedicated self-hosted server
+  is now rejected with a clear message instead of silently succeeding, and the same key against the
+  Cloud server still logs in and links the project correctly.
+
 ## 0.2.4
 
 ### Patch Changes
