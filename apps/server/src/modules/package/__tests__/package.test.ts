@@ -139,6 +139,38 @@ describe("package module", () => {
     expect(res.body.data.available).toBe(false);
   });
 
+  it("does not offer a release built for a different runtimeVersion", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "0.9.0", runtimeVersion: "99.99.99" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.available).toBe(false);
+    expect(res.body.data.manifest).toBeNull();
+    // Still reports what's active, same as the rollout-bucketing "not for you" case — just not
+    // servable to this runtime.
+    expect(res.body.data.latestVersion).toBe("1.0.0");
+  });
+
+  it("offers a release whose runtimeVersion matches", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "0.9.0", runtimeVersion: "1.0.0" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.available).toBe(true);
+    expect(res.body.data.manifest.runtimeVersion).toBe("1.0.0");
+  });
+
+  it("lets an older client through unfiltered when it doesn't send runtimeVersion at all", async () => {
+    const res = await request(app)
+      .get("/api/v1/packages/check")
+      .query({ platform: "android", currentVersion: "0.9.0" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.available).toBe(true);
+  });
+
   it("downloads a package", async () => {
     const res = await request(app).get("/api/v1/packages/android/1.0.0/download");
     expect(res.status).toBe(200);

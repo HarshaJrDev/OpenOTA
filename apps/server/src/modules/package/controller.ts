@@ -55,7 +55,13 @@ export function createPackageController(service: PackageService) {
   async function checkUpdate(req: Request, res: Response, next: NextFunction) {
     try {
       const query = checkUpdateQuerySchema.parse(req.query);
-      const result = await service.checkForUpdate(query.platform, query.currentVersion, query.channel, query.deviceId);
+      const result = await service.checkForUpdate(
+        query.platform,
+        query.currentVersion,
+        query.channel,
+        query.deviceId,
+        query.runtimeVersion,
+      );
       sendSuccess(res, result);
     } catch (error) {
       next(error);

@@ -260,6 +260,7 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     currentVersion: string,
     channel: string = DEFAULT_CHANNEL,
     deviceId?: string,
+    runtimeVersion?: string,
   ): Promise<CheckUpdateResult> {
     const active = await getActiveRelease(platform, channel);
 
@@ -270,6 +271,15 @@ export function createPackageService(repository: PackageRepository, logger: Logg
     const available = compareSemver(active.version, currentVersion) > 0;
 
     if (!available) {
+      return { available: false, latestVersion: active.version, downloadUrl: null, manifest: null };
+    }
+
+    // The active release was built against a specific native runtime — serving its JS bundle to a
+    // device on a different runtimeVersion is exactly the "incompatible bundle on incompatible
+    // native code" case OTA is supposed to prevent, not cause. A device that doesn't send
+    // runtimeVersion at all (older SDK) is let through unfiltered, same posture as the
+    // deviceId-less rollout-bucketing branch below.
+    if (runtimeVersion && runtimeVersion !== active.manifest.runtimeVersion) {
       return { available: false, latestVersion: active.version, downloadUrl: null, manifest: null };
     }
 
