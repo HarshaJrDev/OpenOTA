@@ -14,18 +14,42 @@ export async function runLogin(options: LoginCommandOptions): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
 
-  // Written to the user-level credentials file, never to openota.config.json — that file lives
-  // in the project repo and is meant to be committed. See credentials.service.ts's doc comment.
-  await saveApiKey(config.serverUrl, options.apiKey);
-  log.success(`Logged in. API key saved for ${config.serverUrl}.`);
+  // Verify the key against THIS server before saving it as a success — the previous version
+  // saved unconditionally and printed "✔ Logged in." even for a key that belonged to a
+  // completely different server, which is exactly how a key gets silently paired with the wrong
+  // deployment (discovered the hard way: a Cloud project's key stored against a self-hosted
+  // server's URL, 401ing on every release with no clue why). Resolve first, decide the message
+  // from what the server actually says, then persist — except when the server was simply
+  // unreachable, where blocking would punish a correct key for a transient network blip.
+  const resolution = await resolveProjectFromKey(config.serverUrl, options.apiKey);
 
-  // Best-effort: a project-scoped key (Cloud) resolves to exactly one project server-side; a
-  // self-hosted global OPENOTA_API_KEY resolves to nothing and is silently skipped (see
-  // resolveProjectFromKey's doc comment).
-  const project = await resolveProjectFromKey(config.serverUrl, options.apiKey);
-  if (!project) {
+  if (resolution.kind === "rejected") {
+    log.error(
+      `This API key was rejected by ${config.serverUrl} (${resolution.detail}). ` +
+        "Not saving it — a key that doesn't work here will just fail on the next `openota release` " +
+        "with a confusing 401. Double-check the key was created for this exact server, or that this " +
+        "server even requires a key at all (self-hosted servers with no OPENOTA_API_KEY need no login).",
+    );
+    process.exitCode = 1;
     return;
   }
+
+  await saveApiKey(config.serverUrl, options.apiKey);
+
+  if (resolution.kind === "unreachable") {
+    log.success(`Logged in. API key saved for ${config.serverUrl}.`);
+    log.warn(`Could not verify the key right now (${resolution.detail}) — saved anyway. Run \`openota doctor\` once the server's reachable to confirm it actually works.`);
+    return;
+  }
+
+  if (resolution.kind === "flat-key") {
+    log.success(`Logged in. API key saved for ${config.serverUrl}.`);
+    log.info("This server has no project system (self-hosted flat mode) — nothing further to link.");
+    return;
+  }
+
+  const { project } = resolution;
+  log.success(`Logged in. API key saved for ${config.serverUrl}.`);
 
   if (!config.projectId) {
     await setProjectId(root, project.id);

@@ -184,20 +184,32 @@ async function checkProjectAccess(root: string): Promise<DoctorCheckResult | und
     return { name: "Project Access", ok: false, message: "not logged in (run `openota login --api-key <key>`)" };
   }
 
-  const project = await resolveProjectFromKey(config.serverUrl, apiKey);
-  if (!project) {
-    return { name: "Project Access", ok: false, message: "API key did not resolve to a project (check it hasn't been revoked)" };
+  const resolution = await resolveProjectFromKey(config.serverUrl, apiKey);
+  switch (resolution.kind) {
+    case "rejected":
+      return { name: "Project Access", ok: false, message: `API key rejected by server (${resolution.detail})` };
+    case "unreachable":
+      return { name: "Project Access", ok: false, message: `could not verify (${resolution.detail})` };
+    case "flat-key":
+      // A projectId is configured but this key isn't project-scoped — a real mismatch worth
+      // surfacing, not the same as "server unreachable" or "key outright rejected".
+      return {
+        name: "Project Access",
+        ok: false,
+        message: "this key is a self-hosted flat key, not scoped to any project — but openota.config.json has a projectId set",
+      };
+    case "project": {
+      const { project } = resolution;
+      if (project.id !== config.projectId) {
+        return {
+          name: "Project Access",
+          ok: false,
+          message: `API key belongs to project "${project.name}" (${project.id}), not the configured ${config.projectId}`,
+        };
+      }
+      return { name: "Project Access", ok: true, message: `"${project.name}" (${project.id})` };
+    }
   }
-
-  if (project.id !== config.projectId) {
-    return {
-      name: "Project Access",
-      ok: false,
-      message: `API key belongs to project "${project.name}" (${project.id}), not the configured ${config.projectId}`,
-    };
-  }
-
-  return { name: "Project Access", ok: true, message: `"${project.name}" (${project.id})` };
 }
 
 export async function runDoctorChecks(root: string = getProjectRoot()): Promise<DoctorCheckResult[]> {
