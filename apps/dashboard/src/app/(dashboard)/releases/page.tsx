@@ -65,11 +65,16 @@ function ProjectReleases({ projectId }: { projectId: string }) {
         <EmptyState
           icon={Tags}
           title="No OTA releases yet"
-          description="There's no release button here on purpose — releases are pushed from your React Native project via the CLI, not from the dashboard. Run this from your project root:"
+          description="There's no release button here on purpose — releases are pushed from your React Native project via the CLI, not from the dashboard. First connect your project (server URL, project ID, and an API key), then run `openota release` from your project root."
           action={
-            <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
-              <code className="font-mono text-xs">npx openota release --version 1.0.0 --platform android</code>
-              <CopyButton value="npx openota release --version 1.0.0 --platform android" label="release command" />
+            <div className="flex flex-col items-center gap-3">
+              <Button asChild>
+                <Link href="/api-keys">Go to Connect</Link>
+              </Button>
+              <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
+                <code className="font-mono text-xs">npx openota release --version 1.0.0 --platform android</code>
+                <CopyButton value="npx openota release --version 1.0.0 --platform android" label="release command" />
+              </div>
             </div>
           }
         />
