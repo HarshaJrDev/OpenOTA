@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@openota/ui/button";
 
 const NAV_LINKS = [
-  { href: "/", label: "Landing Page" },
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Documentation" },
