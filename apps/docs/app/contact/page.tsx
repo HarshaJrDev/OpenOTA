@@ -44,7 +44,7 @@ export default async function ContactPage() {
                 and the fastest way to get eyes on it.
               </p>
               <Button variant="outline" className="mt-auto gap-1.5" asChild>
-                <a href="https://github.com/HarshaJrDev/OpenOTA/issues">
+                <a href="https://github.com/HarshaJrDev/OpenOTA/issues" target="_blank" rel="noopener noreferrer">
                   <Github className="h-4 w-4" />
                   Open a GitHub Issue
                 </a>

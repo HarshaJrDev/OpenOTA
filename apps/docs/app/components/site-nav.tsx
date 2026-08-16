@@ -47,14 +47,19 @@ export function SiteNav({ stars }: { stars: number | null }) {
               {link.label}
             </Link>
           ))}
-          <a href="https://github.com/HarshaJrDev/OpenOTA" className="transition-colors hover:text-foreground">
+          <a
+            href="https://github.com/HarshaJrDev/OpenOTA"
+            className="transition-colors hover:text-foreground"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             GitHub
           </a>
         </nav>
 
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5">
+            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5" target="_blank" rel="noopener noreferrer">
               <Github />
               {stars !== null && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -112,6 +117,8 @@ export function SiteNav({ stars }: { stars: number | null }) {
             <a
               href="https://github.com/HarshaJrDev/OpenOTA"
               className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base text-foreground transition-colors hover:bg-muted"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <Github className="h-4 w-4" />
               GitHub
@@ -144,7 +151,12 @@ export function SiteFooter() {
           <span className="text-muted-foreground">· Page last updated August 9, 2026</span>
         </span>
         <div className="flex flex-wrap items-center justify-center gap-6">
-          <a href="https://github.com/HarshaJrDev/OpenOTA" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
+          <a
+            href="https://github.com/HarshaJrDev/OpenOTA"
+            className="flex items-center gap-1.5 transition-colors hover:text-foreground"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Github className="h-3.5 w-3.5" />
             GitHub
           </a>

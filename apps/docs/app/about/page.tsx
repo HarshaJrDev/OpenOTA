@@ -47,7 +47,7 @@ export default function AboutPage() {
 
         <FadeIn delay={0.16} className="mt-10 flex flex-wrap gap-3">
           <Button variant="outline" asChild>
-            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5">
+            <a href="https://github.com/HarshaJrDev/OpenOTA" className="gap-1.5" target="_blank" rel="noopener noreferrer">
               <Github className="h-4 w-4" />
               View source on GitHub
             </a>

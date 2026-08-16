@@ -13,7 +13,10 @@ export default function DisclaimerPage() {
       <Section title="Open-source software, provided as-is">
         <p>
           OpenOTA is provided under the MIT license &quot;as is&quot;, without warranty of any kind. See the full
-          license text in the <a href="https://github.com/HarshaJrDev/OpenOTA/blob/main/LICENSE">GitHub repository</a>{" "}
+          license text in the{" "}
+          <a href="https://github.com/HarshaJrDev/OpenOTA/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
+            GitHub repository
+          </a>{" "}
           for the exact legal terms.
         </p>
       </Section>

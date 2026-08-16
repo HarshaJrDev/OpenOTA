@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -22,6 +22,18 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "OpenOTA Dashboard",
   description: "The developer platform for OpenOTA — packages, releases, devices, analytics.",
+  // Authenticated app, not a marketing surface — project/release/API-key pages must never end up
+  // in a search index.
+  robots: { index: false, follow: false },
+};
+
+// Without this, mobile browsers assume a ~980px desktop layout and shrink the whole dashboard to
+// fit — every `sm:`/`md:`/`lg:` Tailwind breakpoint then never actually triggers on a real phone.
+// Same root cause already found and fixed on the marketing site (apps/docs); the dashboard had it
+// too.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

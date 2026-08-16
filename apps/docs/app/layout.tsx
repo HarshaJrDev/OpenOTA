@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 import { Analytics } from "./components/analytics";
+import { MotionProvider } from "./components/motion-provider";
 import { StructuredData } from "./components/structured-data";
 import { TrafficBeacon } from "./components/traffic-beacon";
 
@@ -88,7 +89,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${plexSans.variable} ${plexMono.variable} font-sans antialiased`}>
         <StructuredData />
-        {children}
+        <MotionProvider>{children}</MotionProvider>
         <SpeedInsights />
         <Analytics />
         <TrafficBeacon />

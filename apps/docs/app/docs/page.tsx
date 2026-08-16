@@ -334,6 +334,8 @@ npx openota release --version 1.0.1 --platform android`}
             <a
               className="underline underline-offset-4 hover:text-foreground"
               href="https://github.com/HarshaJrDev/OpenOTA/blob/main/docs/GETTING_STARTED.md"
+            target="_blank"
+            rel="noopener noreferrer"
             >
               docs/GETTING_STARTED.md
             </a>
@@ -364,6 +366,8 @@ npx openota release --version 1.0.1 --platform android`}
             <a
               className="underline underline-offset-4 hover:text-foreground"
               href="https://github.com/HarshaJrDev/OpenOTA/blob/main/docs/CLOUD.md"
+            target="_blank"
+            rel="noopener noreferrer"
             >
               docs/CLOUD.md
             </a>
@@ -578,6 +582,8 @@ OTA.connectLive(() => {
             <a
               className="underline underline-offset-4 hover:text-foreground"
               href="https://github.com/HarshaJrDev/OpenOTA/blob/main/docs/CLOUD.md#5-environment-variables"
+            target="_blank"
+            rel="noopener noreferrer"
             >
               docs/CLOUD.md §5
             </a>
@@ -844,6 +850,8 @@ volumes:
             <a
               className="underline underline-offset-4 hover:text-foreground"
               href="https://github.com/HarshaJrDev/OpenOTA/blob/main/docs/CLOUD.md"
+            target="_blank"
+            rel="noopener noreferrer"
             >
               docs/CLOUD.md
             </a>{" "}

@@ -255,7 +255,9 @@ function Hero() {
             <Link href="/docs">Read the docs</Link>
           </Button>
           <Button size="lg" variant="ghost" asChild>
-            <a href="https://github.com/HarshaJrDev/OpenOTA">View on GitHub</a>
+            <a href="https://github.com/HarshaJrDev/OpenOTA" target="_blank" rel="noopener noreferrer">
+              View on GitHub
+            </a>
           </Button>
         </div>
       </FadeIn>
@@ -852,7 +854,9 @@ function Cta({ stars }: { stars: number | null }) {
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <a href="https://github.com/HarshaJrDev/OpenOTA">Star on GitHub</a>
+              <a href="https://github.com/HarshaJrDev/OpenOTA" target="_blank" rel="noopener noreferrer">
+                Star on GitHub
+              </a>
             </Button>
           </div>
         </Card>

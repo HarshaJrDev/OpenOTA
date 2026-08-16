@@ -7,6 +7,7 @@ import { Button } from "@openota/ui/button";
 
 import { useLogout } from "@/features/auth/hooks";
 
+import { MobileNav } from "./mobile-nav";
 import { ProjectSwitcher } from "./project-switcher";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -20,21 +21,28 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+      {/* min-w-0 is load-bearing: without it, a flex child's default min-width:auto lets its
+          content (the search button below) refuse to shrink past its own intrinsic width,
+          silently overflowing the header on a narrow phone instead of actually respecting the
+          `flex-1` it's given. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <MobileNav />
         <ProjectSwitcher />
         <Button
           variant="outline"
-          className="w-full max-w-sm justify-start text-muted-foreground md:w-64"
+          className="min-w-0 flex-1 justify-start text-muted-foreground sm:max-w-sm md:w-64 md:flex-none"
           onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
         >
-          <Search className="mr-2 h-4 w-4" />
-          Search…
-          <kbd className="ml-auto rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+          <Search className="h-4 w-4 sm:mr-2" />
+          <span className="hidden truncate sm:inline">Search…</span>
+          <kbd className="ml-auto hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline-block">
+            ⌘K
+          </kbd>
         </Button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <ThemeToggle />
         <Button variant="ghost" size="icon" onClick={handleLogout} disabled={logout.isPending} title="Log out">
           <LogOut className="h-4 w-4" />

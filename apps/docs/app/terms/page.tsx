@@ -16,7 +16,10 @@ export default function TermsPage() {
         <p>
           OpenOTA — the CLI, SDK, native modules, and server — is open source under the MIT license. You can read,
           fork, modify, and self-host it without restriction, subject only to the MIT license terms in the{" "}
-          <a href="https://github.com/HarshaJrDev/OpenOTA">GitHub repository</a>.
+          <a href="https://github.com/HarshaJrDev/OpenOTA" target="_blank" rel="noopener noreferrer">
+            GitHub repository
+          </a>
+          .
         </p>
       </Section>
 
