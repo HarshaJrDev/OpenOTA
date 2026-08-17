@@ -27,4 +27,13 @@ Pod::Spec.new do |s|
   # New Architecture / TurboModule codegen wiring — matches the pattern react-native's own
   # `install_modules_dependencies` helper expects for a codegen'd Swift/ObjC++ TurboModule.
   install_modules_dependencies(s)
+
+  # `ios/Tests/**` is excluded from the main pod above (it must never ship inside a consuming
+  # app's binary) but still needs a real place to run — a test_spec is CocoaPods' mechanism for
+  # that: `pod install` generates a proper XCTest bundle target (depending on this pod via
+  # `@testable import OpenOTA`) that `xcodebuild test` can run directly, instead of the test file
+  # sitting in the repo with no execution path at all.
+  s.test_spec "Tests" do |test_spec|
+    test_spec.source_files = "ios/Tests/**/*.swift"
+  end
 end
