@@ -1,8 +1,10 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
 
 import { Screen } from '../components/Screen';
+
+const CHANGE_LOG = ['Real iOS OTA E2E test', 'Text change confirmed', 'FlatList confirmed', 'Background color confirmed'];
 
 const STEPS = [
   { title: 'Run openota release', detail: 'From your React Native app: builds, bundles, and uploads a new package to your OpenOTA server.' },
@@ -18,15 +20,27 @@ export function AboutScreen(): React.JSX.Element {
 
   return (
     <Screen title="About" subtitle="What this app is, and how to validate a release end to end">
-      <Card mode="outlined">
+      <Card mode="outlined" style={{ backgroundColor: '#0B3D2E' }}>
         <Card.Content style={styles.section}>
-          <Text variant="titleSmall">OpenOTA Developer Playground</Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          <Text variant="titleSmall" style={{ color: '#FFFFFF' }}>
+            OpenOTA Developer Playground [iOS OTA E2E Test - After]
+          </Text>
+          <Text variant="bodyMedium" style={{ color: '#D7F5E8' }}>
             The canonical application used by OpenOTA maintainers, contributors, CI, documentation,
             QA, and bug reports to observe the entire OTA lifecycle. Every screen in this app is
             backed exclusively by <Text style={styles.mono}>@openota/sdk</Text> — it never calls a
             backend API directly.
           </Text>
+          <FlatList
+            data={CHANGE_LOG}
+            keyExtractor={(item) => item}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <Text variant="bodySmall" style={{ color: '#D7F5E8' }}>
+                • {item}
+              </Text>
+            )}
+          />
         </Card.Content>
       </Card>
 
@@ -94,5 +108,8 @@ const styles = StyleSheet.create({
   },
   mono: {
     fontFamily: 'monospace',
+  },
+  changeRow: {
+    paddingVertical: 4,
   },
 });

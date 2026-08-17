@@ -1,8 +1,10 @@
 {
-  "serverUrl": "https://openota.onrender.com/api/v1",
+  "serverUrl": "https://api.openota.xyz/api/v1",
+  "projectId": "b9f60c94-7599-4f5f-b4c7-75fcc6d3351e",
   "deployment": "production",
   "platforms": [
-    "android"
+    "android",
+    "ios"
   ],
   "bundleOutput": "./openota",
   "runtimeVersion": "1.0.0"

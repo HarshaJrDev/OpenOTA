@@ -1,0 +1,48 @@
+{
+  "name": "@openota/native-ios",
+  "version": "0.1.0",
+  "description": "OpenOTA Runtime Engine — iOS native module (BundleManager, verification, staging, activation, rollback)",
+  "license": "MIT",
+  "homepage": "https://github.com/HarshaJrDev/OpenOTA/tree/main/packages/native-ios#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshaJrDev/OpenOTA.git",
+    "directory": "packages/native-ios"
+  },
+  "bugs": {
+    "url": "https://github.com/HarshaJrDev/OpenOTA/issues"
+  },
+  "keywords": [
+    "ota",
+    "react-native",
+    "codepush",
+    "openota",
+    "ios",
+    "turbomodule",
+    "native-module"
+  ],
+  "author": "",
+  "files": [
+    "OpenOTA.podspec",
+    "ios",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "codegenConfig": {
+    "name": "OpenOTASpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "ios": {}
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}

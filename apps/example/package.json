@@ -14,6 +14,7 @@
   "dependencies": {
     "@babel/runtime": "^7.25.0",
     "@openota/native-android": "workspace:*",
+    "@openota/native-ios": "workspace:*",
     "@openota/sdk": "workspace:*",
     "@openota/shared": "workspace:*",
     "react": "19.2.3",

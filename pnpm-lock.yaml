@@ -269,6 +269,9 @@ importers:
       '@openota/native-android':
         specifier: workspace:*
         version: link:../../packages/native-android
+      '@openota/native-ios':
+        specifier: workspace:*
+        version: link:../../packages/native-ios
       '@openota/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk

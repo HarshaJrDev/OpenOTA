@@ -20,6 +20,7 @@ export function initOtaPlayground(): void {
 
   OTA.configure({
     serverUrl: PLAYGROUND_CONFIG.serverUrl,
+    projectId: PLAYGROUND_CONFIG.projectId,
     channel: PLAYGROUND_CONFIG.channel,
     autoRestart: PLAYGROUND_CONFIG.autoRestart,
     requestTimeout: PLAYGROUND_CONFIG.requestTimeout,
