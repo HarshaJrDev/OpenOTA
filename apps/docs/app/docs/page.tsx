@@ -21,7 +21,9 @@ import { Badge } from "@openota/ui/badge";
 import { Card } from "@openota/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@openota/ui/table";
 
+import { BreadcrumbJsonLd } from "../components/breadcrumb-jsonld";
 import { CodeBlock } from "../components/code-block";
+import { SiteFooter, SiteNav } from "../components/site-nav";
 
 export const metadata: Metadata = {
   title: "Docs — OpenOTA",
@@ -182,8 +184,12 @@ function Section({ id, icon: Icon, title, children }: { id: string; icon: React.
 
 export default function DocsPage() {
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-16 lg:grid-cols-[200px_1fr]">
-      <aside className="hidden lg:block">
+    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <BreadcrumbJsonLd items={[{ name: "Documentation", path: "/docs" }]} />
+      <SiteNav stars={null} />
+
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-16 lg:grid-cols-[200px_1fr]">
+        <aside className="hidden lg:block">
         <nav className="sticky top-24 space-y-1 text-sm">
           {NAV.map((item) => (
             <a
@@ -858,7 +864,10 @@ volumes:
             in the repo.
           </p>
         </Section>
+        </div>
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

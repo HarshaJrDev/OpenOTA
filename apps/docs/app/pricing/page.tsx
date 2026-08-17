@@ -7,6 +7,7 @@ import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@openota/ui/table";
 
+import { BreadcrumbJsonLd } from "../components/breadcrumb-jsonld";
 import { FadeIn } from "../components/fade-in";
 import { SiteFooter, SiteNav } from "../components/site-nav";
 
@@ -98,6 +99,7 @@ export default async function PricingPage() {
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] grid-fade" />
       <div className="pointer-events-none absolute left-1/2 top-[-120px] -z-10 h-[420px] w-[720px] -translate-x-1/2 animate-glow-pulse rounded-full bg-gradient-to-br from-brand-from/30 via-brand-to/20 to-transparent blur-[120px]" />
+      <BreadcrumbJsonLd items={[{ name: "Pricing", path: "/pricing" }]} />
       <SiteNav stars={null} />
 
       <section className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center">

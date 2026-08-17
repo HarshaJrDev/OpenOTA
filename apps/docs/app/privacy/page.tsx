@@ -11,7 +11,7 @@ const CONTACT_EMAIL = "developmet1043@gmail.com";
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" lastUpdated="August 2026">
+    <LegalPage title="Privacy Policy" lastUpdated="August 2026" path="/privacy">
       <Section title="Scope">
         <p>
           This policy covers two separate things: the marketing/documentation website you&apos;re reading right

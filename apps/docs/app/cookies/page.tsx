@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function CookiesPage() {
   return (
-    <LegalPage title="Cookie Policy" lastUpdated="August 2026">
+    <LegalPage title="Cookie Policy" lastUpdated="August 2026" path="/cookies">
       <Section title="This marketing site">
         <p>
           openota.xyz itself sets no cookies of its own. If the site operator has enabled Google Analytics 4 or

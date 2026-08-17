@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
+import { BreadcrumbJsonLd } from "../components/breadcrumb-jsonld";
 import { CodeBlock } from "../components/code-block";
 import { FadeIn } from "../components/fade-in";
 import { SiteFooter, SiteNav } from "../components/site-nav";
@@ -42,6 +43,7 @@ export default async function DownloadPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] grid-fade" />
+      <BreadcrumbJsonLd items={[{ name: "Download", path: "/download" }]} />
       <SiteNav stars={null} />
 
       <section className="mx-auto max-w-3xl px-6 pb-16 pt-20 text-center">

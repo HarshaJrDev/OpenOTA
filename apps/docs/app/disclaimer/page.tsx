@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function DisclaimerPage() {
   return (
-    <LegalPage title="Disclaimer" lastUpdated="August 2026">
+    <LegalPage title="Disclaimer" lastUpdated="August 2026" path="/disclaimer">
       <Section title="Open-source software, provided as-is">
         <p>
           OpenOTA is provided under the MIT license &quot;as is&quot;, without warranty of any kind. See the full

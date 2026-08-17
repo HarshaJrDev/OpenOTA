@@ -1,16 +1,19 @@
+import { BreadcrumbJsonLd } from "./breadcrumb-jsonld";
 import { FadeIn } from "./fade-in";
 import { SiteFooter, SiteNav } from "./site-nav";
 
 interface LegalPageProps {
   title: string;
   lastUpdated: string;
+  path: string;
   children: React.ReactNode;
 }
 
 /** Shared shell for every legal/informational page — one place to keep them visually consistent. */
-export function LegalPage({ title, lastUpdated, children }: LegalPageProps) {
+export function LegalPage({ title, lastUpdated, path, children }: LegalPageProps) {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <BreadcrumbJsonLd items={[{ name: title, path }]} />
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[360px] grid-fade" />
       <SiteNav stars={null} />
 

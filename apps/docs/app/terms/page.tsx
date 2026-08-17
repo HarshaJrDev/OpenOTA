@@ -11,7 +11,7 @@ const CONTACT_EMAIL = "developmet1043@gmail.com";
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" lastUpdated="August 2026">
+    <LegalPage title="Terms of Service" lastUpdated="August 2026" path="/terms">
       <Section title="The software itself">
         <p>
           OpenOTA — the CLI, SDK, native modules, and server — is open source under the MIT license. You can read,

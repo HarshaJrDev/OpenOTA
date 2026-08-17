@@ -3,6 +3,7 @@ import { Github, Mail } from "lucide-react";
 
 import { Button } from "@openota/ui/button";
 
+import { BreadcrumbJsonLd } from "../components/breadcrumb-jsonld";
 import { FadeIn } from "../components/fade-in";
 import { SiteFooter, SiteNav } from "../components/site-nav";
 
@@ -17,6 +18,7 @@ export default function AboutPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] grid-fade" />
+      <BreadcrumbJsonLd items={[{ name: "About", path: "/about" }]} />
       <SiteNav stars={null} />
 
       <section className="mx-auto max-w-2xl px-6 pb-24 pt-20">

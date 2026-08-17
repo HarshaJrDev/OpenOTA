@@ -20,6 +20,7 @@ import { Badge } from "@openota/ui/badge";
 import { Button } from "@openota/ui/button";
 import { Card } from "@openota/ui/card";
 
+import { BreadcrumbJsonLd } from "../components/breadcrumb-jsonld";
 import { FadeIn } from "../components/fade-in";
 import { SiteFooter, SiteNav } from "../components/site-nav";
 
@@ -177,6 +178,7 @@ export default async function FeaturesPage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] grid-fade" />
+      <BreadcrumbJsonLd items={[{ name: "Features", path: "/features" }]} />
       <SiteNav stars={null} />
 
       <section className="mx-auto max-w-3xl px-6 pb-8 pt-20 text-center">
