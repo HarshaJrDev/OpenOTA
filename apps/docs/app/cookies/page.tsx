@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { LegalPage, Section } from "../components/legal-page";
 
@@ -14,7 +15,10 @@ export default function CookiesPage() {
         <p>
           openota.xyz itself sets no cookies of its own. If the site operator has enabled Google Analytics 4 or
           Microsoft Clarity (both optional, off by default — see the{" "}
-          <a href="/privacy">Privacy Policy</a>), those services set their own standard analytics cookies to
+          <Link href="/privacy" className="underline underline-offset-4 hover:no-underline">
+            Privacy Policy
+          </Link>
+          ), those services set their own standard analytics cookies to
           distinguish visitors across a session.
         </p>
       </Section>

@@ -155,10 +155,17 @@ export default async function PricingPage() {
                   variant={"badge" in plan ? "default" : "outline"}
                   asChild
                 >
-                  <a href={plan.cta.href} className="gap-1.5">
-                    {"icon" in plan.cta && <plan.cta.icon className="h-4 w-4" />}
-                    {plan.cta.label}
-                  </a>
+                  {plan.cta.href.startsWith("http") ? (
+                    <a href={plan.cta.href} target="_blank" rel="noopener noreferrer" className="gap-1.5">
+                      {"icon" in plan.cta && <plan.cta.icon className="h-4 w-4" />}
+                      {plan.cta.label}
+                    </a>
+                  ) : (
+                    <Link href={plan.cta.href} className="gap-1.5">
+                      {"icon" in plan.cta && <plan.cta.icon className="h-4 w-4" />}
+                      {plan.cta.label}
+                    </Link>
+                  )}
                 </Button>
               </Card>
             </FadeIn>
