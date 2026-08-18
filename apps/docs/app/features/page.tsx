@@ -83,8 +83,7 @@ const PLATFORMS: FeatureItem[] = [
   {
     icon: Smartphone,
     title: "iOS",
-    description: "The SDK's iOS bridge and server-side support exist, but there's no shipped native module yet — Android is what works today.",
-    status: { label: "In progress", variant: "outline" },
+    description: "Native bundle-swapping via @openota/native-ios, published on npm — verified end to end (download, verify, activate, rollback, real-time delivery) on iOS.",
   },
 ];
 
@@ -190,7 +189,7 @@ export default async function FeaturesPage() {
         <FadeIn delay={0.08}>
           <p className="mt-5 text-lg text-muted-foreground text-balance">
             Every feature below reflects what&apos;s shipped today, not a roadmap. Where something is partial or
-            in progress — like iOS — it&apos;s labeled that way instead of implied.
+            in progress, it&apos;s labeled that way instead of implied.
           </p>
         </FadeIn>
       </section>

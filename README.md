@@ -96,6 +96,7 @@ storage backend) directly, only to the OpenOTA API.
 | `packages/cli` | `openota` CLI — `init`, `doctor`, `build`, `upload`, `release`, `rollback`. |
 | `packages/sdk` | `@openota/sdk` — the on-device `OTA.*` API (check/download/verify/install/sync/rollback). |
 | `packages/native-android` | Android TurboModule — bundle staging, SHA-256 verification, activation, crash-loop-safe rollback. See its own [README](./packages/native-android/README.md). |
+| `packages/native-ios` | iOS native module — bundle staging, SHA-256 verification, activation, rollback. See its own [README](./packages/native-ios/README.md). |
 | `packages/shared` | Shared TypeScript contracts (Manifest, error codes, API envelopes) used by every package above. |
 | `apps/dashboard` | Cloud web dashboard — auth (signup/login/email verification/password reset), projects, API keys, releases + rollback, real device tracking, install-result analytics. |
 | `apps/docs` | Marketing/docs landing page for OpenOTA Cloud. |

@@ -12,7 +12,7 @@ import { SiteFooter, SiteNav } from "../components/site-nav";
 
 export const metadata: Metadata = {
   title: "Download — OpenOTA",
-  description: "Install the OpenOTA CLI, SDK, and native Android package.",
+  description: "Install the OpenOTA CLI, SDK, and native Android/iOS packages.",
 };
 
 const PACKAGES = [
@@ -37,6 +37,13 @@ const PACKAGES = [
     install: "npm install @openota/native-android",
     description: "Native module the SDK uses on Android to swap bundles at runtime.",
   },
+  {
+    icon: Smartphone,
+    name: "Native (iOS)",
+    pkg: "@openota/native-ios",
+    install: "npm install @openota/native-ios",
+    description: "Native module the SDK uses on iOS to swap bundles at runtime — CocoaPods autolinked.",
+  },
 ];
 
 export default async function DownloadPage() {
@@ -55,13 +62,13 @@ export default async function DownloadPage() {
         <FadeIn delay={0.08}>
           <p className="mt-5 text-lg text-muted-foreground text-balance">
             OpenOTA ships as npm packages you add to your own React Native project — a CLI for releasing, an SDK for
-            the app, and a native module for Android. Install what you need below.
+            the app, and a native module for each platform. Install what you need below.
           </p>
         </FadeIn>
       </section>
 
       <section className="mx-auto max-w-4xl px-6 pb-24">
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2">
           {PACKAGES.map(({ icon: Icon, name, pkg, install, description }) => (
             <FadeIn key={pkg} delay={0.1}>
               <Card className="flex h-full flex-col gap-3 border-border/60 bg-card/60 p-6">
