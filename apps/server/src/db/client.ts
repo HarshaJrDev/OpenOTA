@@ -90,6 +90,14 @@ export async function initDb(): Promise<void> {
     -- either a fresh Google signup or linked onto an existing password account by matching email
     -- (see auth/google.ts's account-linking rule).
     ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
+    -- Session tokens are stateless (HMAC-signed, no server-side session table) so they can't be
+    -- individually revoked by id. This is the blunt instrument that makes "log out" and "reset
+    -- password" actually invalidate outstanding tokens instead of leaving them valid until their
+    -- own 30-day expiry: every token now carries the moment it was issued (see session.ts), and
+    -- verifySessionToken rejects any token issued at or before this timestamp. Logging out (or
+    -- resetting a password) bumps it to now(), which invalidates every session on every device at
+    -- once — coarser than per-token revocation, but requires no new table and no per-token state.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_revoked_at TEXT;
 
     -- Single-use, expiring tokens for both email verification and password reset. One table
     -- (distinguished by "purpose") rather than two -- same shape, same lifecycle, same repo methods.

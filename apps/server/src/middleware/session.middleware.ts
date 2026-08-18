@@ -30,7 +30,27 @@ export async function resolveSessionUser(req: Request): Promise<UserRow | undefi
   }
 
   const verified = verifySessionToken(rawToken);
-  return verified ? usersRepo.findById(verified.userId) : undefined;
+  if (!verified) {
+    return undefined;
+  }
+
+  const user = await usersRepo.findById(verified.userId);
+  if (!user) {
+    return undefined;
+  }
+
+  // A token issued strictly before the user's last logout/password-reset is stale even though it
+  // hasn't hit its own 30-day expiry yet — see repositories.ts#revokeSessions and session.ts's
+  // issuedAt comment for why this is the only revocation mechanism a stateless token has. Strict
+  // `<`, not `<=`: a fresh login's token can legitimately land in the very same millisecond as an
+  // immediately-preceding revocation (sequential requests, coarse Date.now() resolution) — using
+  // `<=` would wrongly invalidate a token that was, by definition, issued by an action that
+  // happened after the revocation completed.
+  if (user.sessions_revoked_at && verified.issuedAt < Date.parse(user.sessions_revoked_at)) {
+    return undefined;
+  }
+
+  return user;
 }
 
 /** Dashboard-only auth: requires a valid session (Bearer token or cookie), sets req.user. */

@@ -144,6 +144,10 @@ export async function resetPassword(rawToken: string, newPassword: string): Prom
 
   await authTokensRepo.markUsed(match.id);
   await usersRepo.updatePassword(match.user_id, hashPassword(newPassword));
+  // A password reset almost always means the old password (and anything using it) is considered
+  // compromised — every outstanding session token dies immediately rather than staying valid for
+  // up to its normal 30-day life. See repositories.ts#revokeSessions.
+  await usersRepo.revokeSessions(match.user_id);
 }
 
 /**

@@ -44,6 +44,27 @@ function warnAboutScalingRisks(): void {
         "dashboard cross-origin.",
     );
   }
+
+  // CORS_ALLOWED_ORIGINS being set is the best available signal that this is a real multi-tenant
+  // Cloud-style deployment (a solo self-hosted operator has no reason to configure it — see its
+  // schema comment). OPENOTA_API_KEY unlocks the *legacy flat* /api/packages surface (routes.ts),
+  // whose list/getOne/download endpoints have zero auth and zero project scoping by design, for a
+  // single-operator deployment that predates the multi-tenant project model entirely. The two
+  // together mean that surface is live, unauthenticated, and globally-scoped on what looks like a
+  // Cloud deployment — see the Phase 2 security audit's F-3 finding. Not a hard failure (it may be
+  // a deliberate, understood choice), but worth a loud warning since it's easy to end up here by
+  // accident (e.g. OPENOTA_API_KEY left over from an earlier single-tenant setup).
+  if (env.apiKey && env.corsAllowedOrigins) {
+    logger.warn(
+      "Both OPENOTA_API_KEY and CORS_ALLOWED_ORIGINS are set: this looks like a multi-tenant Cloud " +
+        "deployment (CORS_ALLOWED_ORIGINS) that also has the legacy single-tenant flat package surface " +
+        "unlocked (OPENOTA_API_KEY). /api/packages, /api/v1/packages, and /packages have unauthenticated, " +
+        "unscoped list/read/download endpoints by design for that legacy surface — if anything is ever " +
+        "uploaded through it here, it becomes globally public with no project isolation. If this is " +
+        "intentional, ignore this warning; if OPENOTA_API_KEY is a leftover from before this deployment " +
+        "adopted multi-tenant projects, unset it.",
+    );
+  }
 }
 
 warnAboutScalingRisks();

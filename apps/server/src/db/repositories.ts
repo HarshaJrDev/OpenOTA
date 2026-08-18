@@ -9,6 +9,7 @@ export interface UserRow {
   email_verified: boolean;
   created_at: string;
   google_id: string | null;
+  sessions_revoked_at: string | null;
 }
 
 export interface AuthTokenRow {
@@ -143,6 +144,7 @@ export const usersRepo = {
       email_verified: false,
       created_at: new Date().toISOString(),
       google_id: null,
+      sessions_revoked_at: null,
     };
     await query(
       "INSERT INTO users (id, email, password_hash, email_verified, created_at) VALUES ($1, $2, $3, $4, $5)",
@@ -175,6 +177,7 @@ export const usersRepo = {
       email_verified: true,
       created_at: new Date().toISOString(),
       google_id: googleId,
+      sessions_revoked_at: null,
     };
     await query(
       "INSERT INTO users (id, email, password_hash, email_verified, created_at, google_id) VALUES ($1, $2, $3, $4, $5, $6)",
@@ -186,6 +189,11 @@ export const usersRepo = {
    * than creating a duplicate — also marks the email verified, since Google just proved it. */
   async linkGoogleId(id: string, googleId: string): Promise<void> {
     await query("UPDATE users SET google_id = $1, email_verified = TRUE WHERE id = $2", [googleId, id]);
+  },
+  /** Invalidates every outstanding session token for this user as of now (see client.ts's
+   * sessions_revoked_at comment) — called on logout and on a successful password reset. */
+  async revokeSessions(id: string): Promise<void> {
+    await query("UPDATE users SET sessions_revoked_at = $1 WHERE id = $2", [new Date().toISOString(), id]);
   },
 };
 

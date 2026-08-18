@@ -2,8 +2,9 @@ import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { env } from "../../config/env.js";
+import { usersRepo } from "../../db/repositories.js";
 import { authRateLimiter } from "../../middleware/rateLimit.middleware.js";
-import { requireSession } from "../../middleware/session.middleware.js";
+import { requireSession, resolveSessionUser } from "../../middleware/session.middleware.js";
 import { sendSuccess } from "../../shared/responses.js";
 import { getEmailTestMode } from "../admin/service.js";
 import { setSessionCookie, clearSessionCookie } from "./cookie.js";
@@ -73,9 +74,19 @@ authRouter.get("/google/callback", authRateLimiter, async (req, res) => {
   }
 });
 
-authRouter.post("/logout", (_req, res) => {
-  clearSessionCookie(res);
-  sendSuccess(res, { loggedOut: true });
+authRouter.post("/logout", async (req, res, next) => {
+  try {
+    // Best-effort: an already-invalid/missing token just means there's nothing to revoke. Always
+    // clear the cookie and return success regardless — logout must never fail for the client.
+    const user = await resolveSessionUser(req).catch(() => undefined);
+    if (user) {
+      await usersRepo.revokeSessions(user.id);
+    }
+    clearSessionCookie(res);
+    sendSuccess(res, { loggedOut: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.get("/me", requireSession, async (req, res, next) => {
