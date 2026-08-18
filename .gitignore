@@ -80,3 +80,16 @@ apps/server/data/
 # NearDeals_Mobile is its own separate git repo (github.com/knkgroupservices/NearDeals_Mobile),
 # just nested inside this folder on disk for local convenience — never part of this repo.
 NearDeals_Mobile/
+
+# Mobile signing material and cloud service-account credentials — none of these have ever been
+# committed (verified via full git history scan), added proactively so an Android keystore, iOS
+# provisioning profile/certificate, or a GCP/Firebase service-account JSON can never land in a
+# commit by accident.
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+credentials.json
+service-account*.json
+google-services.json
