@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import {
   BUNDLES_DIR,
   CACHE_DIR,
@@ -10,7 +11,22 @@ import RNFS from "react-native-fs";
 import { OTAError } from "../errors.js";
 
 export function getRootDir(): string {
-  return `${RNFS.DocumentDirectoryPath}/${OPENOTA_ROOT_DIR}`;
+  // The iOS native module (BundleStorage.swift, packages/native-ios) deliberately roots the
+  // OpenOTA tree under Application Support (NSApplicationSupportDirectory), not Documents —
+  // Documents is user-visible/iCloud-backed, and Apple's own guidance is that app-managed,
+  // non-user-facing data like this belongs in Application Support instead. This resolver must
+  // mirror that exactly: assertWithinRoot() here and native's own resolveWithinRoot() both do a
+  // hard prefix check against "the OpenOTA root", so any mismatch between the two makes every
+  // iOS bundle activation fail with PATH_SECURITY_ERROR ("escapes the OpenOTA root directory") —
+  // which happened unconditionally on iOS before this branch existed, since
+  // RNFS.DocumentDirectoryPath and Application Support are two different directories. Android's
+  // own native module expects DocumentDirectoryPath, so that branch is unchanged.
+  const base =
+    Platform.OS === "ios"
+      ? `${RNFS.LibraryDirectoryPath}/Application Support`
+      : RNFS.DocumentDirectoryPath;
+
+  return `${base}/${OPENOTA_ROOT_DIR}`;
 }
 
 export function getDownloadsDir(): string {
