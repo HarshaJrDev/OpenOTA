@@ -40,6 +40,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc",
+    "postbuild": "chmod +x dist/cli.js",
     "prepublishOnly": "pnpm run build",
     "start": "node dist/cli.js",
     "test": "vitest run",
