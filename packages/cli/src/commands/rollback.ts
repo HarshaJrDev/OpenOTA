@@ -5,7 +5,8 @@ import { loadConfig } from "../services/config.service.js";
 import { getApiKey } from "../services/credentials.service.js";
 import { rollbackEndpoint } from "../services/endpoints.js";
 import type { Platform } from "../types/index.js";
-import { log, startSpinner, succeed } from "../utils/logger.js";
+import { describeApiError } from "../utils/api-error.js";
+import { fail, log, startSpinner, succeed } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
 
 interface RollbackCommandOptions {
@@ -19,18 +20,26 @@ export async function runRollback(options: RollbackCommandOptions): Promise<void
   const root = getProjectRoot();
   const config = await loadConfig(root);
   const apiKey = await getApiKey(config.serverUrl);
+  if (!apiKey) {
+    throw new Error(`Not logged in for ${config.serverUrl}. Run \`openota login --api-key <key>\` first.`);
+  }
   const client = createApiClient(config, apiKey);
 
   const spinner = startSpinner(`Rolling back ${options.platform} to v${options.version}...`);
 
-  await client.post(rollbackEndpoint(config), {
-    platform: options.platform,
-    version: options.version,
-    channel: options.channel ?? config.channel,
-    reason: options.reason,
-  });
+  try {
+    await client.post(rollbackEndpoint(config), {
+      platform: options.platform,
+      version: options.version,
+      channel: options.channel ?? config.channel,
+      reason: options.reason,
+    });
 
-  succeed(spinner, `Rolled back ${options.platform} to v${options.version}`);
+    succeed(spinner, `Rolled back ${options.platform} to v${options.version}`);
+  } catch (error) {
+    fail(spinner, `Rollback failed: ${describeApiError(error)}`);
+    throw new Error(describeApiError(error));
+  }
 }
 
 export function registerRollbackCommand(program: Command): void {

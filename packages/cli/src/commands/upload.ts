@@ -10,7 +10,8 @@ import { getApiKey } from "../services/credentials.service.js";
 import { packagesEndpoint } from "../services/endpoints.js";
 import { uploadPackage } from "../services/upload.service.js";
 import type { Platform } from "../types/index.js";
-import { log, startSpinner, succeed } from "../utils/logger.js";
+import { describeApiError } from "../utils/api-error.js";
+import { fail, log, startSpinner, succeed } from "../utils/logger.js";
 import { getProjectRoot } from "../utils/paths.js";
 
 interface UploadCommandOptions {
@@ -25,6 +26,9 @@ export async function runUpload(options: UploadCommandOptions): Promise<void> {
   const root = getProjectRoot();
   const config = await loadConfig(root);
   const apiKey = await getApiKey(config.serverUrl);
+  if (!apiKey) {
+    throw new Error(`Not logged in for ${config.serverUrl}. Run \`openota login --api-key <key>\` first.`);
+  }
   const client = createApiClient(config, apiKey);
 
   // The manifest built alongside the zip (by `openota build`) is the authoritative source for
@@ -36,26 +40,31 @@ export async function runUpload(options: UploadCommandOptions): Promise<void> {
 
   const spinner = startSpinner("Uploading package (0%)...");
 
-  const uploaded = await uploadPackage(
-    client,
-    packagesEndpoint(config),
-    {
-      zipPath,
-      platform: options.platform,
-      version: options.version,
-      runtimeVersion: manifest.runtimeVersion,
-      bundleName: manifest.bundleName,
-      sha256: manifest.sha256,
-      size: manifest.size,
-      channel: options.channel ?? config.channel,
-      releaseNotes: options.releaseNotes,
-    },
-    (percent) => {
-      spinner.text = `Uploading package (${percent}%)...`;
-    },
-  );
+  try {
+    const uploaded = await uploadPackage(
+      client,
+      packagesEndpoint(config),
+      {
+        zipPath,
+        platform: options.platform,
+        version: options.version,
+        runtimeVersion: manifest.runtimeVersion,
+        bundleName: manifest.bundleName,
+        sha256: manifest.sha256,
+        size: manifest.size,
+        channel: options.channel ?? config.channel,
+        releaseNotes: options.releaseNotes,
+      },
+      (percent) => {
+        spinner.text = `Uploading package (${percent}%)...`;
+      },
+    );
 
-  succeed(spinner, `Uploaded successfully: ${uploaded.downloadUrl}`);
+    succeed(spinner, `Uploaded successfully: ${uploaded.downloadUrl}`);
+  } catch (error) {
+    fail(spinner, `Upload failed: ${describeApiError(error)}`);
+    throw new Error(describeApiError(error));
+  }
 }
 
 export function registerUploadCommand(program: Command): void {

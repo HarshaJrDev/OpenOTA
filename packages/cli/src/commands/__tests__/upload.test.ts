@@ -10,6 +10,7 @@ const uploadPackage = vi.fn().mockResolvedValue({ downloadUrl: "https://example.
 
 vi.mock("../../services/upload.service.js", () => ({ uploadPackage }));
 vi.mock("../../services/api.service.js", () => ({ createApiClient: vi.fn().mockReturnValue({}) }));
+vi.mock("../../services/credentials.service.js", () => ({ getApiKey: vi.fn().mockResolvedValue("test-api-key") }));
 
 let root: string;
 let zipPath: string;

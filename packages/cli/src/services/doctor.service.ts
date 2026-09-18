@@ -121,8 +121,19 @@ async function checkConfig(root: string): Promise<DoctorCheckResult> {
   };
 }
 
-/** Never logs/prints the key itself — only whether one is present and the credentials file's permission mode. */
-async function checkAuthentication(root: string): Promise<DoctorCheckResult> {
+/**
+ * Never logs/prints the key itself — only whether one is present, the credentials file's
+ * permission mode, and what the server actually said about it.
+ *
+ * This used to stop at "is a key present locally" — it never asked the server whether that key
+ * still works. That's exactly how `doctor` could report "Authentication: logged in" while the
+ * very next `openota release` 401ed: the key had gone stale (rotated server-side, revoked, or
+ * simply wrong) and nothing before the real upload request ever exercised it against the server.
+ * `checkProjectAccess` below does call the server, but only when `projectId` is configured — a
+ * self-hosted/flat setup (no projectId, this bug's exact shape) skipped server validation
+ * entirely. Reusing `resolveProjectFromKey` here closes that gap for every setup, not just Cloud.
+ */
+export async function checkAuthentication(root: string): Promise<DoctorCheckResult> {
   try {
     const config = await loadConfig(root);
 
@@ -149,7 +160,37 @@ async function checkAuthentication(root: string): Promise<DoctorCheckResult> {
       };
     }
 
-    return { name: "Authentication", ok: true, message: "logged in" };
+    const resolution = await resolveProjectFromKey(config.serverUrl, apiKey);
+    switch (resolution.kind) {
+      case "rejected":
+        return {
+          name: "Authentication",
+          ok: false,
+          message: `API key rejected by the server (${resolution.detail}) — it may be invalid, expired, or revoked. Run \`openota login --api-key <key>\` again with a valid key.`,
+        };
+      case "unreachable":
+        // Don't fail Authentication for a transient network blip — "Server Reachability" already
+        // surfaces this separately. A locally-present key is the best available signal here.
+        return { name: "Authentication", ok: true, message: `logged in (could not verify against server: ${resolution.detail})` };
+      case "flat-key":
+        if (config.projectId) {
+          return {
+            name: "Authentication",
+            ok: false,
+            message: `openota.config.json has projectId set (${config.projectId}), but this key is a self-hosted flat key with no project system — releases would go to the unscoped flat routes instead. Run \`openota login --api-key <key>\` with a project-scoped key, or remove projectId.`,
+          };
+        }
+        return { name: "Authentication", ok: true, message: "logged in (self-hosted flat key)" };
+      case "project":
+        if (!config.projectId) {
+          return {
+            name: "Authentication",
+            ok: false,
+            message: `this key belongs to project "${resolution.project.name}" (${resolution.project.id}), but openota.config.json has no projectId set — releases would silently go to the unscoped flat routes instead. Run \`openota login --api-key <key>\` again to link the project.`,
+          };
+        }
+        return { name: "Authentication", ok: true, message: `logged in as "${resolution.project.name}"` };
+    }
   } catch {
     return { name: "Authentication", ok: false, message: "openota.config.json missing (run `openota init`)" };
   }
