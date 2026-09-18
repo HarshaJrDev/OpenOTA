@@ -1,5 +1,11 @@
 # @openota/cli
 
+## 0.2.7
+
+### Patch Changes
+
+- Fix `@openota/cli@0.2.6` being unpublishable/uninstallable: it was published via plain `npm publish` instead of `pnpm publish`, which does not rewrite the `workspace:*` protocol used for the internal `@openota/shared` dependency — the registry ended up with the literal string `"workspace:*"` in `dependencies`, which `npm install` cannot resolve at all (`EUNSUPPORTEDPROTOCOL`). This republishes with the dependency correctly resolved to a real version, the same way 0.2.4/0.2.5 were.
+
 ## 0.2.6
 
 ### Patch Changes
